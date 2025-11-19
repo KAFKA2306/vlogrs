@@ -1,5 +1,11 @@
 # Repository Guidelines
 
+Documents must be written by Japanese.
+Response in Japanese to User.
+
+
+create and update README.md in all directories in Japanese
+
 ## Project Structure & Module Organization
 The project is source-first: `src/main.py` launches `Application`, which orchestrates the process monitor and recorder. Long-running orchestration lives in `src/app.py`; reusable infrastructure (settings, audio capture, Whisper-based transcription, summarization, process monitoring) sits in `src/infrastructure/`. Domain DTOs live in `src/domain/`, while executable workflows reside under `src/services/recorder_service.py` and `src/services/processor_service.py`. Runtime artifacts such as `recordings/` and `diaries/` are created alongside the repo root and should be kept out of version control thanks to `.gitignore`. Add future tests under a top-level `tests/` package mirroring `src/`.
 

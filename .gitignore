@@ -22,3 +22,9 @@ dist/
 # OS-specific
 .DS_Store
 
+# Local configuration
+.env
+
+# Runtime artifacts
+recordings/
+diaries/

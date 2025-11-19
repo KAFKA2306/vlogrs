@@ -1,39 +1,33 @@
-import glob
-import os
 from datetime import datetime
 
-from src.infrastructure.settings import settings
+from src.domain.entities import DiaryEntry, RecordingSession
+from src.infrastructure.diary_writer import DiaryWriter
 from src.infrastructure.summarizer import Summarizer
 from src.infrastructure.transcriber import Transcriber
 
 
-def get_latest_recording():
-    list_of_files = glob.glob(os.path.join(settings.recording_dir, "*.wav"))
-    if not list_of_files:
-        return None
-    return max(list_of_files, key=os.path.getctime)
+class ProcessorService:
+    def __init__(
+        self,
+        transcriber: Transcriber,
+        summarizer: Summarizer,
+        diary_writer: DiaryWriter,
+    ):
+        self._transcriber = transcriber
+        self._summarizer = summarizer
+        self._diary_writer = diary_writer
 
-
-def main():
-    audio_path = get_latest_recording()
-    if not audio_path:
-        return
-
-    transcriber = Transcriber()
-    text = transcriber.transcribe(audio_path)
-
-    summarizer = Summarizer()
-    summary = summarizer.summarize(text)
-
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    diary_path = os.path.join(settings.diary_dir, f"{date_str}_vrchat.md")
-    os.makedirs(settings.diary_dir, exist_ok=True)
-
-    with open(diary_path, "a", encoding="utf-8") as f:
-        f.write(f"\n## Session {datetime.now().strftime('%H:%M')}\n\n")
-        f.write(f"{summary}\n\n")
-        f.write(f"### Raw Log\n{text}\n")
-
-
-if __name__ == "__main__":
-    main()
+    def process_session(self, session: RecordingSession) -> DiaryEntry:
+        transcript = self._transcriber.transcribe(session.file_path)
+        summary = self._summarizer.summarize(transcript, session)
+        completed_at = session.end_time or datetime.now()
+        entry = DiaryEntry(
+            date=completed_at,
+            summary=summary,
+            raw_log=transcript,
+            session_start=session.start_time,
+            session_end=completed_at,
+        )
+        diary_path = self._diary_writer.write(entry)
+        entry.diary_path = diary_path
+        return entry

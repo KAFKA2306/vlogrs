@@ -1,21 +1,34 @@
-import signal
-import sys
+from datetime import datetime
 
+from src.domain.entities import RecordingSession
 from src.infrastructure.audio_recorder import AudioRecorder
 
 
-def main():
-    recorder = AudioRecorder()
+class RecorderService:
+    def __init__(self, recorder: AudioRecorder):
+        self._recorder = recorder
+        self._active_session: RecordingSession | None = None
 
-    def signal_handler(sig, frame):
-        recorder.stop()
-        sys.exit(0)
+    @property
+    def active_session(self) -> RecordingSession | None:
+        return self._active_session
 
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
+    def start_session(self) -> RecordingSession:
+        if self._active_session:
+            return self._active_session
+        file_path = self._recorder.start()
+        session = RecordingSession(start_time=datetime.now(), file_path=file_path)
+        self._active_session = session
+        return session
 
-    recorder.start()
-
-
-if __name__ == "__main__":
-    main()
+    def stop_session(self) -> RecordingSession | None:
+        if not self._active_session:
+            return None
+        recorded_path = self._recorder.stop() or self._active_session.file_path
+        session = RecordingSession(
+            start_time=self._active_session.start_time,
+            file_path=recorded_path,
+            end_time=datetime.now(),
+        )
+        self._active_session = None
+        return session

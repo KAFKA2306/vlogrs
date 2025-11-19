@@ -10,5 +10,10 @@ class Transcriber:
             device=settings.whisper_device,
             compute_type=settings.whisper_compute_type,
         )
-        segments, _ = model.transcribe(audio_path, beam_size=5)
-        return " ".join([segment.text for segment in segments])
+        segments, _ = model.transcribe(
+            audio_path,
+            beam_size=settings.whisper_beam_size,
+            vad_filter=settings.whisper_vad_filter,
+        )
+        transcript = " ".join(segment.text.strip() for segment in segments)
+        return transcript.strip()
