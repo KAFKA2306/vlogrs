@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 
@@ -11,6 +12,9 @@ from src.services.processor_service import ProcessorService
 from src.services.recorder_service import RecorderService
 
 
+logger = logging.getLogger(__name__)
+
+
 class Application:
     def __init__(self):
         self._monitor = ProcessMonitor()
@@ -20,24 +24,30 @@ class Application:
             Summarizer(),
             DiaryWriter(),
         )
+        logger.info("Application initialized")
 
     def run(self):
+        logger.info("Application started")
         try:
             while True:
                 self._tick()
                 time.sleep(settings.check_interval)
         except KeyboardInterrupt:
+            logger.info("Application stopping due to KeyboardInterrupt")
             self._shutdown()
 
     def _tick(self):
         running = self._monitor.is_running()
         active_session = self._recorder_service.active_session
         if running and active_session is None:
+            logger.info("VRChat process detected. Starting recording session.")
             self._recorder_service.start_session()
             return
         if not running and active_session is not None:
+            logger.info("VRChat process ended. Stopping recording session.")
             session = self._recorder_service.stop_session()
             if session:
+                logger.info("Starting background processing for session.")
                 threading.Thread(
                     target=self._processor_service.process_session,
                     args=(session,),
@@ -45,6 +55,7 @@ class Application:
                 ).start()
 
     def _shutdown(self):
+        logger.info("Shutting down application...")
         session = self._recorder_service.stop_session()
         if session:
             self._processor_service.process_session(session)

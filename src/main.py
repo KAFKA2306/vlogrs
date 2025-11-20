@@ -1,5 +1,21 @@
+import logging
+import sys
+
 from src.app import Application
 
+
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler("vlog.log", encoding="utf-8"),
+        ],
+    )
+
+
 if __name__ == "__main__":
+    setup_logging()
     app = Application()
     app.run()

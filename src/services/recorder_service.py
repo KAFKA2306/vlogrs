@@ -1,7 +1,11 @@
+import logging
 from datetime import datetime
 
 from src.domain.entities import RecordingSession
 from src.infrastructure.audio_recorder import AudioRecorder
+
+
+logger = logging.getLogger(__name__)
 
 
 class RecorderService:
@@ -17,6 +21,7 @@ class RecorderService:
         if self._active_session:
             return self._active_session
         file_path = self._recorder.start()
+        logger.info(f"Started recording to {file_path}")
         session = RecordingSession(start_time=datetime.now(), file_path=file_path)
         self._active_session = session
         return session
@@ -30,5 +35,6 @@ class RecorderService:
             file_path=recorded_path,
             end_time=datetime.now(),
         )
+        logger.info(f"Stopped recording. Saved to {recorded_path}")
         self._active_session = None
         return session

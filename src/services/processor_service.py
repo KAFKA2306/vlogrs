@@ -1,9 +1,13 @@
+import logging
 from datetime import datetime
 
 from src.domain.entities import DiaryEntry, RecordingSession
 from src.infrastructure.diary_writer import DiaryWriter
 from src.infrastructure.summarizer import Summarizer
 from src.infrastructure.transcriber import Transcriber
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProcessorService:
@@ -18,7 +22,10 @@ class ProcessorService:
         self._diary_writer = diary_writer
 
     def process_session(self, session: RecordingSession) -> DiaryEntry:
+        logger.info(f"Processing session: {session}")
+        logger.info("Transcribing audio...")
         transcript = self._transcriber.transcribe(session.file_path)
+        logger.info("Summarizing transcript...")
         summary = self._summarizer.summarize(transcript, session)
         completed_at = session.end_time or datetime.now()
         entry = DiaryEntry(
@@ -28,6 +35,8 @@ class ProcessorService:
             session_start=session.start_time,
             session_end=completed_at,
         )
+        logger.info("Writing diary entry...")
         diary_path = self._diary_writer.write(entry)
         entry.diary_path = diary_path
+        logger.info(f"Processing complete. Diary saved to {diary_path}")
         return entry
