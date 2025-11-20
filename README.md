@@ -3,9 +3,11 @@
 VRChatのプレイログを自動で記録し、日記としてまとめるツールです。
 
 ## 概要
+
 VRChatが起動している間、自動的にマイク音声を録音し、終了後に音声を文字起こしして要約日記を生成します。
 
 ## 機能
+
 - **プロセス監視**: VRChatの起動・終了を自動検知
 - **自動録音**: プレイ中の音声をバックグラウンドで録音
 - **文字起こし**: Faster Whisperを使用した高速・高精度な文字起こし
@@ -13,6 +15,7 @@ VRChatが起動している間、自動的にマイク音声を録音し、終�
 - **Markdown出力**: 日付ごとにMarkdownファイルとして保存
 
 ## 必要要件
+
 - Python 3.11以上
 - PortAudio (`sudo apt-get install libportaudio2`)
 - Google Gemini APIキー
@@ -21,10 +24,13 @@ VRChatが起動している間、自動的にマイク音声を録音し、終�
 
 1. リポジトリをクローン
 2. 依存関係をインストール
+
    ```bash
    uv sync
    ```
+
 3. 環境変数の設定
+
    ```bash
    cp .env.example .env
    # .envを編集してGOOGLE_API_KEYを設定
@@ -32,12 +38,57 @@ VRChatが起動している間、自動的にマイク音声を録音し、終�
 
 ## 使い方
 
+### systemdサービスとして起動（推奨）
+
+システム起動時に自動的に開始されます。
+
+```bash
+# サービスを有効化して起動
+systemctl --user enable --now vlog.service
+
+# 状態確認
+systemctl --user status vlog
+
+# ログ確認
+journalctl --user -u vlog -f
+```
+
+### go-taskを使用（開発時）
+
+[go-task](https://taskfile.dev/)をインストールしている場合、以下のコマンドが使用できます。
+
+```bash
+# 利用可能なタスク一覧
+task --list
+
+# アプリケーション実行
+task run
+
+# テスト実行
+task test
+
+# コード整形・リント
+task format
+task lint
+task check  # format + lint
+
+# サービス管理
+task service:enable   # サービス有効化・起動
+task service:status   # 状態確認
+task service:logs     # ログ確認
+task service:restart  # 再起動
+```
+
+### 手動起動
+
 ```bash
 uv run python -m src.main
 ```
+
 実行すると常駐し、VRChatの起動を待ち受けます。
 
 ## ディレクトリ構成
+
 - `src/`: ソースコード
 - `tests/`: テストコード
 - `recordings/`: 録音データ（自動生成）
