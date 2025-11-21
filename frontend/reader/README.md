@@ -21,4 +21,4 @@ npx vercel --prod   # project: kaflog
 
 ## Public URL
 
-https://kaflog-otovlmp1s-kafka2306s-projects.vercel.app
+<https://kaflog-otovlmp1s-kafka2306s-projects.vercel.app/>
