@@ -42,6 +42,14 @@ tasks:
     desc: systemdユーザーサービスを再起動
     cmd: systemctl --user restart vlog
 
+  reader:dev:
+    desc: frontend/reader を 0.0.0.0:3000 で起動
+    cmd: cd frontend/reader && npm run dev -- --hostname 0.0.0.0 --port 3000
+
+  reader:deploy:
+    desc: frontend/reader を Vercel (kaflog) にデプロイ
+    cmd: cd frontend/reader && npx vercel --prod
+
   record:
     desc: 手動録音を開始 (Ctrl+Cで停止)
     cmd: uv run python -m src.cli record
