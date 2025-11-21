@@ -64,7 +64,7 @@ def cmd_summarize(args):
 def cmd_process(args):
     transcriber = Transcriber()
     print(f"Transcribing {args.file}...")
-    transcript = transcriber.transcribe(args.file)
+    transcript, transcript_path = transcriber.transcribe_and_save(args.file)
     transcriber.unload()
     try:
         basename = args.file.split("/")[-1].split(".")[0]
@@ -81,14 +81,33 @@ def cmd_process(args):
     preprocessor = TranscriptPreprocessor()
     cleaned_transcript = preprocessor.process(transcript)
 
+    # Save cleaned transcript
+    cleaned_path = Path(transcript_path).with_name(
+        f"cleaned_{Path(transcript_path).name}"
+    )
+    cleaned_path.write_text(cleaned_transcript, encoding="utf-8")
+
     summarizer = Summarizer()
     print("Summarizing...")
     summary = summarizer.summarize(cleaned_transcript, session)
 
-    output_path = Path("summaries") / f"{Path(args.file).stem}_summary.txt"
-    output_path.parent.mkdir(exist_ok=True)
-    output_path.write_text(summary, encoding="utf-8")
-    print(f"Processing complete. Summary saved to: {output_path}")
+    # Date-based summary naming
+    date_str = start_time.strftime("%Y%m%d")
+    summary_path = Path("summaries") / f"{date_str}_summary.txt"
+    summary_path.parent.mkdir(exist_ok=True)
+
+    if summary_path.exists():
+        existing = summary_path.read_text(encoding="utf-8")
+        start = start_time.strftime("%H:%M")
+        end = datetime.now().strftime("%H:%M")
+        time_range = f"{start}-{end}"
+        combined = f"{existing}\n\n---\n\n## Session {time_range}\n\n{summary}"
+        summary_path.write_text(combined, encoding="utf-8")
+        print(f"Appended to existing daily summary: {summary_path}")
+    else:
+        summary_path.write_text(summary, encoding="utf-8")
+        print(f"Created new daily summary: {summary_path}")
+
     sync_supabase()
 
 
