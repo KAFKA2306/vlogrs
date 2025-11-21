@@ -1,8 +1,8 @@
 import logging
-from datetime import datetime
+from pathlib import Path
 
-from src.domain.entities import DiaryEntry, RecordingSession
-from src.infrastructure.diary_writer import DiaryWriter
+from src.domain.entities import RecordingSession
+from src.infrastructure.preprocessor import TranscriptPreprocessor
 from src.infrastructure.summarizer import Summarizer
 from src.infrastructure.transcriber import Transcriber
 
@@ -14,36 +14,38 @@ class ProcessorService:
         self,
         transcriber: Transcriber,
         summarizer: Summarizer,
-        diary_writer: DiaryWriter,
+        preprocessor: TranscriptPreprocessor,
     ):
         self._transcriber = transcriber
         self._summarizer = summarizer
-        self._diary_writer = diary_writer
+        self._preprocessor = preprocessor
 
-    def process_session(self, session: RecordingSession) -> DiaryEntry:
+    def process_session(self, session: RecordingSession) -> str:
         logger.info(f"Processing session: {session}")
         logger.info("Transcribing audio...")
         transcript, transcript_path = self._transcriber.transcribe_and_save(
             session.file_path
         )
         self._transcriber.unload()
+
+        logger.info("Preprocessing transcript...")
+        cleaned_transcript = self._preprocessor.process(transcript)
+
+        cleaned_path = Path(transcript_path).with_name(
+            f"cleaned_{Path(transcript_path).name}"
+        )
+        cleaned_path.write_text(cleaned_transcript, encoding="utf-8")
+        logger.info(f"Cleaned transcript saved to {cleaned_path}")
+
         logger.info("Summarizing transcript...")
-        summary = self._summarizer.summarize(transcript, session)
-        completed_at = session.end_time or datetime.now()
-        entry = DiaryEntry(
-            date=completed_at,
-            summary=summary,
-            raw_log=transcript,
-            session_start=session.start_time,
-            session_end=completed_at,
-            transcript_path=transcript_path,
-        )
-        logger.info("Writing diary entry...")
-        diary_path = self._diary_writer.write(entry)
-        entry.diary_path = diary_path
+        summary = self._summarizer.summarize(cleaned_transcript, session)
+
+        summary_path = Path("summaries") / f"{Path(session.file_path).stem}_summary.txt"
+        summary_path.parent.mkdir(exist_ok=True)
+        summary_path.write_text(summary, encoding="utf-8")
+
         logger.info(
-            "Processing complete. Transcript saved to %s, diary saved to %s",
-            transcript_path,
-            diary_path,
+            "Processing complete. Summary saved to %s",
+            summary_path,
         )
-        return entry
+        return str(summary_path)

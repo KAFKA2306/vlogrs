@@ -38,7 +38,9 @@ class Transcriber:
                     ctypes.CDLL(str(lib), mode=ctypes.RTLD_GLOBAL)
                     logger.debug("CUDAライブラリをプリロード: %s", lib)
                 except OSError as exc:
-                    logger.warning("CUDAライブラリをロードできませんでした: %s (%s)", lib, exc)
+                    logger.warning(
+                        "CUDAライブラリをロードできませんでした: %s (%s)", lib, exc
+                    )
 
     def _cuda_libraries_present(self) -> bool:
         import ctypes
@@ -55,7 +57,9 @@ class Transcriber:
                 ctypes.CDLL(str(lib_path))
                 loaded_any = True
             except OSError as exc:
-                logger.warning("CUDAライブラリ未検出: %s (%s)", lib_path, exc)
+                logger.warning(
+                    "CUDAライブラリをロードできませんでした: %s (%s)", lib_path, exc
+                )
                 return False
         return loaded_any
 
@@ -68,7 +72,9 @@ class Transcriber:
         }
 
         if device.startswith("cuda") and not force_cuda:
-            logger.info("デフォルトで安全策としてCPUに切替（VLOG_ALLOW_UNSAFE_CUDA=1で強制GPU）")
+            logger.info(
+                "デフォルトで安全策としてCPUに切替（VLOG_ALLOW_UNSAFE_CUDA=1で強制GPU）"
+            )
             device = "cpu"
         if device.startswith("cuda") and not self._cuda_libraries_present():
             logger.info("CUDAライブラリ不足のためCPUへフォールバック")
@@ -114,7 +120,8 @@ class Transcriber:
                     break
                 except Exception as exc:
                     msg = (
-                        f"size={model_size} device={device} compute={compute_type}: {exc}"
+                        f"size={model_size} device={device} "
+                        f"compute={compute_type}: {exc}"
                     )
                     logger.warning("Whisperロード失敗: %s", msg)
                     errors.append(msg)

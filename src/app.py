@@ -3,7 +3,7 @@ import threading
 import time
 
 from src.infrastructure.audio_recorder import AudioRecorder
-from src.infrastructure.diary_writer import DiaryWriter
+from src.infrastructure.preprocessor import TranscriptPreprocessor
 from src.infrastructure.process_monitor import ProcessMonitor
 from src.infrastructure.settings import settings
 from src.infrastructure.summarizer import Summarizer
@@ -21,7 +21,7 @@ class Application:
         self._processor_service = ProcessorService(
             Transcriber(),
             Summarizer(),
-            DiaryWriter(),
+            TranscriptPreprocessor(),
         )
         logger.info("Application initialized")
 
@@ -48,9 +48,3 @@ class Application:
                     args=(session,),
                     daemon=True,
                 ).start()
-
-    def _shutdown(self):
-        logger.info("Shutting down application...")
-        session = self._recorder_service.stop_session()
-        if session:
-            self._processor_service.process_session(session)

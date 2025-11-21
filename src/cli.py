@@ -1,10 +1,11 @@
 import argparse
 import time
 from datetime import datetime
+from pathlib import Path
 
-from src.domain.entities import DiaryEntry, RecordingSession
+from src.domain.entities import RecordingSession
 from src.infrastructure.audio_recorder import AudioRecorder
-from src.infrastructure.diary_writer import DiaryWriter
+from src.infrastructure.preprocessor import TranscriptPreprocessor
 from src.infrastructure.process_monitor import ProcessMonitor
 from src.infrastructure.summarizer import Summarizer
 from src.infrastructure.transcriber import Transcriber
@@ -38,30 +39,24 @@ def cmd_transcribe(args):
 def cmd_summarize(args):
     with open(args.file, "r", encoding="utf-8") as f:
         text = f.read()
+
+    print("Preprocessing transcript...")
+    preprocessor = TranscriptPreprocessor()
+    cleaned_text = preprocessor.process(text)
+
     session = RecordingSession(
         file_path="dummy", start_time=datetime.now(), end_time=datetime.now()
     )
     summarizer = Summarizer()
     print("Summarizing...")
-    summary = summarizer.summarize(text, session)
+    summary = summarizer.summarize(cleaned_text, session)
     print("--- Summary ---")
     print(summary)
 
-
-def cmd_write(args):
-    with open(args.file, "r", encoding="utf-8") as f:
-        text = f.read()
-    now = datetime.now()
-    entry = DiaryEntry(
-        date=now,
-        summary=text,
-        raw_log="",
-        session_start=now,
-        session_end=now,
-    )
-    writer = DiaryWriter()
-    path = writer.write(entry)
-    print(f"Diary entry written to: {path}")
+    output_path = Path("summaries") / f"{Path(args.file).stem}_summary.txt"
+    output_path.parent.mkdir(exist_ok=True)
+    output_path.write_text(summary, encoding="utf-8")
+    print(f"\nSummary saved to: {output_path}")
 
 
 def cmd_process(args):
@@ -79,19 +74,19 @@ def cmd_process(args):
         start_time=start_time,
         end_time=datetime.now(),
     )
+
+    print("Preprocessing transcript...")
+    preprocessor = TranscriptPreprocessor()
+    cleaned_transcript = preprocessor.process(transcript)
+
     summarizer = Summarizer()
     print("Summarizing...")
-    summary = summarizer.summarize(transcript, session)
-    entry = DiaryEntry(
-        date=start_time,
-        summary=summary,
-        raw_log=transcript,
-        session_start=start_time,
-        session_end=datetime.now(),
-    )
-    writer = DiaryWriter()
-    path = writer.write(entry)
-    print(f"Processing complete. Diary entry written to: {path}")
+    summary = summarizer.summarize(cleaned_transcript, session)
+
+    output_path = Path("summaries") / f"{Path(args.file).stem}_summary.txt"
+    output_path.parent.mkdir(exist_ok=True)
+    output_path.write_text(summary, encoding="utf-8")
+    print(f"Processing complete. Summary saved to: {output_path}")
 
 
 def main():
@@ -121,7 +116,6 @@ def main():
         "record": cmd_record,
         "transcribe": cmd_transcribe,
         "summarize": cmd_summarize,
-        "write": cmd_write,
         "process": cmd_process,
     }
 

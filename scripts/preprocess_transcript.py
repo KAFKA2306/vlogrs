@@ -1,85 +1,11 @@
 #!/usr/bin/env python3
 
-import re
 import argparse
 from pathlib import Path
 
-
-def load_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+from src.infrastructure.preprocessor import TranscriptPreprocessor
 
 
-def save_text(path: Path, txt: str) -> None:
-    path.write_text(txt, encoding="utf-8")
-
-
-def remove_fillers(txt: str, mask: bool = False, aggressive: bool = False) -> str:
-    fillers = [
-        r"えー",
-        r"あのー",
-        r"うーん",
-        r"えっと",
-        r"なんて",
-        r"まあ",
-        r"そうですね",
-        r"あー",
-        r"んー",
-    ]
-
-    if aggressive:
-        fillers.extend(
-            [
-                r"うん",
-                r"ふん",
-                r"あ",
-                r"はは",
-                r"ははは",
-                r"なんか",
-                r"え",
-                r"お",
-                r"ふんふん",
-                r"ふんふんふん",
-                r"うんうん",
-                r"うんうんうん",
-                r"はいはい",
-                r"はいはいはい",
-                r"はいはいはいはい",
-                r"おー",
-            ]
-        )
-
-    fillers.sort(key=len, reverse=True)
-    pattern_str = "|".join(fillers)
-    pattern = f"(?:^|\\s)({pattern_str})(?=[\\s、。?!]|$)"
-
-    def repl(m):
-        if mask:
-            return " [FILLER] "
-        return " "
-
-    prev_txt = ""
-    while txt != prev_txt:
-        prev_txt = txt
-        txt = re.sub(pattern, " ", txt)
-
-    txt = re.sub(r"\s+", " ", txt).strip()
-
-    txt = re.sub(r"([、。])\1+", r"\1", txt)
-    txt = re.sub(r"^[、。]+", "", txt).strip()
-    txt = re.sub(r"\s+[、。]+", "", txt)
-    txt = re.sub(r"\s+", " ", txt).strip()
-
-    return txt
-
-
-def dedupe_words(txt: str) -> str:
-    return re.sub(r"(\S+)\s+\1\b", r"\1", txt)
-
-
-def merge_lines(txt: str) -> str:
-    txt = txt.replace("\n", " ")
-    txt = re.sub(r"\s+", " ", txt).strip()
-    return txt
 
 
 def main():
@@ -108,19 +34,22 @@ def main():
         print(f"Error: File {args.infile} not found.")
         return
 
-    txt = load_text(args.infile)
+    preprocessor = TranscriptPreprocessor()
+    txt = args.infile.read_text(encoding="utf-8")
 
     if args.remove_fillers:
-        txt = remove_fillers(txt, mask=args.mask_fillers, aggressive=args.aggressive)
+        txt = preprocessor.remove_fillers(
+            txt, mask=args.mask_fillers, aggressive=args.aggressive
+        )
 
     if args.dedupe:
-        txt = dedupe_words(txt)
+        txt = preprocessor.dedupe_words(txt)
 
     if args.merge_lines:
-        txt = merge_lines(txt)
+        txt = preprocessor.merge_lines(txt)
 
     if args.outfile:
-        save_text(args.outfile, txt)
+        args.outfile.write_text(txt, encoding="utf-8")
         print(f"Processed text saved to {args.outfile}")
     else:
         print(txt)
