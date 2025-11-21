@@ -68,3 +68,5 @@ task process FILE=audio.wav         一括処理
 - **設定を分離**: ハードコードせず config.yaml へ
 - **エラーハンドリング不要**: 失敗したらクラッシュさせる
 - **リトライ不要**: 1回だけ実行、失敗したら終了
+- 要約出力が完了したら `src.sync_supabase.main()` を呼び、`daily_entries` に upsert する（自動監視モードと CLI の summarize/process で共通）
+- 再同期やリカバリは `task sync` を手動実行

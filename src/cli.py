@@ -9,6 +9,7 @@ from src.infrastructure.preprocessor import TranscriptPreprocessor
 from src.infrastructure.process_monitor import ProcessMonitor
 from src.infrastructure.summarizer import Summarizer
 from src.infrastructure.transcriber import Transcriber
+from src.sync_supabase import main as sync_supabase
 
 
 def cmd_check(args):
@@ -57,6 +58,7 @@ def cmd_summarize(args):
     output_path.parent.mkdir(exist_ok=True)
     output_path.write_text(summary, encoding="utf-8")
     print(f"\nSummary saved to: {output_path}")
+    sync_supabase()
 
 
 def cmd_process(args):
@@ -87,6 +89,7 @@ def cmd_process(args):
     output_path.parent.mkdir(exist_ok=True)
     output_path.write_text(summary, encoding="utf-8")
     print(f"Processing complete. Summary saved to: {output_path}")
+    sync_supabase()
 
 
 def main():

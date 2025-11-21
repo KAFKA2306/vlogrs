@@ -5,6 +5,7 @@ from src.domain.entities import RecordingSession
 from src.infrastructure.preprocessor import TranscriptPreprocessor
 from src.infrastructure.summarizer import Summarizer
 from src.infrastructure.transcriber import Transcriber
+from src.sync_supabase import main as sync_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -48,4 +49,5 @@ class ProcessorService:
             "Processing complete. Summary saved to %s",
             summary_path,
         )
+        sync_supabase()
         return str(summary_path)
