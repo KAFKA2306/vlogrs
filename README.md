@@ -56,5 +56,5 @@ src/          ソースコード
 ## フロントエンド（reader）
 
 - ローカル: `cd frontend/reader && npm run dev -- --hostname 0.0.0.0 --port 3000`
-- 本番URL: https://kaflog-otovlmp1s-kafka2306s-projects.vercel.app
+- 本番URL: https://kaflog.vercel.app （最新デプロイ: https://kaflog-nhqwf8dpm-kafka2306s-projects.vercel.app）
 - デプロイ: `cd frontend/reader && npx vercel --prod`（Vercelプロジェクト名 `kaflog`）
