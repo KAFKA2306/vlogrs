@@ -26,6 +26,7 @@ class Settings:
     gemini_api_key_env: str
     gemini_api_key: str | None
     silence_threshold: float
+    max_duration_minutes: int
 
 
 def _load_yaml_config() -> dict:
@@ -170,6 +171,10 @@ def _load_settings() -> Settings:
         silence_threshold=_env_float(
             "VLOG_SILENCE_THRESHOLD",
             _get_nested(config, "audio", "silence_threshold", default=0.02),
+        ),
+        max_duration_minutes=_env_int(
+            "VLOG_MAX_DURATION_MINUTES",
+            _get_nested(config, "audio", "max_duration_minutes", default=30),
         ),
     )
 

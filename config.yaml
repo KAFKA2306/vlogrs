@@ -8,6 +8,7 @@ audio:
   channels: 1
   block_size: 1024
   silence_threshold: 0.02
+  max_duration_minutes: 300
 whisper:
   model_size: "large-v3-turbo"
   device: "cuda"
