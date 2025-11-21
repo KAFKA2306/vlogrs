@@ -1,5 +1,4 @@
 version: '3'
-
 tasks:
   default:
     desc: ユーザーストーリー別クイックガイド
@@ -9,7 +8,7 @@ tasks:
           [セットアップ] task setup
           [開発実行]     task dev
           [サービス]     task up | task down | task status | task logs | task restart
-          [録音/処理]    task record | task process FILE=... | task transcribe FILE=... | task summarize FILE=... | task write FILE=...
+          [録音/処理]    task record | task process FILE=... | task transcribe FILE=... | task summarize FILE=...
           [品質]         task lint
           [後片付け]     task clean
           [コミット]     task commit MESSAGE="説明"
@@ -48,7 +47,7 @@ tasks:
     cmd: uv run python -m src.cli record
 
   process:
-    desc: 録音ファイル一括処理 (Transcribe→Summarize→Write) FILE=path/to/audio.wav
+    desc: 録音ファイル一括処理 (Transcribe→Summarize) FILE=path/to/audio.wav
     cmds:
       - test -n "{{.FILE}}" || (echo "FILEを指定してください" && exit 1)
       - uv run python -m src.cli process --file {{.FILE}}
@@ -64,12 +63,6 @@ tasks:
     cmds:
       - test -n "{{.FILE}}" || (echo "FILEを指定してください" && exit 1)
       - uv run python -m src.cli summarize --file {{.FILE}}
-
-  write:
-    desc: 要約テキストから日記出力 (FILE=path/to/summary.txt)
-    cmds:
-      - test -n "{{.FILE}}" || (echo "FILEを指定してください" && exit 1)
-      - uv run python -m src.cli write --file {{.FILE}}
 
   lint:
     desc: Ruffで静的解析＋フォーマット
