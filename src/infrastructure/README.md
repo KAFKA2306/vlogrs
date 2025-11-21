@@ -7,6 +7,7 @@
 - `transcriber.py`: 音声の文字起こし (Faster Whisper)。CUDA失敗時のCPU/
   baseフォールバックに加え、transcriptsディレクトリへ生文字起こしを必ず
   保存し、無音・例外時もプレースホルダ文字列を返す安全設計を実装。
+  `VLOG_ALLOW_UNSAFE_CUDA=1` を設定するとGPUを強制できます（自己責任）。
 - `summarizer.py`: テキスト要約 (Google Gemini API)
 - `diary_writer.py`: ファイル出力
 - `process_monitor.py`: プロセス監視 (psutil)
