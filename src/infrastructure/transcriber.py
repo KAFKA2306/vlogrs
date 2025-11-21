@@ -18,8 +18,6 @@ class Transcriber:
         self._model: "WhisperModel" | None = None
 
     def _preload_cuda_libraries(self) -> None:
-        """CUDA使用時にcudnn/cublasを明示ロードして依存解決を安定化。"""
-
         if not settings.whisper_device.startswith("cuda"):
             return
 

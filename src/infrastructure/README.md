@@ -1,14 +1,8 @@
-# インフラストラクチャ層 (src/infrastructure)
+# infrastructure
 
-外部システムやライブラリとの具体的な連携実装を担当します。
-
-## コンポーネント
-- `audio_recorder.py`: マイク入力の録音 (SoundDevice, SoundFile)
-- `transcriber.py`: 音声の文字起こし (Faster Whisper)。CUDA失敗時のCPU/
-  baseフォールバックに加え、transcriptsディレクトリへ生文字起こしを必ず
-  保存し、無音・例外時もプレースホルダ文字列を返す安全設計を実装。
-  `VLOG_ALLOW_UNSAFE_CUDA=1` を設定するとGPUを強制できます（自己責任）。
-- `summarizer.py`: テキスト要約 (Google Gemini API)
-- `diary_writer.py`: ファイル出力
-- `process_monitor.py`: プロセス監視 (psutil)
-- `settings.py`: 設定管理・環境変数読み込み
+- `audio_recorder.py` 録音
+- `transcriber.py` 文字起こし (Faster Whisper)
+- `summarizer.py` 要約 (Gemini)
+- `preprocessor.py` トランスクリプト前処理
+- `process_monitor.py` プロセス監視
+- `settings.py` 設定管理

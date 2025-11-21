@@ -1,7 +1,3 @@
-# src/domain
+# domain
 
-ドメイン層のシンプルなDTOを配置します。
-
-- `entities.py`: 録音セッションや日記エントリのデータクラスを定義します。
-
-ビジネスロジックはここに置かず、データ構造のみに留めます。
+`entities.py` RecordingSession データクラス

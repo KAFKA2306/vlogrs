@@ -1,9 +1,8 @@
-# src ディレクトリ
+# src
 
-アプリケーション本体のPythonコードを収めます。トップレベルのエントリーポイントは `src/main.py` で、長時間稼働のオーケストレーションは `src/app.py` が担います。層ごとの役割は以下の通りです。
-
-- `infrastructure/`: 外部サービスやライブラリとの連携実装
-- `domain/`: ドメインDTOやエンティティ
-- `services/`: 実行ワークフロー（録音・処理）
-
-スタイル: Python 3.11、4スペースインデント、行長88文字を基本としています。
+- `main.py` メインエントリーポイント
+- `app.py` 自動監視ループ
+- `cli.py` CLIコマンド
+- `domain/` RecordingSession
+- `infrastructure/` 録音、文字起こし、要約、前処理
+- `services/` ProcessorService
