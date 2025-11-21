@@ -1,6 +1,6 @@
-import os
 import threading
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import sounddevice as sd
@@ -11,6 +11,7 @@ from src.infrastructure.settings import settings
 
 class AudioRecorder:
     def __init__(self):
+        self._base_dir = Path(settings.recording_dir).expanduser().resolve()
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._file_path: str | None = None
@@ -22,9 +23,9 @@ class AudioRecorder:
                 return self._file_path
             if self.is_recording:
                 return ""
-            os.makedirs(settings.recording_dir, exist_ok=True)
-            filename = datetime.now().strftime("%Y%m%d_%H%M%S.flac")
-            self._file_path = os.path.join(settings.recording_dir, filename)
+            self._base_dir.mkdir(parents=True, exist_ok=True)
+            filename = datetime.now().strftime("%Y%m%d_%H%M%S.wav")
+            self._file_path = str(self._base_dir / filename)
             self._stop_event.clear()
             self._thread = threading.Thread(
                 target=self._record_loop,
@@ -51,16 +52,16 @@ class AudioRecorder:
         return self._thread is not None and self._thread.is_alive()
 
     def _record_loop(self, initial_file_path: str):
-        current_file_path = initial_file_path
+        current_file_path = Path(initial_file_path)
         start_time = datetime.now()
 
         while not self._stop_event.is_set():
             if (datetime.now() - start_time).total_seconds() > 1800:
-                filename = datetime.now().strftime("%Y%m%d_%H%M%S.flac")
-                current_file_path = os.path.join(settings.recording_dir, filename)
+                filename = datetime.now().strftime("%Y%m%d_%H%M%S.wav")
+                current_file_path = self._base_dir / filename
                 start_time = datetime.now()
                 with self._lock:
-                    self._file_path = current_file_path
+                    self._file_path = str(current_file_path)
 
             with sf.SoundFile(
                 current_file_path,
@@ -68,7 +69,7 @@ class AudioRecorder:
                 samplerate=settings.sample_rate,
                 channels=settings.channels,
                 subtype="PCM_16",
-                format="FLAC",
+                format="WAV",
             ) as file:
                 with sd.InputStream(
                     samplerate=settings.sample_rate,

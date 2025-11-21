@@ -13,6 +13,8 @@ def setup_logging():
             logging.FileHandler("vlog.log", encoding="utf-8"),
         ],
     )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("faster_whisper").setLevel(logging.WARNING)
 
 
 if __name__ == "__main__":

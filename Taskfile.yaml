@@ -19,7 +19,7 @@ tasks:
   setup: {desc: 依存同期, cmd: uv sync}
   dev:   {desc: アプリ実行, cmd: uv run python -m src.main}
 
-  up:      {desc: systemd有効化+起動, cmd: systemctl --user enable --now vlog.service}
+  up:      {desc: systemd有効化+起動, cmd: systemctl --user enable --now "$(pwd)/vlog.service"}
   down:    {desc: systemd無効化+停止, cmd: systemctl --user disable --now vlog.service}
   status:  {desc: systemd状態, cmd: systemctl --user status vlog}
   logs:    {desc: systemdログ追尾, cmd: journalctl --user -u vlog -f}

@@ -1,4 +1,5 @@
 import logging
+import shutil
 import subprocess
 
 import psutil
@@ -33,6 +34,8 @@ class ProcessMonitor:
         return False
 
     def _check_windows_processes(self) -> bool:
+        if not shutil.which("tasklist.exe"):
+            return False
         result = subprocess.run(["tasklist.exe"], capture_output=True)
         if result.returncode == 0:
             output_lower = result.stdout.decode("utf-8", errors="ignore").lower()
