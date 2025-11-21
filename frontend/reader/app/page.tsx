@@ -1,116 +1,71 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 
 type Entry = { id: string; date: string; title: string; content: string; tags: string[] | null }
 
-const colors = {
-  bg: '#0b1220',
-  card: '#0f172a',
-  border: '#1f2937',
-  text: '#e5e7eb',
-  muted: '#9ca3af',
-}
-
 export default function Page() {
-  const [entries, setEntries] = useState<Entry[] | null>(null)
-  const [selected, setSelected] = useState<Entry | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [entries, setEntries] = useState<Entry[]>()
+  const [selected, setSelected] = useState<Entry>()
+  const [error, setError] = useState<string>()
 
   useEffect(() => {
-    ;(async () => {
-      const { data, error } = await supabase
-        .from('daily_entries')
-        .select('id,date,title,content,tags')
-        .eq('is_public', true)
-        .order('date', { ascending: false })
-        .limit(100)
-      if (error) {
-        setError(error.message)
-        setEntries([])
-        return
-      }
-      setEntries((data as Entry[]) ?? [])
-    })()
+    const client = getSupabase()
+    if (!client) {
+      setError('Supabase env missing (.env.local)')
+      setEntries([])
+      return
+    }
+    client
+      .from('daily_entries')
+      .select('id,date,title,content,tags')
+      .eq('is_public', true)
+      .order('date', { ascending: false })
+      .limit(120)
+      .then(({ data, error }) => {
+        if (error) setError(error.message)
+        setEntries((data as Entry[]) ?? [])
+      })
   }, [])
 
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        background: colors.bg,
-        color: colors.text,
-        display: 'flex',
-        justifyContent: 'center',
-        padding: '24px 16px',
-      }}
-    >
-      <div style={{ width: '100%', maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600 }}>KAFKA Log</h1>
-
-        {error ? (
-          <div style={{ fontSize: 13, color: '#fca5a5', border: `1px solid ${colors.border}`, background: '#1b0f16', padding: 8, borderRadius: 12 }}>
-            {error}
+    <main className="page">
+      <div className="wrap">
+        <header className="hero">
+          <div>
+            <p className="eyebrow">VRChat Auto Diary</p>
+            <h1>KAFKA Log</h1>
+            <p className="muted">毎日の VR 空間をすぐ読めるミニマルビュー。</p>
           </div>
-        ) : null}
+          <div className="halo" />
+        </header>
 
-        {entries === null ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  height: 64,
-                  borderRadius: 16,
-                  background: colors.border,
-                  opacity: 0.4,
-                  animation: 'pulse 1.5s infinite',
-                }}
-              />
+        {error && <p className="banner">{error}</p>}
+
+        {entries === undefined ? (
+          <div className="stack">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="shimmer" />
             ))}
           </div>
         ) : entries.length === 0 ? (
-          <div style={{ fontSize: 14, color: colors.muted }}>まだ日記がありません。</div>
+          <p className="empty">まだ日記がありません。</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="list">
             {entries.map((e) => (
-              <button
-                key={e.id}
-                onClick={() => setSelected(e)}
-                style={{
-                  textAlign: 'left',
-                  width: '100%',
-                  borderRadius: 16,
-                  border: `1px solid ${colors.border}`,
-                  background: colors.card,
-                  padding: '12px 14px',
-                  color: colors.text,
-                }}
-              >
-                <div style={{ fontSize: 12, color: colors.muted }}>{new Date(e.date).toLocaleDateString()}</div>
-                <div style={{ fontWeight: 600, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {e.title}
+              <button key={e.id} className="entry" onClick={() => setSelected(e)}>
+                <div className="meta">
+                  <span>{new Date(e.date).toLocaleDateString()}</span>
+                  <span className="dot" />
+                  <span>{(e.tags ?? []).slice(0, 2).join(' · ') || 'untagged'}</span>
                 </div>
-                <div className="clamp-2" style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
-                  {e.content}
-                </div>
+                <h3>{e.title}</h3>
+                <p className="preview">{e.content}</p>
                 {e.tags?.length ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                  <div className="tags">
                     {e.tags.map((t) => (
-                      <span
-                        key={t}
-                        style={{
-                          fontSize: 10,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: '#111827',
-                          color: '#cbd5e1',
-                          border: `1px solid ${colors.border}`,
-                        }}
-                      >
-                        #{t}
-                      </span>
+                      <span key={t}>#{t}</span>
                     ))}
                   </div>
                 ) : null}
@@ -121,60 +76,28 @@ export default function Page() {
       </div>
 
       {selected && (
-        <div
-          onClick={() => setSelected(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 30,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%',
-              maxWidth: 640,
-              maxHeight: '90vh',
-              background: colors.bg,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              overflow: 'hidden',
-              border: `1px solid ${colors.border}`,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px' }}>
+        <section className="overlay" onClick={() => setSelected(undefined)}>
+          <article className="sheet" onClick={(e) => e.stopPropagation()}>
+            <header className="sheet-head">
               <div>
-                <div style={{ fontSize: 12, color: colors.muted }}>{new Date(selected.date).toLocaleDateString()}</div>
-                <div style={{ fontSize: 16, fontWeight: 600 }}>{selected.title}</div>
+                <p className="muted">{new Date(selected.date).toLocaleDateString()}</p>
+                <h2>{selected.title}</h2>
               </div>
-              <button onClick={() => setSelected(null)} style={{ fontSize: 12, textDecoration: 'underline', color: colors.text }}>
+              <button className="ghost" onClick={() => setSelected(undefined)}>
                 閉じる
               </button>
-            </div>
-            <div
-              style={{
-                padding: '0 16px 16px',
-                overflowY: 'auto',
-                whiteSpace: 'pre-wrap',
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: colors.text,
-              }}
-            >
-              {selected.content}
-            </div>
-          </div>
-        </div>
+            </header>
+            <p className="content">{selected.content}</p>
+            {selected.tags?.length ? (
+              <div className="tags">
+                {selected.tags.map((t) => (
+                  <span key={t}>#{t}</span>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        </section>
       )}
-
-      <style>{`
-        @keyframes pulse { 0%,100%{opacity:.4;} 50%{opacity:.7;} }
-        .clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-      `}</style>
     </main>
   )
 }
