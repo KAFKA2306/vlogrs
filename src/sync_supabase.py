@@ -18,9 +18,9 @@ def main() -> None:
 
     tz = ZoneInfo("Asia/Tokyo")
     existing = {
-        r["file_path"]: r["updated_at"]
+        r["file_path"]: r["created_at"]
         for r in client.table("daily_entries")
-        .select("file_path,updated_at")
+        .select("file_path,created_at")
         .execute()
         .data
     }
