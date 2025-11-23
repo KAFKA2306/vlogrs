@@ -26,7 +26,7 @@ class AudioRecorder:
                 return self._segments[-1]
             self._base_dir.mkdir(parents=True, exist_ok=True)
             initial_path = str(
-                self._base_dir / datetime.now().strftime("%Y%m%d_%H%M%S.wav")
+                self._base_dir / datetime.now().strftime("%Y%m%d_%H%M%S.flac")
             )
             self._segments = [initial_path]
             self._stop_event.clear()
@@ -64,7 +64,7 @@ class AudioRecorder:
             now = datetime.now()
             if (now - start_time).total_seconds() > 1800:
                 new_path = str(
-                    self._base_dir / datetime.now().strftime("%Y%m%d_%H%M%S.wav")
+                    self._base_dir / datetime.now().strftime("%Y%m%d_%H%M%S.flac")
                 )
                 with self._lock:
                     self._segments.append(new_path)
@@ -88,7 +88,7 @@ class AudioRecorder:
                     samplerate=settings.sample_rate,
                     channels=settings.channels,
                     subtype="PCM_16",
-                    format="WAV",
+                    format="FLAC",
                 ) as file,
                 sd.InputStream(
                     samplerate=settings.sample_rate,
