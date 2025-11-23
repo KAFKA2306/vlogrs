@@ -136,7 +136,18 @@ class Transcriber:
             kwargs = {
                 "beam_size": settings.whisper_beam_size,
                 "vad_filter": settings.whisper_vad_filter,
+                "chunk_length": settings.whisper_chunk_length,
+                "temperature": settings.whisper_temperature,
+                "repetition_penalty": settings.whisper_repetition_penalty,
+                "word_timestamps": settings.whisper_word_timestamps,
             }
+            if settings.whisper_vad_filter:
+                kwargs["vad_parameters"] = {
+                    "min_silence_duration_ms": (
+                        settings.whisper_vad_min_silence_duration_ms
+                    ),
+                    "speech_pad_ms": settings.whisper_vad_speech_pad_ms,
+                }
             if settings.whisper_language:
                 kwargs["language"] = settings.whisper_language
             segments, _ = self.model.transcribe(

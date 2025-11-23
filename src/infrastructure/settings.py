@@ -23,6 +23,12 @@ class Settings:
     whisper_beam_size: int
     whisper_vad_filter: bool
     whisper_language: str | None
+    whisper_vad_min_silence_duration_ms: int
+    whisper_vad_speech_pad_ms: int
+    whisper_chunk_length: int
+    whisper_temperature: float
+    whisper_repetition_penalty: float
+    whisper_word_timestamps: bool
     gemini_model: str
     gemini_api_key_env: str
     gemini_api_key: str | None
@@ -166,6 +172,30 @@ def _load_settings() -> Settings:
         whisper_language=_env_str(
             "VLOG_WHISPER_LANGUAGE",
             _get_nested(config, "whisper", "language", default="ja"),
+        ),
+        whisper_vad_min_silence_duration_ms=_env_int(
+            "VLOG_WHISPER_VAD_MIN_SILENCE_DURATION_MS",
+            _get_nested(config, "whisper", "vad_min_silence_duration_ms", default=100),
+        ),
+        whisper_vad_speech_pad_ms=_env_int(
+            "VLOG_WHISPER_VAD_SPEECH_PAD_MS",
+            _get_nested(config, "whisper", "vad_speech_pad_ms", default=30),
+        ),
+        whisper_chunk_length=_env_int(
+            "VLOG_WHISPER_CHUNK_LENGTH",
+            _get_nested(config, "whisper", "chunk_length", default=25),
+        ),
+        whisper_temperature=_env_float(
+            "VLOG_WHISPER_TEMPERATURE",
+            _get_nested(config, "whisper", "temperature", default=0.0),
+        ),
+        whisper_repetition_penalty=_env_float(
+            "VLOG_WHISPER_REPETITION_PENALTY",
+            _get_nested(config, "whisper", "repetition_penalty", default=1.08),
+        ),
+        whisper_word_timestamps=_env_bool(
+            "VLOG_WHISPER_WORD_TIMESTAMPS",
+            _get_nested(config, "whisper", "word_timestamps", default=True),
         ),
         gemini_model=_env_str(
             "VLOG_GEMINI_MODEL",

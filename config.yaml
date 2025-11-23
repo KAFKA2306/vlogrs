@@ -16,5 +16,11 @@ whisper:
   beam_size: 5
   vad_filter: true
   language: "ja"
+  vad_min_silence_duration_ms: 100
+  vad_speech_pad_ms: 30
+  chunk_length: 25
+  temperature: 0.0
+  repetition_penalty: 1.08
+  word_timestamps: true
 gemini:
   model: "gemini-flash-latest"
