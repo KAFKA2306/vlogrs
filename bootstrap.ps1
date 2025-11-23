@@ -34,10 +34,22 @@ $launcher = Join-Path $launcherDir "launch.cmd"
 try {
     Set-Content -Path $launcher -Value "@echo off`r`npushd `"$root`"`r`nwscript.exe `"$vbs`"`r`n" -Encoding ASCII
 } catch { Write-Warning "Failed to write launcher: $_" }
-try {
-    schtasks /Create /TN "VlogAutoDiary" /TR "`"$launcher`"" /SC ONLOGON /RL HIGHEST /F /DELAY 0000:30 /RU "$env:USERNAME"
-} catch { Write-Warning "schtasks failed (try running as admin if RL=HIGHEST is required): $_" }
-try { Start-Process -FilePath $launcher } catch { Write-Warning "Failed to start launcher: $_" }
-Start-Sleep -Seconds 5
-try { if (Test-Path "vlog.log") {Get-Content "vlog.log" -Tail 20} } catch { Write-Warning "Reading vlog.log failed: $_" }
+
+if (-not $NoSchedule) {
+    try {
+        schtasks /Create /TN "VlogAutoDiary" /TR "`"$launcher`"" /SC ONLOGON /RL HIGHEST /F /DELAY 0000:30 /RU "$env:USERNAME"
+    } catch { Write-Warning "schtasks failed (try running as admin if RL=HIGHEST is required): $_" }
+    try { Start-Process -FilePath $launcher } catch { Write-Warning "Failed to start launcher: $_" }
+    Start-Sleep -Seconds 5
+    try { if (Test-Path "vlog.log") {Get-Content "vlog.log" -Tail 20} } catch { Write-Warning "Reading vlog.log failed: $_" }
+} else {
+    Write-Host "NoSchedule: skipping task registration and auto-launch" -ForegroundColor Yellow
+}
 $ErrorActionPreference = "Continue"
+param(
+    [switch]$NoSchedule = $false
+)
+
+if (-not $IsWindows) {
+    Write-Error "bootstrap.ps1 must be run on Windows PowerShell" ; exit 1
+}
