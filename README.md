@@ -38,6 +38,14 @@ bootstrap（自動起動セットアップ）を実行する場合（管理者 P
 powershell -NoProfile -ExecutionPolicy Bypass -File "\\wsl.localhost\\Ubuntu-22.04\\home\\kafka\\projects\\vlog\\bootstrap.ps1"
 ```
 
+スケジュール登録なしでテストする場合（WSL→Windows）:
+
+```bash
+WINROOT=$(wslpath -w "$PWD"); powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\bootstrap.ps1" -NoSchedule
+```
+
+bootstrap は `.env` を生成し、`VLOG_RECORDING_DIR` と `VLOG_TRANSCRIPT_DIR` を自動で埋めます。PowerShell 5 でもパースエラーなく動きます。
+
 ## 使い方
 
 ### 自動監視モード
@@ -62,8 +70,7 @@ task sync                           # summaries/*.txt を Supabase にupsert
 
 ## 設定
 
-- `.env`: APIキー (GOOGLE_API_KEY)
-- `.env`: APIキー (GOOGLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+- `.env`: GOOGLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 - `config.yaml`: プロセス監視、音声、Whisper、Gemini設定
 
 ## 構成

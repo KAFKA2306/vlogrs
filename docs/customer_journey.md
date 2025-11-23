@@ -1,6 +1,7 @@
 # Customer Journey (Windows 11)
 
-- 初回セットアップ: 管理者 PowerShell でリポジトリ直下に移動し `.\bootstrap.ps1` を実行（UNC の場合は一行で `powershell -NoProfile -ExecutionPolicy Bypass -File "\\wsl.localhost\\Ubuntu-22.04\\home\\kafka\\projects\\vlog\\bootstrap.ps1"` などと指定）→ GOOGLE_API_KEY を入力 → マイク許可を承認。
+- 初回セットアップ: 管理者 PowerShell でリポジトリ直下に移動し `.\bootstrap.ps1` を実行（UNC の場合は一行で `powershell -NoProfile -ExecutionPolicy Bypass -File "\\wsl.localhost\\Ubuntu-22.04\\home\\kafka\\projects\\vlog\\bootstrap.ps1"` などと指定）。`.env` が自動生成されるので GOOGLE_API_KEY を追記し、マイク許可を承認。
+- スケジュール登録なしで動作確認したいとき（WSL→Windows）: `WINROOT=$(wslpath -w "$PWD"); powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\bootstrap.ps1" -NoSchedule`
 - ふだんの起動: ログオンするだけ（タスク スケジューラが `run_silent.vbs` → `run.cmd` → `run.ps1` を自動起動）。
 - 手動で起動したい場合: PowerShell で `.\run.ps1`、CMD/ダブルクリックなら `run.cmd`。
 - UNC/WSL パスで CMD を使うときは `run.cmd` が `pushd` してから PowerShell を呼ぶ。失敗する場合は PowerShell で `.\run.ps1` を実行。
