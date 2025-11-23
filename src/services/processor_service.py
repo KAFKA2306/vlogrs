@@ -33,12 +33,23 @@ class ProcessorService:
         logger.info("Preprocessing transcript...")
         merged_text = " ".join(text for text, _ in transcripts)
         cleaned_transcript = self._preprocessor.process(merged_text)
-
+        cleaned = cleaned_transcript.strip()
         cleaned_path = Path(transcripts[-1][1]).with_name(
             f"cleaned_{Path(transcripts[-1][1]).name}"
         )
         cleaned_path.write_text(cleaned_transcript, encoding="utf-8")
         logger.info(f"Cleaned transcript saved to {cleaned_path}")
+
+        if len(cleaned) < 20:
+            logger.warning(
+                "Empty or too short transcript (%d chars), skipping summarization",
+                len(cleaned),
+            )
+            for path in session.file_paths:
+                path = Path(path)
+                path.unlink()
+                logger.info(f"Deleted empty recording: {path}")
+            return None
 
         logger.info("Summarizing transcript...")
         summary = self._summarizer.summarize(cleaned_transcript, session)

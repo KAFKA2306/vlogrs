@@ -1,3 +1,4 @@
+import logging
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -7,6 +8,8 @@ import sounddevice as sd
 import soundfile as sf
 
 from src.infrastructure.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AudioRecorder:
@@ -32,32 +35,52 @@ class AudioRecorder:
             return initial_path
 
     def stop(self) -> tuple[str, ...] | None:
-        if not (thread := self._thread):
+        thread = self._thread
+        if not thread:
             return tuple(self._segments) if self._segments else None
         self._stop_event.set()
         thread.join()
         with self._lock:
             self._thread = None
-            return tuple(self._segments)
+            valid = []
+            for path in map(Path, self._segments):
+                size = path.stat().st_size if path.exists() else 0
+                if size > 100:
+                    valid.append(str(path))
+                elif path.exists():
+                    path.unlink()
+                    logger.warning("Deleted empty recording: %s (%d bytes)", path, size)
+            return tuple(valid) if valid else None
 
     @property
     def is_recording(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
 
     def _record_loop(self):
-        start_time = datetime.now()
+        start_time = last_check = datetime.now()
+        last_size = 0
 
         while not self._stop_event.is_set():
-            elapsed = (datetime.now() - start_time).total_seconds()
-            if elapsed > 1800:
+            now = datetime.now()
+            if (now - start_time).total_seconds() > 1800:
                 new_path = str(
                     self._base_dir / datetime.now().strftime("%Y%m%d_%H%M%S.wav")
                 )
                 with self._lock:
                     self._segments.append(new_path)
-                start_time = datetime.now()
+                start_time = now
 
             current_path = Path(self._segments[-1])
+            if current_path.exists() and (now - last_check).seconds > 60:
+                size = current_path.stat().st_size
+                if size == last_size and size < 1000:
+                    logger.warning(
+                        "Recording appears empty: %s not growing (size: %d)",
+                        current_path,
+                        size,
+                    )
+                last_size, last_check = size, now
+
             with (
                 sf.SoundFile(
                     current_path,

@@ -9,6 +9,7 @@ tasks:
           [セットアップ] task setup
           [開発実行]     task dev
           [サービス]     task up | task down | task status | task logs | task restart
+          [ログ確認]     task log:status
           [録音/処理]    task record | task process FILE=... | task process:all
           [品質]         task lint
           [同期]         task sync | task sync:force
@@ -24,6 +25,8 @@ tasks:
   status:  {desc: systemd状態, cmd: systemctl --user status vlog}
   logs:    {desc: systemdログ追尾, cmd: journalctl --user -u vlog -f}
   restart: {desc: systemd再起動, cmd: systemctl --user restart vlog}
+
+  log:status: {desc: ログ状態確認, cmd: python3 view_logs.py}
 
   reader:dev:    {desc: frontend/reader dev, cmd: cd frontend/reader && npm run dev -- --hostname 0.0.0.0 --port 3000}
   reader:build:  {desc: frontend/reader build, cmd: cd frontend/reader && npm run build}
