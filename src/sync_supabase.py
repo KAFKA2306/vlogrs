@@ -60,6 +60,22 @@ def main() -> None:
     client.table("daily_entries").upsert(rows, on_conflict="file_path").execute()
     logger.info(f"Synced {len(rows)} entries to Supabase")
 
+    # Verification
+    local_count = len(list(Path("summaries").glob("*.txt")))
+    remote_count = (
+        client.table("daily_entries")
+        .select("*", count="exact", head=True)
+        .execute()
+        .count
+    )
+
+    if local_count != remote_count:
+        logger.warning(
+            f"Mismatch detected! Local: {local_count}, Remote: {remote_count}"
+        )
+    else:
+        logger.info(f"Verification successful: {local_count} entries synced.")
+
 
 if __name__ == "__main__":
     main()
