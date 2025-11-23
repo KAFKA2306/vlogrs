@@ -35,7 +35,12 @@ $vbs = Join-Path $root "run_silent.vbs"
 $launcher = Join-Path $launcherDir "launch.cmd"
 Set-Content -Path $launcher -Value "@echo off`r`npushd `"$root`"`r`nwscript.exe `"$vbs`"`r`n" -Encoding ASCII
 
+$pwsh = "C:\Program Files\PowerShell\7\pwsh.exe"
+$hostExe = $pwsh
+if (-not (Test-Path $pwsh)) { $hostExe = "powershell.exe" }
+
 if (-not $NoSchedule) {
-  schtasks /Create /TN "VlogAutoDiary" /TR "`"$launcher`"" /SC ONLOGON /RL HIGHEST /F /DELAY 0000:30 /RU "$env:USERNAME"
-  Start-Process -FilePath $launcher
+  $taskCmd = "`"$hostExe`" -NoProfile -ExecutionPolicy Bypass -File `"$root\run.ps1`""
+  schtasks /Create /TN "VlogAutoDiary" /TR "$taskCmd" /SC ONLOGON /RL HIGHEST /F /DELAY 0000:30 /RU "$env:USERNAME"
+  Start-Process -FilePath $hostExe -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "run.ps1")
 }
