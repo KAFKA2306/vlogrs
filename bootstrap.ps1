@@ -2,7 +2,8 @@ param(
     [switch]$NoSchedule
 )
 
-if (-not $IsWindows) {
+# PowerShell 5.x では $IsWindows が無いため OS を環境変数で判定
+if ($env:OS -ne 'Windows_NT') {
     Write-Error "bootstrap.ps1 must be run on Windows PowerShell"; exit 1
 }
 
