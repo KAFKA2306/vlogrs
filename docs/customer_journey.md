@@ -1,8 +1,10 @@
 # Customer Journey (Windows 11)
 
-- 1回だけ: 管理者PowerShellでリポジトリ直下に移動し `.\bootstrap.ps1` 実行 → GOOGLE_API_KEY 入力 → マイク許可を承認。
-- 普段: ログオンするだけ。VRChatを起動すると自動録音し、終了後に自動で文字起こし・要約まで進む（ウィンドウは出ない）。
-- 成果の置き場: 音声は `recordings/`、生テキストは `transcripts/`、日記は `summaries/`、動作ログは `vlog.log`。
-- トラブル確認: WSL で `task status` を実行すると現在の処理状態を確認可能。
-- 停止したい時: タスク スケジューラで「VlogAutoDiary」を無効化または削除。
-- GPUを使う場合（任意）: 環境変数 `VLOG_WHISPER_DEVICE=cuda` と `VLOG_ALLOW_UNSAFE_CUDA=1` を設定してから再ログオン。
+- 初回セットアップ: 管理者 PowerShell でリポジトリ直下に移動し `.\bootstrap.ps1` を実行 → GOOGLE_API_KEY を入力 → マイク許可を承認。
+- ふだんの起動: ログオンするだけ（タスク スケジューラが `run_silent.vbs` → `run.cmd` → `run.ps1` を自動起動）。
+- 手動で起動したい場合: PowerShell で `.\run.ps1`、CMD/ダブルクリックなら `run.cmd`。
+- UNC/WSL パスで CMD を使うときは `run.cmd` が `pushd` してから PowerShell を呼ぶ。失敗する場合は PowerShell で `.\run.ps1` を実行。
+- 成果物: 音声 `recordings/`、生テキスト `transcripts/`、日記 `summaries/`、動作ログ `vlog.log`。
+- トラブル確認: `task status` で現在の処理状態を確認。
+- 停止したいとき: タスク スケジューラで「VlogAutoDiary」を無効化または削除。
+- GPU を使う場合（任意）: `VLOG_WHISPER_DEVICE=cuda` と `VLOG_ALLOW_UNSAFE_CUDA=1` を設定してから再ログオン。
