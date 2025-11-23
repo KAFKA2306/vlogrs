@@ -22,6 +22,7 @@ class Settings:
     whisper_compute_type: str
     whisper_beam_size: int
     whisper_vad_filter: bool
+    whisper_language: str | None
     gemini_model: str
     gemini_api_key_env: str
     gemini_api_key: str | None
@@ -161,6 +162,10 @@ def _load_settings() -> Settings:
         whisper_vad_filter=_env_bool(
             "VLOG_WHISPER_VAD_FILTER",
             _get_nested(config, "whisper", "vad_filter", default=True),
+        ),
+        whisper_language=_env_str(
+            "VLOG_WHISPER_LANGUAGE",
+            _get_nested(config, "whisper", "language", default="ja"),
         ),
         gemini_model=_env_str(
             "VLOG_GEMINI_MODEL",

@@ -15,5 +15,6 @@ whisper:
   compute_type: "float16"
   beam_size: 5
   vad_filter: true
+  language: "ja"
 gemini:
   model: "gemini-flash-latest"

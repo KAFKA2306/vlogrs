@@ -133,10 +133,15 @@ class Transcriber:
 
     def transcribe(self, audio_path: str) -> str:
         try:
+            kwargs = {
+                "beam_size": settings.whisper_beam_size,
+                "vad_filter": settings.whisper_vad_filter,
+            }
+            if settings.whisper_language:
+                kwargs["language"] = settings.whisper_language
             segments, _ = self.model.transcribe(
                 audio_path,
-                beam_size=settings.whisper_beam_size,
-                vad_filter=settings.whisper_vad_filter,
+                **kwargs,
             )
             collected = [segment.text.strip() for segment in segments]
             transcript = " ".join(text for text in collected if text)
