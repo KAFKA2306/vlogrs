@@ -7,17 +7,15 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from supabase import create_client
 
-logger = logging.getLogger(__name__)
-
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     load_dotenv()
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    client = create_client(url, key)
-
+    client = create_client(
+        os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    )
     tz = ZoneInfo("Asia/Tokyo")
+
     existing = {
         r["file_path"]: r["created_at"]
         for r in client.table("daily_entries")
@@ -25,56 +23,46 @@ def main() -> None:
         .execute()
         .data
     }
-
-    rows: list[dict[str, object]] = []
+    rows = []
     for path in sorted(Path("summaries").glob("*.txt")):
-        posix_path = path.as_posix()
+        posix = path.as_posix()
         mtime = datetime.fromtimestamp(path.stat().st_mtime, tz)
-
-        if posix_path in existing and existing[posix_path]:
-            last_sync = datetime.fromisoformat(
-                existing[posix_path].replace("Z", "+00:00")
-            )
-            if mtime <= last_sync:
-                continue
-
-        content = path.read_text(encoding="utf-8")
-        date_str = path.stem.split("_")[0]
-        date = datetime.strptime(date_str, "%Y%m%d").date().isoformat()
+        if (
+            posix in existing
+            and existing[posix]
+            and mtime <= datetime.fromisoformat(existing[posix].replace("Z", "+00:00"))
+        ):
+            continue
 
         rows.append(
             {
-                "file_path": posix_path,
-                "date": date,
+                "file_path": posix,
+                "date": datetime.strptime(path.stem.split("_")[0], "%Y%m%d")
+                .date()
+                .isoformat(),
                 "title": path.stem,
-                "content": content,
+                "content": path.read_text(encoding="utf-8"),
                 "tags": ["summary"],
                 "is_public": True,
             }
         )
 
     if not rows:
-        logger.info("No new summaries to sync")
-        return
-
+        return logging.info("No new summaries")
     client.table("daily_entries").upsert(rows, on_conflict="file_path").execute()
-    logger.info(f"Synced {len(rows)} entries to Supabase")
+    logging.info(f"Synced {len(rows)} entries")
 
     # Verification
-    local_count = len(list(Path("summaries").glob("*.txt")))
-    remote_count = (
+    local, remote = (
+        len(list(Path("summaries").glob("*.txt"))),
         client.table("daily_entries")
         .select("*", count="exact", head=True)
         .execute()
-        .count
+        .count,
     )
-
-    if local_count != remote_count:
-        logger.warning(
-            f"Mismatch detected! Local: {local_count}, Remote: {remote_count}"
-        )
-    else:
-        logger.info(f"Verification successful: {local_count} entries synced.")
+    logging.warning(
+        f"Mismatch! {local} vs {remote}"
+    ) if local != remote else logging.info(f"Verified: {local}")
 
 
 if __name__ == "__main__":
