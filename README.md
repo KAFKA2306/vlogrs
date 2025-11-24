@@ -12,39 +12,19 @@ cp .env.example .env
 
 ### Windowsでの実行
 
-PowerShell（推奨）:
-
-```powershell
-.\run.ps1
-```
-
-コマンドプロンプト:
+ダブルクリック、またはコマンドプロンプトから：
 
 ```cmd
-run.cmd
+windows\run.bat
 ```
 
-> UNCパス（例: `\\wsl$\\...` やネットワーク共有）では `cmd.exe` がカレントを保持できません。`run.cmd` は内部で `pushd` してから PowerShell (`run.ps1`) を呼ぶため多くの環境でそのまま動きますが、失敗する場合は PowerShell で `.\run.ps1` を実行するか、UNC をネットワークドライブに割り当ててから `run.cmd` を実行してください。
+初回セットアップ（自動起動登録、管理者権限で実行）：
 
-WSL上のbashからWindows版を起動する場合（1行で貼る）:
-
-```bash
-WINPWD=$(wslpath -w "$PWD"); powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINPWD\\run.ps1"
+```cmd
+windows\bootstrap.bat
 ```
 
-bootstrap（自動起動セットアップ）を実行する場合（管理者 PowerShell で1行で貼る）:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "\\wsl.localhost\\Ubuntu-22.04\\home\\kafka\\projects\\vlog\\bootstrap.ps1"
-```
-
-スケジュール登録なしでテストする場合（WSL→Windows）:
-
-```bash
-WINROOT=$(wslpath -w "$PWD"); powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\bootstrap.ps1" -NoSchedule
-```
-
-bootstrap は `.env` を生成し、`VLOG_RECORDING_DIR` と `VLOG_TRANSCRIPT_DIR` を自動で埋めます。PowerShell 5 でもパースエラーなく動きます。
+`bootstrap.bat` は `.env` を生成し、`VLOG_RECORDING_DIR` と `VLOG_TRANSCRIPT_DIR` を自動設定します。
 
 ## 使い方
 
@@ -65,7 +45,7 @@ task transcribe FILE=audio.wav      # 文字起こし
 task summarize FILE=transcript.txt  # 要約
 task process FILE=audio.wav         # 一括処理
 
-task sync                           # summaries/*.txt を Supabase にupsert
+task sync                           # data/summaries/*.txt を Supabase にupsert
 ```
 
 ## 設定
@@ -75,18 +55,21 @@ task sync                           # summaries/*.txt を Supabase にupsert
 
 ## 構成
 
-```
-recordings/   音声ファイル
-transcripts/  生トランスクリプト
-summaries/    日記形式要約
-src/          ソースコード
+```text
+data/
+  recordings/   音声ファイル
+  transcripts/  生トランスクリプト
+  summaries/    日記形式要約
+logs/           ログファイル
+src/            ソースコード
+windows/        Windows実行スクリプト
 ```
 
 ## Supabase同期
 
 1. Supabaseの `daily_entries` テーブルを用意（`file_path` を unique）。
 2. `.env` に `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を設定。
-3. `task sync` で `summaries/*.txt` を `daily_entries` にupsert。
+3. `task sync` で `data/summaries/*.txt` を `daily_entries` にupsert。
 
 ## フロントエンド（reader）
 

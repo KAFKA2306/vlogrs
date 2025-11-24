@@ -55,7 +55,7 @@ class ProcessorService:
         summary = self._summarizer.summarize(cleaned_transcript, session)
 
         date_str = session.start_time.strftime("%Y%m%d")
-        summary_path = Path("summaries") / f"{date_str}_summary.txt"
+        summary_path = Path("data/summaries") / f"{date_str}_summary.txt"
         summary_path.parent.mkdir(exist_ok=True)
 
         if summary_path.exists():

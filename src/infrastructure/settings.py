@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
@@ -37,8 +36,8 @@ class Settings:
 
 
 def _load_yaml_config() -> dict:
-    config_path = Path("config.yaml")
-    if not config_path.exists():
+    config_path = "config.yaml"
+    if not os.path.exists(config_path):
         return {}
     with open(config_path) as f:
         return yaml.safe_load(f) or {}
@@ -107,7 +106,6 @@ def _process_names(primary: str | None, yaml_names: str) -> tuple[str, ...]:
 
 
 def _load_settings() -> Settings:
-    cwd = os.getcwd()
     config = _load_yaml_config()
 
     yaml_process_names = _get_nested(config, "process", "names", default="")
@@ -123,21 +121,11 @@ def _load_settings() -> Settings:
         ),
         recording_dir=_env_str(
             "VLOG_RECORDING_DIR",
-            _get_nested(
-                config,
-                "paths",
-                "recording_dir",
-                default=os.path.join(cwd, "recordings"),
-            ),
+            _get_nested(config, "paths", "recording_dir", default="recordings"),
         ),
         transcript_dir=_env_str(
             "VLOG_TRANSCRIPT_DIR",
-            _get_nested(
-                config,
-                "paths",
-                "transcript_dir",
-                default=os.path.join(cwd, "transcripts"),
-            ),
+            _get_nested(config, "paths", "transcript_dir", default="transcripts"),
         ),
         sample_rate=_env_int(
             "VLOG_SAMPLE_RATE",

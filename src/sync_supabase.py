@@ -23,7 +23,7 @@ def main() -> None:
         .data
     }
     rows = []
-    for path in sorted(Path("summaries").glob("*.txt")):
+    for path in sorted(Path("data/summaries").glob("*.txt")):
         posix = path.as_posix()
         mtime = datetime.fromtimestamp(path.stat().st_mtime, tz)
         if (
@@ -53,7 +53,7 @@ def main() -> None:
 
     # Verification
     local, remote = (
-        len(list(Path("summaries").glob("*.txt"))),
+        len(list(Path("data/summaries").glob("*.txt"))),
         client.table("daily_entries")
         .select("*", count="exact", head=True)
         .execute()

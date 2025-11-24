@@ -45,13 +45,11 @@ task transcribe FILE=audio.wav      文字起こしのみ
 task summarize FILE=transcript.txt  要約のみ
 ```
 
-## 起動コマンド（確実な経路）
+## 起動コマンド
 
-- PowerShell: `.\run.ps1`
-- CMD: `run.cmd`
-- ダブルクリック: `run.cmd`
-- WSL bash から Windows 版を起動: `WINPWD=$(wslpath -w "$PWD"); powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINPWD\\run.ps1"`
-- bootstrap 実行例（管理者 PowerShell）: `powershell -NoProfile -ExecutionPolicy Bypass -File "\\wsl.localhost\\Ubuntu-22.04\\home\\kafka\\projects\\vlog\\bootstrap.ps1"`
+- Windows: `windows\run.bat` をダブルクリック、またはコマンドプロンプトで実行
+- 初回セットアップ（管理者権限）: `windows\bootstrap.bat`
+- Linux/WSL: `task dev`
 
 ## 設定
 

@@ -54,7 +54,7 @@ def cmd_summarize(args):
     print("--- Summary ---")
     print(summary)
 
-    output_path = Path("summaries") / f"{Path(args.file).stem}_summary.txt"
+    output_path = Path("data/summaries") / f"{Path(args.file).stem}_summary.txt"
     output_path.parent.mkdir(exist_ok=True)
     output_path.write_text(summary, encoding="utf-8")
     print(f"\nSummary saved to: {output_path}")
@@ -93,7 +93,7 @@ def cmd_process(args):
 
     # Date-based summary naming
     date_str = start_time.strftime("%Y%m%d")
-    summary_path = Path("summaries") / f"{date_str}_summary.txt"
+    summary_path = Path("data/summaries") / f"{date_str}_summary.txt"
     summary_path.parent.mkdir(exist_ok=True)
 
     if summary_path.exists():

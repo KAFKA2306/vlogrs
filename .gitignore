@@ -14,13 +14,10 @@ dist/
 .coverage
 .DS_Store
 .env
-recordings/
-!recordings/README.md
-transcripts/
-!transcripts/README.md
-summaries/
-!summaries/README.md
-vlog.log
+data/recordings/
+data/transcripts/
+data/summaries/
+logs/
 frontend/reader/node_modules/
 frontend/reader/.next/
 frontend/reader/.vercel/

@@ -10,9 +10,9 @@
 
 ```mermaid
 flowchart LR
-    A[🎮 VRChat起動] --> B[🎤 録音<br/>recordings/*.wav]
-    B --> C[📝 音声→テキスト<br/>transcripts/*.txt]
-    C --> D[🤖 AI要約<br/>summaries/*.txt]
+    A[🎮 VRChat起動] --> B[🎤 録音<br/>data/recordings/*.flac]
+    B --> C[📝 音声→テキスト<br/>data/transcripts/*.txt]
+    C --> D[🤖 AI要約<br/>data/summaries/*.txt]
     D --> E[☁️ クラウド保存<br/>Supabase]
     E --> F[🌐 Webで閲覧<br/>kaflog.vercel.app]
     
@@ -132,10 +132,12 @@ sequenceDiagram
 
 ```bash
 vlog/
-├── recordings/       🎤 録音ファイル (wav形式)
-├── transcripts/      📝 音声から変換したテキスト
-├── summaries/        ✨ AIが作った日記
-└── vlog.log          📋 システムの動作記録
+data/
+  ├── recordings/     🎤 録音ファイル (flac形式)
+  ├── transcripts/    📝 音声から変換したテキスト
+  └── summaries/      ✨ AIが作った日記
+logs/
+  └── vlog.log        📋 システムの動作記録
 ```
 
 **トラブル確認方法**: WSLで`task status`を実行すると、今何をしているかがわかります。

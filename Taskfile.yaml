@@ -25,17 +25,10 @@ tasks:
             task process FILE=録音.wav    1ファイル処理
             task process:all              全録音を一括処理
 
-          ■ Windows 起動（確実な経路）
-            PowerShell:    .\\run.ps1
-            CMD:           run.cmd
-            ダブルクリック: run.cmd
-            WSL bash→Win:  WINPWD=$(wslpath -w "$PWD"); powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINPWD\\run.ps1"
-          ■ run.ps1 を Windows から実行
-            task run:win
-          ■ bootstrap（管理者 PowerShell）
-            powershell -NoProfile -ExecutionPolicy Bypass -File "\\wsl.localhost\\Ubuntu-22.04\\home\\kafka\\projects\\vlog\\bootstrap.ps1"
-          ■ bootstrap:test（WSL→Windows / スケジュール登録なし）
-            WINROOT=$(wslpath -w "$PWD"); powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\bootstrap.ps1" -NoSchedule
+          ■ Windows 起動
+            ダブルクリック: windows\run.bat
+          ■ 初回セットアップ（管理者権限で実行）
+            windows\bootstrap.bat
 
           ■ データ同期
             task sync                     Supabase同期
@@ -91,7 +84,7 @@ tasks:
       - systemctl --user status vlog --no-pager --lines=10 || true
       - echo ""
       - echo "■ ログ解析"
-      - python3 view_logs.py
+      - python3 src/view_logs.py
 
   logs:
     desc: ログ追尾（リアルタイム）
@@ -112,12 +105,22 @@ tasks:
   process:all:
     desc: 録音→要約（全ファイル一括）
     cmds:
-      - for f in recordings/*.wav recordings/*.flac; do [ -f "$f" ] && task process FILE="$f"; done || true
+      - for f in data/recordings/*.wav data/recordings/*.flac; do [ -f "$f" ] && task process FILE="$f"; done || true
+
+  process:today:
+    desc: 今日の録音を一括処理（要約は再生成）
+    cmds:
+      - |
+        TODAY=$(date +%Y%m%d)
+        rm -f data/summaries/${TODAY}_summary.txt
+        for f in data/recordings/${TODAY}*.wav data/recordings/${TODAY}*.flac; do
+          [ -f "$f" ] && task process FILE="$f"
+        done || true
 
   transcribe:all:
     desc: 文字起こしのみ（全ファイル）
     cmds:
-      - for f in recordings/*.wav recordings/*.flac; do [ -f "$f" ] && task transcribe FILE="$f"; done || true
+      - for f in data/recordings/*.wav data/recordings/*.flac; do [ -f "$f" ] && task transcribe FILE="$f"; done || true
 
   # ────────────────────────────────────────
   # データ同期
@@ -129,35 +132,10 @@ tasks:
   sync:full:
     desc: 全件強制同期
     cmds:
-      - touch summaries/*.txt
+      - touch data/summaries/*.txt
       - task sync
 
-  # ────────────────────────────────────────
-  # Windows bootstrap
-  # ────────────────────────────────────────
-  bootstrap:
-    desc: Windows 自動起動セットアップ（管理者 PowerShellで実行）
-    cmds:
-      - |
-        WINPS="$(command -v powershell.exe || echo /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe)"
-        WINROOT="$(wslpath -w "$PWD")"
-        "$WINPS" -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\bootstrap.ps1"
 
-  bootstrap:test:
-    desc: WSL→Windows 経由の起動テスト（スケジュール登録なし）
-    cmds:
-      - |
-        WINPS="$(command -v powershell.exe || echo /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe)"
-        WINROOT="$(wslpath -w "$PWD")"
-        "$WINPS" -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\bootstrap.ps1" -NoSchedule
-
-  run:win:
-    desc: Windows で run.ps1 を実行（pwsh 優先）
-    cmds:
-      - |
-        WINPS="$(command -v pwsh.exe || command -v powershell.exe || echo /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe)"
-        WINROOT="$(wslpath -w "$PWD")"
-        "$WINPS" -NoProfile -ExecutionPolicy Bypass -File "$WINROOT\\run.ps1"
 
   # ────────────────────────────────────────
   # Web UI
@@ -215,7 +193,7 @@ tasks:
 
   log:status:
     desc: ログ解析のみ
-    cmd: python3 view_logs.py
+    cmd: python3 src/view_logs.py
 
   transcribe:
     desc: 文字起こしのみ
