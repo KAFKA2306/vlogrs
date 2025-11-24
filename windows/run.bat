@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0.."
+pushd "%~dp0.."
 
 set "UV_PROJECT_ENVIRONMENT=.venv-win"
 set "UV_LINK_MODE=copy"
@@ -11,3 +11,4 @@ if not exist "data\transcripts" mkdir "data\transcripts"
 if not exist "logs" mkdir "logs"
 
 uv run python -m src.main
+pause

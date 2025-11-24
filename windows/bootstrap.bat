@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0.."
+pushd "%~dp0.."
 
 set "UV_PROJECT_ENVIRONMENT=.venv-win"
 set "UV_LINK_MODE=copy"
@@ -36,3 +36,4 @@ schtasks /Create /TN "VlogAutoDiary" /TR "\"%~dp0run.bat\"" /SC ONLOGON /RL HIGH
 
 echo Bootstrap complete. Task scheduled.
 start /min "" "%~dp0run.bat"
+pause
