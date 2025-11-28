@@ -1,12 +1,9 @@
-import logging
 import shutil
 import subprocess
 
 import psutil
 
 from src.infrastructure.settings import settings
-
-logger = logging.getLogger(__name__)
 
 
 class ProcessMonitor:
@@ -19,10 +16,6 @@ class ProcessMonitor:
             self._check_linux_processes() or self._check_windows_processes()
         )
         if current_status != self._last_status:
-            if current_status:
-                logger.info("Target process detected.")
-            else:
-                logger.info("Target process no longer detected.")
             self._last_status = current_status
         return current_status
 
@@ -36,11 +29,9 @@ class ProcessMonitor:
     def _check_windows_processes(self) -> bool:
         if not shutil.which("tasklist.exe"):
             return False
-        try:
-            result = subprocess.run(["tasklist.exe"], capture_output=True)
-            if result.returncode == 0:
-                output_lower = result.stdout.decode("utf-8", errors="ignore").lower()
-                return any(target in output_lower for target in self._targets)
-        except FileNotFoundError:
-            logger.debug("tasklist.exe found in PATH but not executable")
+
+        result = subprocess.run(["tasklist.exe"], capture_output=True)
+        if result.returncode == 0:
+            output_lower = result.stdout.decode("utf-8", errors="ignore").lower()
+            return any(target in output_lower for target in self._targets)
         return False

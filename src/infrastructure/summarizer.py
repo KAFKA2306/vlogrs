@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import google.generativeai as genai
@@ -17,23 +16,15 @@ class Summarizer:
         )
 
     def summarize(self, transcript: str, session: RecordingSession) -> str:
-        model = self._ensure_model()
-        start_date = session.start_time.strftime("%Y-%m-%d")
-        start_time = session.start_time.strftime("%H:%M")
-        end_time = (session.end_time or session.start_time).strftime("%H:%M")
+        if not self._model:
+            genai.configure(api_key=settings.gemini_api_key)
+            self._model = genai.GenerativeModel(settings.gemini_model)
+
         prompt = self._prompt_template.format(
-            date=start_date,
-            start_time=start_time,
-            end_time=end_time,
+            date=session.start_time.strftime("%Y-%m-%d"),
+            start_time=session.start_time.strftime("%H:%M"),
+            end_time=(session.end_time or session.start_time).strftime("%H:%M"),
             transcript=transcript.strip(),
         )
-        response = model.generate_content(prompt)
+        response = self._model.generate_content(prompt)
         return response.text.strip()
-
-    def _ensure_model(self):
-        if self._model:
-            return self._model
-        api_key = settings.gemini_api_key or os.getenv(settings.gemini_api_key_env)
-        genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel(settings.gemini_model)
-        return self._model

@@ -1,10 +1,19 @@
 import argparse
 
+from src.infrastructure.preprocessor import TranscriptPreprocessor
+from src.infrastructure.summarizer import Summarizer
+from src.infrastructure.supabase_repository import SupabaseRepository
+from src.infrastructure.transcriber import Transcriber
 from src.use_cases.process_recording import ProcessRecordingUseCase
 
 
 def cmd_process(args):
-    use_case = ProcessRecordingUseCase()
+    use_case = ProcessRecordingUseCase(
+        transcriber=Transcriber(),
+        preprocessor=TranscriptPreprocessor(),
+        summarizer=Summarizer(),
+        storage=SupabaseRepository(),
+    )
     use_case.execute(args.file)
 
 

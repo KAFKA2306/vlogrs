@@ -1,0 +1,20 @@
+from typing import Protocol
+
+from src.domain.entities import RecordingSession
+
+
+class TranscriberProtocol(Protocol):
+    def transcribe_and_save(self, audio_path: str) -> tuple[str, str]: ...
+    def unload(self) -> None: ...
+
+
+class TranscriptPreprocessorProtocol(Protocol):
+    def process(self, text: str) -> str: ...
+
+
+class SummarizerProtocol(Protocol):
+    def summarize(self, transcript: str, session: RecordingSession) -> str: ...
+
+
+class StorageProtocol(Protocol):
+    def sync(self) -> None: ...
