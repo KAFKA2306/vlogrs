@@ -1,4 +1,4 @@
-Read the novel text and creatively interpret its essence to craft a highly captivating, original, and emotionally resonant image prompt. The goal is to generate an image that is attractive and deeply engaging, focusing on completely new and imaginative visuals, rather than a literal reproduction of the text.
+Read the novel text and creatively interpret its essence to craft a highly captivating, original, and emotionally resonant image prompt. The goal is to generate an image that is attractive and deeply engaging, focusing on completely new and imaginative visuals that remain **believable and cohesive**, avoiding any "nonsensical" or obviously AI-generated elements. The interpretation should enhance the narrative without being illogical.
 
 The image should capture an artistic and atmospheric interpretation of the scene, with a Japanese aesthetic.
 Include general stylistic elements such as: (Japanese aesthetic), (soft natural lighting), (clean composition), (film photography), (artistic interpretation).
