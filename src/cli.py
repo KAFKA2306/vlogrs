@@ -41,6 +41,7 @@ def cmd_sync(args):
 
 def cmd_image_generate(args):
     from pathlib import Path
+
     from src.infrastructure.image_generator import ImageGenerator
 
     novel_path = Path(args.novel_file)
@@ -50,7 +51,14 @@ def cmd_image_generate(args):
 
     novel_content = novel_path.read_text(encoding="utf-8")
 
-    output_path = Path(args.output_file) if args.output_file else novel_path.parent / (novel_path.stem + ".png")
+    output_path = (
+        Path(args.output_file)
+        if args.output_file
+        else novel_path.parent / (novel_path.stem + ".png")
+    )
+
+    # Ensure output directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Generating image for {novel_path} to {output_path}...")
     image_generator = ImageGenerator()
@@ -68,7 +76,7 @@ def cmd_jules(args):
         if not args.content:
             print("Error: content is required for 'add'")
             return
-        
+
         print(f"Jules is thinking about: {args.content}...")
         try:
             client = JulesClient()
@@ -82,7 +90,10 @@ def cmd_jules(args):
             task_data = {"title": args.content, "priority": "medium", "tags": []}
 
         new_task = repo.add(task_data)
-        print(f"Task added: [{new_task['priority'].upper()}] {new_task['title']} (ID: {new_task['id'][:8]})")
+        print(
+            f"Task added: [{new_task['priority'].upper()}] {new_task['title']} "
+            f"(ID: {new_task['id'][:8]})"
+        )
 
     elif args.action == "list":
         tasks = repo.list_pending()
@@ -123,26 +134,33 @@ def main():
     p_image_generate = subparsers.add_parser(
         "image-generate", help="Generate an image from a novel file"
     )
-    p_image_generate.add_argument("--novel-file", required=True, help="Path to the novel markdown file")
+    p_image_generate.add_argument(
+        "--novel-file", required=True, help="Path to the novel markdown file"
+    )
     p_image_generate.add_argument(
         "--output-file", help="Path to the output image file (optional)"
     )
 
     p_jules = subparsers.add_parser("jules", help="Manage mini-tasks with Jules AI")
-    p_jules.add_argument("action", choices=["add", "list", "done"], help="Action to perform")
-    p_jules.add_argument("content", nargs="?", help="Task content (for add) or Task ID (for done)")
+    p_jules.add_argument(
+        "action", choices=["add", "list", "done"], help="Action to perform"
+    )
+    p_jules.add_argument(
+        "content", nargs="?", help="Task content (for add) or Task ID (for done)"
+    )
     # Note: content argument is reused for ID in 'done' for simplicity, or we can split.
-    # Let's match the cmd_jules logic: args.content for add, args.task_id would be nice but argparse simple mapped.
+    # Let's match the cmd_jules logic: args.content for add.
+    # args.task_id would be nice but argparse simple mapped.
     # We will map content to task_id in logic or just rename the arg in parser.
-    
+
     # Re-doing p_jules to be cleaner
-    
+
     args = parser.parse_args()
 
     # Manual fixup for the jules arguments because I didn't do sub-sub-parsers
     if args.command == "jules":
         if args.action == "done":
-             args.task_id = args.content
+            args.task_id = args.content
         cmd_jules(args)
     elif args.command == "process":
         cmd_process(args)

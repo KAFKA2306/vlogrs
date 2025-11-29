@@ -1,8 +1,9 @@
 import json
-from pathlib import Path
-from typing import Any, Dict, List
 import uuid
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+
 
 class TaskRepository:
     def __init__(self, file_path: str = "data/tasks.json"):
@@ -18,7 +19,9 @@ class TaskRepository:
             return []
 
     def _save(self, tasks: List[Dict[str, Any]]):
-        self.file_path.write_text(json.dumps(tasks, indent=2, ensure_ascii=False), encoding="utf-8")
+        self.file_path.write_text(
+            json.dumps(tasks, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
     def add(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         tasks = self._load()
@@ -26,7 +29,7 @@ class TaskRepository:
             "id": str(uuid.uuid4()),
             "created_at": datetime.now().isoformat(),
             "status": "pending",
-            **task_data
+            **task_data,
         }
         tasks.append(new_task)
         self._save(tasks)
@@ -43,7 +46,7 @@ class TaskRepository:
         tasks = self._load()
         found = False
         target_task = None
-        
+
         for task in tasks:
             if task["id"].startswith(task_id_prefix):
                 task["status"] = "completed"
@@ -51,7 +54,7 @@ class TaskRepository:
                 target_task = task
                 found = True
                 break
-        
+
         if found:
             self._save(tasks)
             return target_task

@@ -1,0 +1,16 @@
+Analyze the following novel chapter text and generate a concise, English prompt
+optimized for Stable Diffusion XL (Anime/Illustration Style).
+
+Instructions:
+1. Focus primarily on the **scenery, atmosphere, and lighting**.
+2. Only include character descriptions if a specific character is explicitly interacting in the scene.
+3. **DO NOT** add generic "girl", "woman", or "boy" tags unless the text specifically describes them.
+4. If the text is abstract or internal monologue, generate a metaphorical or atmospheric scene.
+
+Keep it under 40 words.
+Do not include negative prompts or quality tags (like "best quality").
+
+Novel Text:
+{chapter_text}
+
+Output format: Just the comma-separated keywords.

@@ -8,10 +8,22 @@ from src.infrastructure.settings import settings
 
 class JulesClient:
     def __init__(self):
-        if not settings.jules_api_key:
-            raise ValueError("GOOGLE_JULES_API_KEY is not set in .env")
-        
-        genai.configure(api_key=settings.jules_api_key)
+        # Prioritize a valid-looking API key (starts with AIza)
+        jules_key = settings.jules_api_key
+        gemini_key = settings.gemini_api_key
+
+        api_key = None
+        if jules_key and jules_key.startswith("AIza"):
+            api_key = jules_key
+        elif gemini_key and gemini_key.startswith("AIza"):
+            api_key = gemini_key
+        else:
+            api_key = jules_key or gemini_key
+
+        if not api_key:
+            raise ValueError("Neither GOOGLE_JULES_API_KEY nor GOOGLE_API_KEY is set")
+
+        genai.configure(api_key=api_key)
         self._model = genai.GenerativeModel(settings.jules_model)
 
     def parse_task(self, user_input: str) -> Dict[str, Any]:
@@ -29,11 +41,12 @@ class JulesClient:
         - description: A more detailed description (if available).
         - priority: "high", "medium", or "low".
         - tags: A list of relevant tags (e.g., ["code", "chore", "urgent"]).
-        - estimated_minutes: An integer estimate of time required (default to 15 if unknown).
+        - estimated_minutes: An integer estimate of time required (default to 15 
+          if unknown).
         
         Output ONLY the JSON object. No markdown code blocks.
         """
-        
+
         response = self._model.generate_content(prompt)
         try:
             # Strip markdown if present
@@ -50,7 +63,7 @@ class JulesClient:
                 "description": "",
                 "priority": "medium",
                 "tags": [],
-                "estimated_minutes": 15
+                "estimated_minutes": 15,
             }
 
     def chat(self, history: List[Dict[str, str]], message: str) -> str:
@@ -61,3 +74,21 @@ class JulesClient:
         chat = self._model.start_chat(history=history)
         response = chat.send_message(message)
         return response.text
+
+    def generate_image_prompt(self, chapter_text: str) -> str:
+        """
+        Generates an image prompt from novel text using a stored template.
+        """
+        from pathlib import Path
+
+        base_path = Path(__file__).parent
+        prompt_template = (
+            (base_path / "image_generator_gemini_prompt.txt")
+            .read_text(encoding="utf-8")
+            .strip()
+        )
+
+        prompt = prompt_template.format(chapter_text=chapter_text[:2000])
+
+        response = self._model.generate_content(prompt)
+        return response.text.strip()

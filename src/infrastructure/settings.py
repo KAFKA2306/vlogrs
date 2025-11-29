@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     novel_max_output_tokens: int = _config.get("novel", {}).get(
         "max_output_tokens", 8192
     )
-    
+
     # Jules (Mini-Tasks)
     jules_api_key: str = Field(default="", alias="GOOGLE_JULES_API_KEY")
     jules_model: str = _config.get("jules", {}).get("model", "gemini-2.5-flash")
@@ -70,14 +70,13 @@ class Settings(BaseSettings):
     )
 
     # Novel
-    novel_out_dir: Path = Path(
-        _config.get("novel", {}).get("out_dir", "data/novels")
-    )
+    novel_out_dir: Path = Path(_config.get("novel", {}).get("out_dir", "data/novels"))
 
     # Image Generation
     image_model: str = _config.get("image", {}).get(
         "model", "cagliostrolab/animagine-xl-3.1"
     )
+    image_device: str = _config.get("image", {}).get("device", "cuda")
     image_height: int = _config.get("image", {}).get("height", 1024)
     image_width: int = _config.get("image", {}).get("width", 1024)
     image_num_inference_steps: int = _config.get("image", {}).get(
