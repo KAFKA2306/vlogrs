@@ -1,5 +1,6 @@
 Read the novel text and generate precise, descriptive keywords for an image prompt.
-These keywords should extract specific elements from the text to complement a pre-defined Japanese photographic style.
+These keywords should extract specific elements from the text to complement a pre-defined Japanese photographic/artistic style.
+The resulting image does not need to be photorealistic, but should be an artistic and atmospheric interpretation of the scene.
 Focus on:
 - The specific mood and emotional tone of the scene (e.g., serene, vibrant, melancholic).
 - Key objects, locations, and actions.
