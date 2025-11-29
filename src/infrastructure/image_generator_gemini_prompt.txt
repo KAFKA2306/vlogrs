@@ -1,8 +1,10 @@
-Please read the novel text and generate a prompt for an image that captures its essence.
-The desired visual style is a natural, refined Japanese aesthetic.
-Focus on extracting keywords that convey the specific mood, lighting, and atmosphere described in the text.
-The image should evoke the feeling of the moment, whether serene, vibrant, reflective, or energetic.
-Describe the scene using English keywords, emphasizing subtle beauty and authentic emotion.
+Read the novel text and generate precise, descriptive keywords for an image prompt.
+These keywords should extract specific elements from the text to complement a pre-defined Japanese photographic style.
+Focus on:
+- The specific mood and emotional tone of the scene (e.g., serene, vibrant, melancholic).
+- Key objects, locations, and actions.
+- Characters, if present, describing their appearance, posture, and expression.
+- Specific lighting conditions or colors mentioned in the text.
 
 Novel Text:
 {chapter_text}
