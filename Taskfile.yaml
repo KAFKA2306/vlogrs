@@ -131,7 +131,7 @@ tasks:
   # ────────────────────────────────────────
   sync:
     desc: Supabase同期
-    cmd: uv run python src/sync_supabase.py
+    cmd: uv run python -m src.cli sync
 
   sync:full:
     desc: 全件強制同期
