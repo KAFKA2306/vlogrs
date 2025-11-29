@@ -56,6 +56,14 @@ class ImageGenerator:
 
         generator = torch.Generator(settings.image_device).manual_seed(seed)
 
+        # Save prompt
+        prompt_path = settings.photo_prompt_dir / f"{output_path.stem}.txt"
+        prompt_path.parent.mkdir(parents=True, exist_ok=True)
+        prompt_path.write_text(
+            f"Prompt:\n{prompt}\n\nNegative Prompt:\n{negative_prompt}",
+            encoding="utf-8",
+        )
+
         image = self._pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,

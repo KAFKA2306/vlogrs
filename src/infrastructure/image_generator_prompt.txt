@@ -1,2 +1,2 @@
-(masterpiece, best quality:1.2), (very aesthetic, absurdres),
+(masterpiece, best quality:1.4), (very aesthetic, absurdres), (highly detailed, 8k wallpaper), (cinematic lighting, distinct image), (beautiful composition, depth of field),
 {text}

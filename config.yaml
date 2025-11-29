@@ -7,6 +7,7 @@ paths:
   summary_dir: "data/summaries"
   archive_dir: "data/archives"
   photo_dir: "data/photos"
+  photo_prompt_dir: "data/photos_prompts"
 audio:
   sample_rate: 16000
   channels: 1

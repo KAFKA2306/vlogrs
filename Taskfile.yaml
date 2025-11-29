@@ -228,7 +228,7 @@ tasks:
       - sh: test -n "{{.novel}}"
         msg: novel=data/novels/YYYYMMDD.mdを指定してください
 
-  photos:all:
+  photos:
     desc: 全小説から画像を一括生成
     cmds:
       - for f in data/novels/*.md; do [ -f "$f" ] && task photo novel="$f"; done || true

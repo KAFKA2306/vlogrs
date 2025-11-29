@@ -21,6 +21,7 @@ class SupabaseRepository:
 
         self._sync_summaries()
         self._sync_novels()
+        self._sync_photos()
 
     def _sync_summaries(self) -> None:
         rows = []
@@ -80,3 +81,31 @@ class SupabaseRepository:
 
         if rows:
             self.client.table("novels").upsert(rows, on_conflict="file_path").execute()
+
+    def _sync_photos(self) -> None:
+        photo_dir = Path(settings.photo_dir)
+        if not photo_dir.exists():
+            return
+
+        for path in photo_dir.glob("*.png"):
+            if not path.stem.isdigit() or len(path.stem) != 8:
+                continue
+
+            date_str = path.stem
+            date_obj = datetime.strptime(date_str, "%Y%m%d").date()
+            storage_path = f"photos/{date_str}.png"
+
+            with open(path, "rb") as f:
+                self.client.storage.from_("vlog-photos").upload(
+                    storage_path,
+                    f.read(),
+                    {"content-type": "image/png", "upsert": "true"},
+                )
+
+            image_url = self.client.storage.from_("vlog-photos").get_public_url(
+                storage_path
+            )
+
+            self.client.table("novels").update({"image_url": image_url}).eq(
+                "date", date_obj.isoformat()
+            ).execute()
