@@ -234,30 +234,6 @@ tasks:
       - for f in data/novels/*.md; do [ -f "$f" ] && task photo novel="$f"; done || true
 
   # ────────────────────────────────────────
-  # Mini Task (Jules)
-  # ────────────────────────────────────────
-  jules:add:
-    desc: タスクを追加 (例: task jules:add CONTENT="牛乳を買う")
-    cmds:
-      - uv run python -m src.cli jules add "{{.CONTENT}}"
-    preconditions:
-      - sh: test -n "{{.CONTENT}}"
-        msg: CONTENTを指定してください
-
-  jules:list:
-    desc: タスク一覧を表示
-    cmds:
-      - uv run python -m src.cli jules list
-
-  jules:done:
-    desc: タスクを完了 (例: task jules:done ID=12345678)
-    cmds:
-      - uv run python -m src.cli jules done "{{.ID}}"
-    preconditions:
-      - sh: test -n "{{.ID}}"
-        msg: IDを指定してください
-
-  # ────────────────────────────────────────
   # 内部ヘルパー
   # ────────────────────────────────────────
   require_file:
