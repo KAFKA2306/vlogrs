@@ -1,12 +1,9 @@
-Generate a concise English prompt for Stable Diffusion XL (Japanese Photobook Style).
+Please read the following novel text and generate a prompt to create an image that captures its atmosphere.
+The desired visual style is a soft, natural, and nostalgic Japanese aesthetic, similar to film photography.
+Instead of focusing on minute details, please focus on the overall mood, lighting, and the feeling of the air.
+Please describe the scene using English keywords that evoke this natural and emotional atmosphere.
 
-Priorities:
-1. **Atmosphere**: Soft, clear, natural light. Japanese aesthetic. Clean and emotional composition.
-2. **Subject**: If female character(s) appear, describe them as beautiful Japanese women (idol/gravure style) with natural expressions. Count depends on text.
-3. **Scenery**: Realistic and detailed, but with a soft, airy feel.
-4. **Banned**: Male characters, western features, gritty cinematic darkness.
-
-Context:
+Novel Text:
 {chapter_text}
 
-Output: Comma-separated keywords. < 50 words.
+Output: English keywords separated by commas.

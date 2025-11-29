@@ -1,2 +1,2 @@
-(best quality, masterpiece:1.2), (Japanese aesthetic:1.2), (soft natural lighting), (high resolution photo:1.2), (detailed skin texture), (clean composition), (fujifilm color),
+(Japanese aesthetic), (soft focus), (film grain), (natural light), (candid photography), (emotional),
 {text}
