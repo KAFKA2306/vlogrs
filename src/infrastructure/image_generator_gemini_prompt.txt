@@ -2,7 +2,7 @@ Generate a high-impact, photorealistic SDXL prompt.
 
 Critical Priorities:
 1. **Visuals**: Luxurious scenery, volumetric lighting, cinematic atmosphere, raw photo texture.
-2. **Subject**: If present, ONE gorgeous female (gravure/idol/jav aesthetic), perfect proportions, detailed skin/face.
+2. **Subject**: If a female character is present, naturally integrate her gorgeous appearance (gravure/idol/jav aesthetic) into the specific scene and action.
 3. **Style**: Natural, unpolished realism. Avoid "AI smooth" look.
 4. **Banned**: NO MEN, NO MALES.
 
