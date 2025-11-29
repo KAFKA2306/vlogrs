@@ -1,2 +1,2 @@
-(masterpiece, best quality:1.4), (very aesthetic, absurdres), (highly detailed, 8k wallpaper), (cinematic lighting, distinct image), (beautiful composition, depth of field),
+(masterpiece, best quality:1.4), (photorealistic:1.2), (raw photo, natural skin texture), (cinematic lighting, 8k),
 {text}

@@ -1,17 +1,12 @@
-Analyze the following novel chapter text and generate a highly visual, evocative English prompt optimized for Stable Diffusion XL (Photorealistic/Cinematic Style).
+Generate a high-impact, photorealistic SDXL prompt.
 
-Instructions:
-1. Emphasize breathtaking, luxurious scenery, emotive atmosphere, and dramatic cinematic lighting (volumetric lighting, bloom).
-2. Describe visual elements with artistic precision and high aesthetic value.
-3. If characters may be present according to the Novel Text, describe them as a gorgeous, sexy girl (gravure, idol, jav style) with perfect proportions, detailed beautiful face, and captivating expression.
-4. If the text is abstract, create a visually striking metaphorical scene.
-5. Create a realistic and natural look, avoiding a generic AI-generated appearance.
-6. Must not describe any male characters. 
+Critical Priorities:
+1. **Visuals**: Luxurious scenery, volumetric lighting, cinematic atmosphere, raw photo texture.
+2. **Subject**: If present, ONE gorgeous female (gravure/idol/jav aesthetic), perfect proportions, detailed skin/face.
+3. **Style**: Natural, unpolished realism. Avoid "AI smooth" look.
+4. **Banned**: NO MEN, NO MALES.
 
-Keep it under 60 words. Use comma-separated tags.
-Do not include quality tags (like best quality) as they are added separately.
+Output: < 50 words. Comma-separated keywords. No quality tags.
 
-Novel Text:
+Context:
 {chapter_text}
-
-Output format: Just the comma-separated keywords.
