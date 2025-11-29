@@ -25,6 +25,14 @@ class Settings:
     gemini_api_key: str | None
     archive_after_process: bool
     process_names: tuple[str, ...]
+    novel_enabled: bool
+    novel_title: str
+    novel_out_dir: str
+    novel_model: str
+    novel_max_output_tokens: int
+    novel_include_history_mode: str
+    novel_recent_chapters_limit: int
+    config: dict
 
 
 def _load_settings() -> Settings:
@@ -52,6 +60,18 @@ def _load_settings() -> Settings:
         gemini_api_key=os.getenv("VLOG_GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY")),
         archive_after_process=config["processing"]["archive_after_process"],
         process_names=tuple(config["process"]["names"].split(",")),
+        novel_enabled=config.get("novel", {}).get("enabled", False),
+        novel_title=config.get("novel", {}).get("title", ""),
+        novel_out_dir=config.get("novel", {}).get("out_dir", "data/novels"),
+        novel_model=config.get("novel", {}).get("model", "gemini-2.5-flash"),
+        novel_max_output_tokens=config.get("novel", {}).get("max_output_tokens", 4096),
+        novel_include_history_mode=config.get("novel", {}).get(
+            "include_history_mode", "recent_chapters"
+        ),
+        novel_recent_chapters_limit=config.get("novel", {}).get(
+            "recent_chapters_limit", 3
+        ),
+        config=config,
     )
 
 

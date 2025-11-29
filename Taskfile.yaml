@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 tasks:
   # ────────────────────────────────────────
@@ -8,48 +8,52 @@ tasks:
     desc: クイックガイド
     cmds:
       - |
-          cat <<'EOF'
-          ■ セットアップ（初回のみ）
-            task setup
+        cat <<'EOF'
+        ■ セットアップ（初回のみ）
+          task setup
 
-          ■ 開発・実行
-            task dev                      ローカル実行
-            task up                       systemd起動
-            task down                     systemd停止
-            task restart                  systemd再起動
-            task status                   全体状態確認
-            task logs                     ログ追尾
+        ■ 開発・実行
+          task dev                      ローカル実行
+          task up                       systemd起動
+          task down                     systemd停止
+          task restart                  systemd再起動
+          task status                   全体状態確認
+          task logs                     ログ追尾
 
-          ■ 録音・処理（メイン機能）
-            task record                   手動録音
-            task process FILE=録音.wav    1ファイル処理
-            task process:all              全録音を一括処理
+        ■ 録音・処理（メイン機能）
+          task record                   手動録音
+          task process FILE=録音.wav    1ファイル処理
+          task process:all              全録音を一括処理
 
-          ■ Windows 起動
-            ダブルクリック: windows\run.bat
-          ■ 初回セットアップ（管理者権限で実行）
-            windows\bootstrap.bat
+        ■ 小説生成
+          task novel:build              今日の要約から章を生成
+          task novel:build date=YYYYMMDD 指定日の章を生成
 
-          ■ データ同期
-            task sync                     Supabase同期
-            task sync:full                全件強制同期
+        ■ Windows 起動
+          ダブルクリック: windows\run.bat
+        ■ 初回セットアップ（管理者権限で実行）
+          windows\bootstrap.bat
 
-          ■ Web UI
-            task web:dev                  開発サーバー
-            task web:build                本番ビルド
-            task web:deploy               Vercelデプロイ
+        ■ データ同期
+          task sync                     Supabase同期
+          task sync:full                全件強制同期
 
-          ■ メンテナンス
-            task lint                     コード品質チェック
-            task clean                    キャッシュ削除
-            task commit MESSAGE="..."     Git commit
+        ■ Web UI
+          task web:dev                  開発サーバー
+          task web:build                本番ビルド
+          task web:deploy               Vercelデプロイ
 
-          ■ デバッグ用
-            task service:status           systemd状態のみ
-            task log:status               ログ解析のみ
-            task transcribe FILE=...      文字起こしのみ
-            task summarize FILE=...       要約のみ
-          EOF
+        ■ メンテナンス
+          task lint                     コード品質チェック
+          task clean                    キャッシュ削除
+          task commit MESSAGE="..."     Git commit
+
+        ■ デバッグ用
+          task service:status           systemd状態のみ
+          task log:status               ログ解析のみ
+          task transcribe FILE=...      文字起こしのみ
+          task summarize FILE=...       要約のみ
+        EOF
 
   # ────────────────────────────────────────
   # セットアップ
@@ -135,8 +139,6 @@ tasks:
       - touch data/summaries/*.txt
       - task sync
 
-
-
   # ────────────────────────────────────────
   # Web UI
   # ────────────────────────────────────────
@@ -178,7 +180,10 @@ tasks:
 
   clean:
     desc: キャッシュ削除
-    cmds: ["rm -rf __pycache__ .ruff_cache && find . -type d -name __pycache__ -exec rm -rf {} + || true"]
+    cmds:
+      [
+        "rm -rf __pycache__ .ruff_cache && find . -type d -name __pycache__ -exec rm -rf {} + || true",
+      ]
 
   commit:
     desc: Git commit
@@ -204,6 +209,14 @@ tasks:
     desc: 要約のみ
     deps: [require_file]
     cmds: ["uv run python -m src.cli summarize --file {{.FILE}}"]
+
+  # ────────────────────────────────────────
+  # 小説生成
+  # ────────────────────────────────────────
+  novel:build:
+    desc: 小説の章を生成
+    cmds:
+      - uv run python -m src.cli novel {{if .date}}--date {{.date}}{{end}}
 
   # ────────────────────────────────────────
   # 内部ヘルパー

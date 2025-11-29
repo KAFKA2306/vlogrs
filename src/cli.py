@@ -19,6 +19,19 @@ def cmd_process(args):
     use_case.execute(args.file)
 
 
+def cmd_novel(args):
+    from src.infrastructure.novelizer import Novelizer
+    from src.use_cases.build_novel import BuildNovelUseCase
+
+    use_case = BuildNovelUseCase(Novelizer())
+    novel_path = use_case.execute(args.date)
+
+    if novel_path:
+        print(f"章を追加: {novel_path}")
+    else:
+        print("Novel Builder is disabled")
+
+
 def main():
     from dotenv import load_dotenv
 
@@ -29,10 +42,16 @@ def main():
     p_process = subparsers.add_parser("process", help="Process audio file")
     p_process.add_argument("--file", help="Path to audio file")
 
+    p_novel = subparsers.add_parser("novel", help="Generate novel chapter")
+    p_novel.add_argument("--date", help="Target date (YYYYMMDD)")
+    p_novel.add_argument("--out", help="Output filename (unused)")
+
     args = parser.parse_args()
 
     if args.command == "process":
         cmd_process(args)
+    elif args.command == "novel":
+        cmd_novel(args)
     else:
         parser.print_help()
 

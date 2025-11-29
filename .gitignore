@@ -41,16 +41,18 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# Data (strict - no recordings, transcripts, summaries)
+# Data (strict - no recordings, transcripts, summaries, novels)
 data/recordings/
 data/transcripts/
 data/summaries/
 data/archives/
+data/novels/
+data/**/*.txt
 logs/
 *.wav
 *.flac
 *.mp3
-*.txt
+*.md
 
 # Frontend
 frontend/reader/node_modules/
