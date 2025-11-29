@@ -58,6 +58,52 @@ def cmd_image_generate(args):
     print(f"Image generated successfully to {output_path}")
 
 
+def cmd_jules(args):
+    from src.infrastructure.jules import JulesClient
+    from src.infrastructure.task_repository import TaskRepository
+
+    repo = TaskRepository()
+
+    if args.action == "add":
+        if not args.content:
+            print("Error: content is required for 'add'")
+            return
+        
+        print(f"Jules is thinking about: {args.content}...")
+        try:
+            client = JulesClient()
+            task_data = client.parse_task(args.content)
+        except ValueError as e:
+            print(f"Configuration Error: {e}")
+            return
+        except Exception as e:
+            print(f"AI Error: {e}")
+            # Fallback
+            task_data = {"title": args.content, "priority": "medium", "tags": []}
+
+        new_task = repo.add(task_data)
+        print(f"Task added: [{new_task['priority'].upper()}] {new_task['title']} (ID: {new_task['id'][:8]})")
+
+    elif args.action == "list":
+        tasks = repo.list_pending()
+        if not tasks:
+            print("No pending tasks.")
+            return
+        print(f"Found {len(tasks)} pending tasks:")
+        for t in tasks:
+            print(f"- [{t['id'][:8]}] {t['title']} ({t.get('priority', 'normal')})")
+
+    elif args.action == "done":
+        if not args.task_id:
+            print("Error: task_id is required for 'done'")
+            return
+        completed = repo.complete(args.task_id)
+        if completed:
+            print(f"Completed: {completed['title']}")
+        else:
+            print("Task not found.")
+
+
 def main():
     from dotenv import load_dotenv
 
@@ -82,9 +128,23 @@ def main():
         "--output-file", help="Path to the output image file (optional)"
     )
 
+    p_jules = subparsers.add_parser("jules", help="Manage mini-tasks with Jules AI")
+    p_jules.add_argument("action", choices=["add", "list", "done"], help="Action to perform")
+    p_jules.add_argument("content", nargs="?", help="Task content (for add) or Task ID (for done)")
+    # Note: content argument is reused for ID in 'done' for simplicity, or we can split.
+    # Let's match the cmd_jules logic: args.content for add, args.task_id would be nice but argparse simple mapped.
+    # We will map content to task_id in logic or just rename the arg in parser.
+    
+    # Re-doing p_jules to be cleaner
+    
     args = parser.parse_args()
 
-    if args.command == "process":
+    # Manual fixup for the jules arguments because I didn't do sub-sub-parsers
+    if args.command == "jules":
+        if args.action == "done":
+             args.task_id = args.content
+        cmd_jules(args)
+    elif args.command == "process":
         cmd_process(args)
     elif args.command == "novel":
         cmd_novel(args)

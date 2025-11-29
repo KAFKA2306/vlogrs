@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     novel_max_output_tokens: int = _config.get("novel", {}).get(
         "max_output_tokens", 8192
     )
+    
+    # Jules (Mini-Tasks)
+    jules_api_key: str = Field(default="", alias="GOOGLE_JULES_API_KEY")
+    jules_model: str = _config.get("jules", {}).get("model", "gemini-2.5-flash")
 
     # Supabase
     supabase_url: str = Field(default="", alias="SUPABASE_URL")

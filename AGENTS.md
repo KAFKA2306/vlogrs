@@ -95,6 +95,14 @@ task summarize FILE=transcript.txt  # 要約のみ
 task commit MESSAGE="commit message"  # git add . && git commit
 ```
 
+### Mini Task (Jules)
+
+```bash
+task jules:add CONTENT="Buy milk"   # タスク追加 (AI解析)
+task jules:list                     # タスク一覧
+task jules:done ID=12345678         # タスク完了
+```
+
 ## 起動方法
 
 ### Windows
@@ -115,6 +123,7 @@ task up      # systemdサービス起動
 
 ```bash
 GOOGLE_API_KEY=...
+GOOGLE_JULES_API_KEY=...
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 NEXT_PUBLIC_SUPABASE_URL=...
