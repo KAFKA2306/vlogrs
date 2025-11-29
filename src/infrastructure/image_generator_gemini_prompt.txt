@@ -1,4 +1,4 @@
-Read the novel text and generate precise, descriptive keywords for an image prompt.
+Read the novel text and craft a highly captivating and emotionally resonant image prompt. The goal is to generate an image that is attractive and deeply engaging, drawing the viewer into the scene's narrative.
 The image should capture an artistic and atmospheric interpretation of the scene, with a Japanese aesthetic.
 Include general stylistic elements such as: (Japanese aesthetic), (soft natural lighting), (clean composition), (film photography), (artistic interpretation).
 Then, extract specific elements from the text, focusing on:
