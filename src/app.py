@@ -1,7 +1,9 @@
 import logging
 import threading
 import time
+from datetime import datetime
 
+from src.domain.entities import RecordingSession
 from src.infrastructure.audio_recorder import AudioRecorder
 from src.infrastructure.file_repository import FileRepository
 from src.infrastructure.preprocessor import TranscriptPreprocessor
@@ -38,9 +40,14 @@ class Application:
         if running and not self._active_session:
             self._active_session = self._recorder.start()
         if not running and self._active_session:
-            session = self._recorder.stop()
+            file_paths = self._recorder.stop()
             self._active_session = None
-            if session:
+            if file_paths:
+                session = RecordingSession(
+                    file_paths=file_paths,
+                    start_time=datetime.now(),
+                    end_time=datetime.now(),
+                )
                 threading.Thread(
                     target=self._use_case.execute_session, args=(session,), daemon=True
                 ).start()
