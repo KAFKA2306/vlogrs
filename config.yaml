@@ -6,6 +6,7 @@ paths:
   transcript_dir: "data/transcripts"
   summary_dir: "data/summaries"
   archive_dir: "data/archives"
+  photo_dir: "data/photos"
 audio:
   sample_rate: 16000
   channels: 1
@@ -39,3 +40,11 @@ novel:
   out_dir: "data/novels"
   model: "gemini-2.5-flash"
   max_output_tokens: 4096
+
+image:
+  model: "Tongyi-MAI/Z-Image-Turbo"
+  width: 1024
+  height: 1024
+  num_inference_steps: 9
+  guidance_scale: 0.0
+  seed: 42

@@ -47,6 +47,7 @@ data/transcripts/
 data/summaries/
 data/archives/
 data/novels/
+data/photos/
 data/**/*.txt
 logs/
 *.wav

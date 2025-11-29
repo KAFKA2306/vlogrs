@@ -20,10 +20,11 @@ def cmd_process(args):
 
 
 def cmd_novel(args):
+    from src.infrastructure.image_generator import ImageGenerator
     from src.infrastructure.novelizer import Novelizer
     from src.use_cases.build_novel import BuildNovelUseCase
 
-    use_case = BuildNovelUseCase(Novelizer())
+    use_case = BuildNovelUseCase(Novelizer(), ImageGenerator())
     novel_path = use_case.execute(args.date)
 
     if novel_path:

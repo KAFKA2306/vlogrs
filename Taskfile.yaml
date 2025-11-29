@@ -28,6 +28,8 @@ tasks:
         ■ 小説生成
           task novel:build              今日の要約から章を生成
           task novel:build date=YYYYMMDD 指定日の章を生成
+          task photo novel=data/novels/YYYYMMDD.md 小説から画像生成
+          task photos:all               全小説から画像を一括生成
 
         ■ Windows 起動
           ダブルクリック: windows\run.bat
@@ -217,6 +219,19 @@ tasks:
     desc: 小説の章を生成
     cmds:
       - uv run python -m src.cli novel {{if .date}}--date {{.date}}{{end}}
+
+  photo:
+    desc: 小説から画像を生成
+    cmds:
+      - uv run python generate_photo.py {{.novel}}
+    preconditions:
+      - sh: test -n "{{.novel}}"
+        msg: novel=data/novels/YYYYMMDD.mdを指定してください
+
+  photos:all:
+    desc: 全小説から画像を一括生成
+    cmds:
+      - for f in data/novels/*.md; do [ -f "$f" ] && task photo novel="$f"; done || true
 
   # ────────────────────────────────────────
   # 内部ヘルパー
