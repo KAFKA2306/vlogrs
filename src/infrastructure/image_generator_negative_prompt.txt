@@ -1,2 +1,3 @@
-(worst quality, low quality:1.4), (grayscale), (western face), (strong contrast), (dark shadows), (3d render), (sketch), (painting), (anime), (cartoon), (american style), (gritty),
-(extra arms), (extra legs), (fused fingers), (too many fingers), (long neck), (1boy), (male), (man), (men), (guy), (guys), (beard), (masculine)
+(worst quality, low quality:1.4), (grayscale), (western face), (3d render), (sketch), (painting), (anime), (cartoon), (american style), (gritty),
+(extra arms), (extra legs), (fused fingers), (too many fingers), (long neck), (1boy), (male), (man), (men), (guy), (guys), (beard), (masculine),
+transparent, translucent, semi-transparent, ghost, see-through, blurry, foggy, hazy, misty, out of focus

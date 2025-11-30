@@ -21,6 +21,19 @@ class ImageGenerator:
         jules = JulesClient()
         text = jules.generate_image_prompt(chapter_text)
 
+        # Hard filter to remove unwanted keywords
+        import re
+
+        text = re.sub(
+            r"\b(pig|swine|hog|boar|piglet)s?\b", "", text, flags=re.IGNORECASE
+        )
+        text = re.sub(
+            r"\b(translucent|transparent|semi-transparent|ethereal)\b",
+            "",
+            text,
+            flags=re.IGNORECASE,
+        )
+
         # Read prompts
         base_path = Path(__file__).parent
         template = (
