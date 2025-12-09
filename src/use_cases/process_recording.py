@@ -78,12 +78,17 @@ class ProcessRecordingUseCase:
         return cleaned
 
     def _save_summary(self, transcript: str, session: RecordingSession) -> None:
-        summary_text = self._summarizer.summarize(transcript, session)
         summary_path = (
             settings.summary_dir
             / f"{session.start_time.strftime('%Y%m%d')}_summary.txt"
         )
         summary_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if summary_path.exists():
+            print(f"Summary already exists for {session.start_time}, skipping.")
+            return
+
+        summary_text = self._summarizer.summarize(transcript, session)
         self._files.save_text(str(summary_path), summary_text)
 
     def _generate_novel_and_photo(self, session: RecordingSession) -> None:
@@ -96,24 +101,37 @@ class ProcessRecordingUseCase:
         if not summary_path.exists():
             return
 
-        today_summary = summary_path.read_text(encoding="utf-8")
         novel_path = settings.novel_out_dir / f"{target_date}.md"
-
-        novel_so_far = ""
-        if novel_path.exists():
-            novel_so_far = novel_path.read_text(encoding="utf-8")
-
-        chapter = self._novelizer.generate_chapter(today_summary, novel_so_far)
-        novel_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if novel_so_far:
-            novel_path.write_text(f"{novel_so_far}\n\n{chapter}", encoding="utf-8")
-        else:
-            novel_path.write_text(chapter, encoding="utf-8")
-
         photo_path = settings.photo_dir / f"{target_date}.png"
-        photo_path.parent.mkdir(parents=True, exist_ok=True)
-        self._image_generator.generate_from_novel(chapter, photo_path)
+
+        # Check if both novel and photo exist
+        if novel_path.exists() and photo_path.exists():
+            print(f"Novel and photo already exist for {target_date}, skipping.")
+            return
+
+        today_summary = summary_path.read_text(encoding="utf-8")
+
+        if not novel_path.exists():
+            novel_so_far = ""
+            if novel_path.exists():
+                novel_so_far = novel_path.read_text(encoding="utf-8")
+
+            chapter = self._novelizer.generate_chapter(today_summary, novel_so_far)
+            novel_path.parent.mkdir(parents=True, exist_ok=True)
+
+            if novel_so_far:
+                novel_path.write_text(f"{novel_so_far}\n\n{chapter}", encoding="utf-8")
+            else:
+                novel_path.write_text(chapter, encoding="utf-8")
+
+        if not photo_path.exists():
+            # If we just generated the novel, read it back. If it existed, read it.
+            chapter = novel_path.read_text(encoding="utf-8")
+            # We might want just the last chapter, but for now using the whole text or just the new part is tricky
+            # without parsing. Using the whole text for prompt generation is safer for context.
+
+            photo_path.parent.mkdir(parents=True, exist_ok=True)
+            self._image_generator.generate_from_novel(chapter, photo_path)
 
     def _finalize(self, audio_path: str) -> None:
         self._storage.sync()

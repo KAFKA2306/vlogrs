@@ -15,13 +15,11 @@ class ImageGenerator:
         self.generate(prompt, negative_prompt, output_path)
 
     def _extract_prompt(self, chapter_text: str) -> tuple[str, str]:
-        # Generate optimized prompt using Jules
         from src.infrastructure.jules import JulesClient
 
         jules = JulesClient()
         text = jules.generate_image_prompt(chapter_text)
 
-        # Hard filter to remove unwanted keywords
         import re
 
         text = re.sub(
@@ -34,7 +32,6 @@ class ImageGenerator:
             flags=re.IGNORECASE,
         )
 
-        # Read prompts
         base_path = Path(__file__).parent
         template = (
             (base_path / "image_generator_prompt.txt")
@@ -69,7 +66,6 @@ class ImageGenerator:
 
         generator = torch.Generator(settings.image_device).manual_seed(seed)
 
-        # Save prompt
         prompt_path = settings.photo_prompt_dir / f"{output_path.stem}.txt"
         prompt_path.parent.mkdir(parents=True, exist_ok=True)
         prompt_path.write_text(

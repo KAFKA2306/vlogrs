@@ -58,7 +58,6 @@ def cmd_image_generate(args):
         else novel_path.parent / (novel_path.stem + ".png")
     )
 
-    # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Generating image for {novel_path} to {output_path}...")
@@ -87,7 +86,6 @@ def cmd_jules(args):
             return
         except Exception as e:
             print(f"AI Error: {e}")
-            # Fallback
             task_data = {"title": args.content, "priority": "medium", "tags": []}
 
         new_task = repo.add(task_data)
@@ -149,16 +147,8 @@ def main():
     p_jules.add_argument(
         "content", nargs="?", help="Task content (for add) or Task ID (for done)"
     )
-    # Note: content argument is reused for ID in 'done' for simplicity, or we can split.
-    # Let's match the cmd_jules logic: args.content for add.
-    # args.task_id would be nice but argparse simple mapped.
-    # We will map content to task_id in logic or just rename the arg in parser.
-
-    # Re-doing p_jules to be cleaner
 
     args = parser.parse_args()
-
-    # Manual fixup for the jules arguments because I didn't do sub-sub-parsers
     if args.command == "jules":
         if args.action == "done":
             args.task_id = args.content

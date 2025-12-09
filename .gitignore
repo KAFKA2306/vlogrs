@@ -49,11 +49,15 @@ data/archives/
 data/novels/
 data/photos/
 data/**/*.txt
+data/**/*.md
 logs/
 *.wav
 *.flac
 *.mp3
-*.md
+
+# Allow documentation markdown files
+!docs/**/*.md
+!*.md
 
 # Frontend
 frontend/reader/node_modules/

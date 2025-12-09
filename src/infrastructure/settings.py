@@ -22,7 +22,6 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    # Gemini
     gemini_api_key: str = Field(alias="GOOGLE_API_KEY")
     gemini_model: str = _config.get("gemini", {}).get("model", "gemini-2.5-flash")
     novel_model: str = _config.get("novel", {}).get("model", "gemini-2.5-flash")
@@ -30,23 +29,19 @@ class Settings(BaseSettings):
         "max_output_tokens", 8192
     )
 
-    # Jules (Mini-Tasks)
     jules_api_key: str = Field(default="", alias="GOOGLE_JULES_API_KEY")
     jules_model: str = _config.get("jules", {}).get("model", "gemini-2.5-flash")
 
-    # Supabase
     supabase_url: str = Field(default="", alias="SUPABASE_URL")
     supabase_service_role_key: str = Field(
         default="", alias="SUPABASE_SERVICE_ROLE_KEY"
     )
 
-    # Application Loop
     check_interval: int = _config.get("process", {}).get("check_interval", 5)
     process_names: Set[str] = set(
         _config.get("process", {}).get("names", "VRChat").split(",")
     )
 
-    # Audio Recording
     recording_dir: Path = Path(
         _config.get("paths", {}).get("recording_dir", "data/recordings")
     )
@@ -54,7 +49,6 @@ class Settings(BaseSettings):
     channels: int = _config.get("audio", {}).get("channels", 1)
     block_size: int = _config.get("audio", {}).get("block_size", 1024)
 
-    # Whisper
     whisper_model_size: str = _config.get("whisper", {}).get("model_size", "large-v3")
     whisper_device: str = _config.get("whisper", {}).get("device", "cuda")
     whisper_compute_type: str = _config.get("whisper", {}).get(
@@ -64,7 +58,6 @@ class Settings(BaseSettings):
         _config.get("paths", {}).get("transcript_dir", "data/transcripts")
     )
 
-    # Summarization
     summary_dir: Path = Path(
         _config.get("paths", {}).get("summary_dir", "data/summaries")
     )
@@ -74,10 +67,8 @@ class Settings(BaseSettings):
     )
     photo_dir: Path = Path(_config.get("paths", {}).get("photo_dir", "data/photos"))
 
-    # Novel
     novel_out_dir: Path = Path(_config.get("novel", {}).get("out_dir", "data/novels"))
 
-    # Image Generation
     image_model: str = _config.get("image", {}).get(
         "model", "cagliostrolab/animagine-xl-3.1"
     )
@@ -96,7 +87,6 @@ class Settings(BaseSettings):
         "low quality, worst quality, bad anatomy"
     )
 
-    # Archiving
     archive_after_process: bool = _config.get("processing", {}).get(
         "archive_after_process", True
     )

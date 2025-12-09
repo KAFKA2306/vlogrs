@@ -1,5 +1,7 @@
 version: "3"
 
+env: {}
+
 tasks:
   # ────────────────────────────────────────
   # ヘルプ
@@ -90,7 +92,6 @@ tasks:
       - systemctl --user status vlog --no-pager --lines=10 || true
       - echo ""
       - echo "■ ログ解析"
-      - python3 src/view_logs.py
 
   logs:
     desc: ログ追尾（リアルタイム）
@@ -197,10 +198,6 @@ tasks:
   service:status:
     desc: systemd状態のみ
     cmd: systemctl --user status vlog
-
-  log:status:
-    desc: ログ解析のみ
-    cmd: python3 src/view_logs.py
 
   transcribe:
     desc: 文字起こしのみ

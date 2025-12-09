@@ -34,10 +34,15 @@ class Transcriber:
         return " ".join(segment.text.strip() for segment in segments).strip()
 
     def transcribe_and_save(self, audio_path: str) -> tuple[str, str]:
-        text = self.transcribe(audio_path)
-        os.makedirs(settings.transcript_dir, exist_ok=True)
         base = Path(audio_path).stem
+        os.makedirs(settings.transcript_dir, exist_ok=True)
         out_path = Path(settings.transcript_dir) / f"{base}.txt"
+
+        if out_path.exists():
+            print(f"Transcript already exists for {base}, skipping Whisper.")
+            return out_path.read_text(encoding="utf-8").strip(), str(out_path)
+
+        text = self.transcribe(audio_path)
         out_path.write_text(text + "\n", encoding="utf-8")
         return text, str(out_path)
 

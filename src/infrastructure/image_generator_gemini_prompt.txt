@@ -9,9 +9,7 @@ Envision and describe compelling elements inspired by the text, focusing on:
 
 Note on Keywords:
 Crucially, do NOT include keywords related to the medium or context of the text itself, such as VRChat, virtual, meta, or similar terms. The goal is to visualize the narrative, not the platform it describes.
-Also, be careful not to interpret metaphors, puns, or specific Japanese terms literally (e.g., "butakusa" (ragweed) should NOT be interpreted as "pig"). Focus on the actual visual scene described.
-Do NOT use keywords like "translucent", "transparent", "semi-transparent", or "ethereal" for characters or main objects. Subjects must be solid and opaque.
-Do NOT include "pig", "swine", or similar animals in the image prompt, even if they are mentioned in the text.
+Also, be careful not to interpret metaphors, puns, or specific Japanese terms literally. Focus on the actual visual scene described.
 
 Novel Text:
 {chapter_text}

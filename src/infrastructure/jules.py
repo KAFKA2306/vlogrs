@@ -8,7 +8,6 @@ from src.infrastructure.settings import settings
 
 class JulesClient:
     def __init__(self):
-        # Prioritize a valid-looking API key (starts with AIza)
         jules_key = settings.jules_api_key
         gemini_key = settings.gemini_api_key
 
@@ -27,9 +26,6 @@ class JulesClient:
         self._model = genai.GenerativeModel(settings.jules_model)
 
     def parse_task(self, user_input: str) -> Dict[str, Any]:
-        """
-        Parses user input into a structured task using Gemini.
-        """
         prompt = f"""
         You are Jules, a personal task management assistant. 
         Analyze the following user input and extract a structured task.
@@ -49,7 +45,6 @@ class JulesClient:
 
         response = self._model.generate_content(prompt)
         try:
-            # Strip markdown if present
             text = response.text.strip()
             if text.startswith("```json"):
                 text = text[7:-3]
@@ -57,7 +52,6 @@ class JulesClient:
                 text = text[3:-3]
             return json.loads(text)
         except json.JSONDecodeError:
-            # Fallback if JSON parsing fails
             return {
                 "title": user_input,
                 "description": "",
@@ -67,18 +61,11 @@ class JulesClient:
             }
 
     def chat(self, history: List[Dict[str, str]], message: str) -> str:
-        """
-        Simple chat interface for 'management' discussions.
-        """
-        # This could be expanded for a full chat loop
         chat = self._model.start_chat(history=history)
         response = chat.send_message(message)
         return response.text
 
     def generate_image_prompt(self, chapter_text: str) -> str:
-        """
-        Generates an image prompt from novel text using a stored template.
-        """
         from pathlib import Path
 
         base_path = Path(__file__).parent

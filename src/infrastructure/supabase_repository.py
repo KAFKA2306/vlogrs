@@ -61,7 +61,6 @@ class SupabaseRepository:
             return
 
         for path in novel_dir.glob("*.md"):
-            # Expecting filename format: YYYYMMDD.md
             if not path.stem.isdigit() or len(path.stem) != 8:
                 continue
 

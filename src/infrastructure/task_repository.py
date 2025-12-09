@@ -40,9 +40,6 @@ class TaskRepository:
         return [t for t in tasks if t.get("status") != "completed"]
 
     def complete(self, task_id_prefix: str) -> Dict[str, Any] | None:
-        """
-        Completes a task by ID or partial ID (first 8 chars).
-        """
         tasks = self._load()
         found = False
         target_task = None
