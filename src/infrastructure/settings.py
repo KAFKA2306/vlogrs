@@ -47,12 +47,17 @@ class Settings(BaseSettings):
     )
 
     check_interval: int = _config.get("process", {}).get("check_interval", 5)
-    process_names: Set[str] = set(
-        _config.get("process", {}).get("names", "VRChat").split(",")
+    process_names: Set[str] = Field(
+        default_factory=lambda: set(
+            _config.get("process", {}).get("names", "VRChat").split(",")
+        )
     )
 
-    recording_dir: Path = Path(
-        _config.get("paths", {}).get("recording_dir", "data/recordings")
+    recording_dir: Path = Field(
+        default_factory=lambda: Path(
+            _config.get("paths", {}).get("recording_dir", "data/recordings")
+        ),
+        alias="VLOG_RECORDING_DIR",
     )
     sample_rate: int = _config.get("audio", {}).get("sample_rate", 16000)
     channels: int = _config.get("audio", {}).get("channels", 1)
@@ -63,20 +68,39 @@ class Settings(BaseSettings):
     whisper_compute_type: str = _config.get("whisper", {}).get(
         "compute_type", "float16"
     )
-    transcript_dir: Path = Path(
-        _config.get("paths", {}).get("transcript_dir", "data/transcripts")
+    transcript_dir: Path = Field(
+        default_factory=lambda: Path(
+            _config.get("paths", {}).get("transcript_dir", "data/transcripts")
+        ),
+        alias="VLOG_TRANSCRIPT_DIR",
     )
 
-    summary_dir: Path = Path(
-        _config.get("paths", {}).get("summary_dir", "data/summaries")
+    summary_dir: Path = Field(
+        default_factory=lambda: Path(
+            _config.get("paths", {}).get("summary_dir", "data/summaries")
+        ),
+        alias="VLOG_SUMMARY_DIR",
     )
 
-    photo_prompt_dir: Path = Path(
-        _config.get("paths", {}).get("photo_prompt_dir", "data/photos_prompts")
+    photo_prompt_dir: Path = Field(
+        default_factory=lambda: Path(
+            _config.get("paths", {}).get("photo_prompt_dir", "data/photos_prompts")
+        ),
+        alias="VLOG_PHOTO_PROMPT_DIR",
     )
-    photo_dir: Path = Path(_config.get("paths", {}).get("photo_dir", "data/photos"))
+    photo_dir: Path = Field(
+        default_factory=lambda: Path(
+            _config.get("paths", {}).get("photo_dir", "data/photos")
+        ),
+        alias="VLOG_PHOTO_DIR",
+    )
 
-    novel_out_dir: Path = Path(_config.get("novel", {}).get("out_dir", "data/novels"))
+    novel_out_dir: Path = Field(
+        default_factory=lambda: Path(
+            _config.get("novel", {}).get("out_dir", "data/novels")
+        ),
+        alias="VLOG_NOVEL_OUT_DIR",
+    )
 
     image_model: str = _config.get("image", {}).get(
         "model", "cagliostrolab/animagine-xl-3.1"
@@ -99,8 +123,11 @@ class Settings(BaseSettings):
     archive_after_process: bool = _config.get("processing", {}).get(
         "archive_after_process", True
     )
-    archive_dir: Path = Path(
-        _config.get("paths", {}).get("archive_dir", "data/archives")
+    archive_dir: Path = Field(
+        default_factory=lambda: Path(
+            _config.get("paths", {}).get("archive_dir", "data/archives")
+        ),
+        alias="VLOG_ARCHIVE_DIR",
     )
 
     prompts: Dict[str, Any] = _prompts
