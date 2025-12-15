@@ -6,13 +6,13 @@ from src.app import Application
 
 
 def setup_logging():
-    Path("logs").mkdir(exist_ok=True)
+    Path("data/logs").mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler("logs/vlog.log", encoding="utf-8"),
+            logging.FileHandler("data/logs/vlog.log", encoding="utf-8"),
         ],
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)

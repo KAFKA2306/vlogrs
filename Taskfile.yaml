@@ -259,3 +259,16 @@ tasks:
     preconditions:
       - sh: test -n "{{.FILE}}"
         msg: FILEを指定してください
+
+  # ────────────────────────────────────────
+  # Serena MCP
+  # ────────────────────────────────────────
+  serena:onboarding:
+    desc: Serenaプロジェクトの初期化（インデックス作成）
+    cmds:
+      - serena project index
+
+  serena:start:
+    desc: Serena MCPサーバーの起動
+    cmds:
+      - serena start-mcp-server

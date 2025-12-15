@@ -52,7 +52,9 @@ class JulesClient:
         prompt = template.format(chapter_text=chapter_text[:2000])
 
         response = self._model.generate_content(prompt)
-        return response.text.strip()
+        if response.parts:
+            return response.text.strip()
+        return ""
 
 
 class ImageGenerator:
@@ -151,15 +153,31 @@ class Summarizer:
         self._model = None
         self._prompt_template = settings.prompts["summarizer"]["template"]
 
-    def summarize(self, transcript: str, session: RecordingSession) -> str:
+    def summarize(
+        self,
+        transcript: str,
+        session: RecordingSession = None,
+        date_str: str = None,
+        start_time_str: str = None,
+        end_time_str: str = None,
+    ) -> str:
         if not self._model:
             genai.configure(api_key=settings.gemini_api_key)
             self._model = genai.GenerativeModel(settings.gemini_model)
 
+        if session:
+            d = session.start_time.strftime("%Y-%m-%d")
+            s = session.start_time.strftime("%H:%M")
+            e = (session.end_time or session.start_time).strftime("%H:%M")
+        else:
+            d = date_str or "Unknown Date"
+            s = start_time_str or "00:00"
+            e = end_time_str or "00:00"
+
         prompt = self._prompt_template.format(
-            date=session.start_time.strftime("%Y-%m-%d"),
-            start_time=session.start_time.strftime("%H:%M"),
-            end_time=(session.end_time or session.start_time).strftime("%H:%M"),
+            date=d,
+            start_time=s,
+            end_time=e,
             transcript=transcript.strip(),
         )
         response = self._model.generate_content(prompt)

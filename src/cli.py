@@ -115,6 +115,43 @@ def cmd_jules(args):
             print("Task not found.")
 
 
+def cmd_transcribe(args):
+    transcriber = Transcriber()
+    transcriber.transcribe_and_save(args.file)
+    print(f"Transcribed: {args.file}")
+
+
+def cmd_summarize(args):
+    from pathlib import Path
+
+    file_repo = FileRepository()
+    summarizer = Summarizer()
+
+    # Check if transcript exists for the audio file, or if input is a transcript
+    input_path = Path(args.file)
+    if input_path.suffix in [".txt", ".md"]:
+        transcript_text = file_repo.read(args.file)
+        transcript_path = input_path
+    else:
+        # Assume audio file input, look for corresponding transcript
+        # logic from ProcessRecordingUseCase or similar?
+        # Simpler: just require transcript path for summarize command?
+        # Taskfile passes FILE=audio.wav.
+        # So we need to derive transcript path from audio path.
+        # Transcriber.transcribe_and_save saves to data/transcripts/{stem}.txt
+        transcript_path = Path("data/transcripts") / f"{input_path.stem}.txt"
+        if not transcript_path.exists():
+            print(f"Transcript not found: {transcript_path}")
+            return
+        transcript_text = file_repo.read(str(transcript_path))
+
+    summary = summarizer.summarize(
+        transcript_text, date_str=input_path.stem.split("_")[0]
+    )
+    file_repo.save_summary(summary, input_path.stem.split("_")[0])
+    print(f"Summarized: {args.file}")
+
+
 def main():
     from dotenv import load_dotenv
 
@@ -141,6 +178,12 @@ def main():
         "--output-file", help="Path to the output image file (optional)"
     )
 
+    p_transcribe = subparsers.add_parser("transcribe", help="Transcribe audio file")
+    p_transcribe.add_argument("--file", required=True, help="Path to audio file")
+
+    p_summarize = subparsers.add_parser("summarize", help="Summarize transcript")
+    p_summarize.add_argument("--file", required=True, help="Path to audio/text file")
+
     p_jules = subparsers.add_parser("jules", help="Manage mini-tasks with Jules AI")
     p_jules.add_argument(
         "action", choices=["add", "list", "done"], help="Action to perform"
@@ -162,6 +205,10 @@ def main():
         cmd_sync(args)
     elif args.command == "image-generate":
         cmd_image_generate(args)
+    elif args.command == "transcribe":
+        cmd_transcribe(args)
+    elif args.command == "summarize":
+        cmd_summarize(args)
     else:
         parser.print_help()
 

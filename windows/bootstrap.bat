@@ -14,18 +14,7 @@ if not exist ".env" (
   type nul > ".env"
 )
 
-set "RECORDING_PATH=%CD%\data\recordings"
-set "TRANSCRIPT_PATH=%CD%\data\transcripts"
 
-findstr /C:"VLOG_RECORDING_DIR=" .env >nul 2>&1
-if errorlevel 1 (
-  echo VLOG_RECORDING_DIR=%RECORDING_PATH%>> .env
-)
-
-findstr /C:"VLOG_TRANSCRIPT_DIR=" .env >nul 2>&1
-if errorlevel 1 (
-  echo VLOG_TRANSCRIPT_DIR=%TRANSCRIPT_PATH%>> .env
-)
 
 
 

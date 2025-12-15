@@ -2,12 +2,13 @@ from pathlib import Path
 from typing import Any, Dict, Set
 
 import yaml
-from pydantic import Field
+import platform
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def load_config() -> Dict[str, Any]:
-    config_path = Path("config.yaml")
+    config_path = Path("data/config.yaml")
     if config_path.exists():
         with open(config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
@@ -15,7 +16,7 @@ def load_config() -> Dict[str, Any]:
 
 
 def load_prompts() -> Dict[str, Any]:
-    prompts_path = Path("prompts.yaml")
+    prompts_path = Path("data/prompts.yaml")
     if prompts_path.exists():
         with open(prompts_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
@@ -131,6 +132,41 @@ class Settings(BaseSettings):
     )
 
     prompts: Dict[str, Any] = _prompts
+
+    @field_validator(
+        "recording_dir",
+        "transcript_dir",
+        "summary_dir",
+        "novel_out_dir",
+        "photo_prompt_dir",
+        "photo_dir",
+        "archive_dir",
+        mode="after",
+    )
+    @classmethod
+    def validate_linux_paths(cls, v: Path, info) -> Path:
+        if platform.system() != "Linux":
+            return v
+
+        # Check for Windows-style absolute paths (Drive letter or backslashes)
+        s_path = str(v)
+        if s_path.startswith("Z:") or "\\" in s_path:
+            # Map fields to their default backup values (same as in default_factory above)
+            defaults = {
+                "recording_dir": "data/recordings",
+                "transcript_dir": "data/transcripts",
+                "summary_dir": "data/summaries",
+                "novel_out_dir": "data/novels",
+                "photo_prompt_dir": "data/photos_prompts",
+                "photo_dir": "data/photos",
+                "archive_dir": "data/archives",
+            }
+            field_name = info.field_name
+            # Try to get from config first, else hardcoded default
+            default_val = _config.get("paths", {}).get(field_name, defaults.get(field_name))
+            if default_val:
+                return Path(default_val)
+        return v
 
 
 settings = Settings()

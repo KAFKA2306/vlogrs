@@ -15,8 +15,16 @@ class FileRepository:
     def exists(self, path: str) -> bool:
         return Path(path).exists()
 
+    def read(self, path: str) -> str:
+        return Path(path).read_text(encoding="utf-8")
+
     def save_text(self, path: str, content: str) -> None:
         Path(path).write_text(content, encoding="utf-8")
+
+    def save_summary(self, summary: str, date_str: str) -> None:
+        summary_path = Path(settings.summary_dir) / f"{date_str}_summary.txt"
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        self.save_text(str(summary_path), summary)
 
     def archive(self, path: str) -> None:
         if not settings.archive_after_process:
