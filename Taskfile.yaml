@@ -140,12 +140,10 @@ tasks:
         done || true
 
   process:daily:
-    desc: 日次処理（昨日＋今日＋小説生成）
+    desc: 日次処理（昨日＋今日）
     cmds:
       - task process:yesterday
       - task process:today
-      - YESTERDAY=$(date -d "yesterday" +%Y%m%d); task novel:build date=$YESTERDAY || true
-      - TODAY=$(date +%Y%m%d); task novel:build date=$TODAY || true
 
   transcribe:all:
     desc: 文字起こしのみ（全ファイル）

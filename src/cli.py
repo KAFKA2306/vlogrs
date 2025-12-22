@@ -122,29 +122,33 @@ def cmd_transcribe(args):
 
 
 def cmd_summarize(args):
-    import re
     from pathlib import Path
 
     file_repo = FileRepository()
     summarizer = Summarizer()
 
+    # Check if transcript exists for the audio file, or if input is a transcript
     input_path = Path(args.file)
     if input_path.suffix in [".txt", ".md"]:
         transcript_text = file_repo.read(args.file)
         transcript_path = input_path
     else:
+        # Assume audio file input, look for corresponding transcript
+        # logic from ProcessRecordingUseCase or similar?
+        # Simpler: just require transcript path for summarize command?
+        # Taskfile passes FILE=audio.wav.
+        # So we need to derive transcript path from audio path.
+        # Transcriber.transcribe_and_save saves to data/transcripts/{stem}.txt
         transcript_path = Path("data/transcripts") / f"{input_path.stem}.txt"
         if not transcript_path.exists():
             print(f"Transcript not found: {transcript_path}")
             return
         transcript_text = file_repo.read(str(transcript_path))
 
-    stem = input_path.stem
-    match = re.search(r"(\d{8})", stem)
-    date_str = match.group(1) if match else stem.split("_")[0]
-
-    summary = summarizer.summarize(transcript_text, date_str=date_str)
-    file_repo.save_summary(summary, date_str)
+    summary = summarizer.summarize(
+        transcript_text, date_str=input_path.stem.split("_")[0]
+    )
+    file_repo.save_summary(summary, input_path.stem.split("_")[0])
     print(f"Summarized: {args.file}")
 
 
