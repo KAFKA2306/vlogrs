@@ -1,5 +1,8 @@
 # VRChat Auto-Diary システム構成図
 
+> マスタードキュメント → [docs/overview.md](file:///home/kafka/projects/vlog/docs/overview.md)  
+> 開発ガイド → [AGENTS.md](file:///home/kafka/projects/vlog/AGENTS.md)
+
 このシステムがどのように動いているかを図で説明します。
 
 ---
@@ -157,11 +160,12 @@ logs/
 
 ## 技術スタック
 
-- **録音**: sounddevice + soundfile (FLAC形式、16kHz)
-- **文字起こし**: Faster Whisper (large-v3-turbo, CUDA)
-- **前処理**: カスタムロジック（フィラー除去、重複削除）
-- **要約**: Google Gemini Flash
-- **DB**: Supabase (PostgreSQL)
+- **録音**: sounddevice + soundfile (FLAC形式、16kHz) → `system.py`
+- **文字起こし**: Faster Whisper (large-v3-turbo, CUDA) → `system.py`
+- **前処理**: カスタムロジック（フィラー除去、重複削除） → `system.py`
+- **要約・小説生成**: Google Gemini Flash → `ai.py`
+- **画像生成**: Diffusers (Z-Image-Turbo) → `ai.py`
+- **DB**: Supabase (PostgreSQL) → `repositories.py`
 - **フロントエンド**: Next.js + Vercel
 - **タスクランナー**: Task (Taskfile.yaml)
 

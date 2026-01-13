@@ -1,5 +1,8 @@
 # 画像生成サブシステム詳細仕様書 (Image Generation Subsystem Internal Specification)
 
+> マスタードキュメント → [docs/overview.md](file:///home/kafka/projects/vlog/docs/overview.md)  
+> 開発ガイド → [AGENTS.md](file:///home/kafka/projects/vlog/AGENTS.md)
+
 このドキュメントは、Vlogプロジェクトにおける画像生成サブシステム（Image Generation Subsystem）の技術仕様、アーキテクチャ、運用、およびトラブルシューティングに関する包括的なリファレンスです。開発者および運用者が、本システムの内部動作を完全に理解し、カスタマイズやデバッグを行えるレベルの詳細度を目指して記述されています。
 
 ## 目次
@@ -10,7 +13,7 @@
 4. [プロンプトエンジニアリング戦略](#プロンプトエンジニアリング戦略)
 5. [設定パラメータ完全リファレンス](#設定パラメータ完全リファレンス)
 6. [データモデルとディレクトリ構造](#データモデルとディレクトリ構造)
-7. [使用モデル詳細 (Animagine XL 3.1)](#使用モデル詳細)
+7. [使用モデル詳細](#使用モデル詳細)
 8. [手動操作とCLIツール](#手動操作とCLIツール)
 9. [トラブルシューティングとFAQ](#トラブルシューティングとfaq)
 
@@ -255,7 +258,7 @@ image:
   guidance_scale: 7.0      # CFG Scaleを適切に設定
 ```
 
-### 7.1 物理ディレクトリ構造とSnapshot (Physical Structure)
+### 7.3 物理ディレクトリ構造とSnapshot (Physical Structure)
 
 Hugging Faceのモデルは、`snapshots` ディレクトリ以下にハッシュID（Git Commit Hash）でバージョン管理されています。直接パスを参照する場合は、最新のsnapshotディレクトリを指定する必要があります。
 

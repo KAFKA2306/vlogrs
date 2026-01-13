@@ -1,5 +1,9 @@
 # VLog - VRChat Auto-Diary 完全ドキュメント
 
+> 開発コマンド・コーディング規約 → [AGENTS.md](file:///home/kafka/projects/vlog/AGENTS.md)  
+> システム構成図 → [docs/architecture.md](file:///home/kafka/projects/vlog/docs/architecture.md)  
+> 画像生成サブシステム → [docs/image.md](file:///home/kafka/projects/vlog/docs/image.md)
+
 ## 目次
 
 1. [プロジェクト概要](#プロジェクト概要)
@@ -65,35 +69,7 @@ VRChatでの体験を完全自動で記録・保存し、後から振り返れ�
 
 ## アーキテクチャ
 
-### Clean Architecture採用
-
-プロジェクトは厳格なClean Architectureに従って設計されています。
-
-```
-src/
-├── domain/              # ビジネスロジック層（依存なし）
-│   ├── entities.py      # ドメインエンティティ
-│   └── interfaces.py    # ドメインインターフェース（Protocol）
-├── use_cases/           # アプリケーションロジック層
-│   ├── process_recording.py  # 録音処理ユースケース
-│   └── build_novel.py        # 小説生成ユースケース
-├── infrastructure/      # 実装詳細層（外部依存）
-│   ├── audio_recorder.py     # 音声録音
-│   ├── transcriber.py        # 文字起こし（Whisper）
-│   ├── preprocessor.py       # テキスト前処理
-│   ├── summarizer.py         # AI要約（Gemini）
-│   ├── novelizer.py          # 小説生成（Gemini)
-│   ├── image_generator.py    # 画像生成（Diffusers）
-│   ├── supabase_repository.py # データ永続化
-│   ├── file_repository.py    # ローカルファイル管理
-│   ├── process_monitor.py    # VRChatプロセス監視
-│   ├── jules.py              # タスク管理AI
-│   ├── task_repository.py    # タスクストレージ
-│   └── settings.py           # 設定管理
-├── app.py               # アプリケーションエントリポイント
-├── cli.py               # CLIインターフェース
-└── main.py              # メイン実行ファイル
-```
+Clean Architectureを採用。詳細なディレクトリ構造・コマンド一覧・コーディング規約は [AGENTS.md](file:///home/kafka/projects/vlog/AGENTS.md) を参照。
 
 ### 依存性の方向
 
@@ -149,14 +125,34 @@ Infrastructure → Use Cases → Domain
 | **ruff** | latest | リンター・フォーマッター |
 | **uv** | latest | 高速パッケージマネージャー |
 
-### フロントエンド
+### フロントエンド（frontend/reader/）
 
 | ライブラリ | バージョン | 用途 |
 |-----------|----------|------|
-| **Next.js** | 16.0.3 | Reactフレームワーク |
+| **Next.js** | ^16.1.0 | Reactフレームワーク（App Router） |
 | **React** | 19.2.0 | UIライブラリ |
 | **TypeScript** | ^5 | 型安全性 |
 | **@supabase/supabase-js** | ^2.84.0 | Supabaseクライアント |
+
+#### ディレクトリ構造
+
+```
+frontend/reader/
+├── app/
+│   ├── page.tsx           # メインページ（日記一覧・詳細モーダル）
+│   ├── layout.tsx         # ルートレイアウト
+│   └── globals.css        # スタイル
+├── lib/
+│   └── supabaseClient.ts  # Supabaseクライアント初期化
+└── package.json
+```
+
+#### 主な機能
+
+- `daily_entries`と`novels`テーブルから公開エントリ取得
+- 検索・フィルタ機能（All/Summaries/Novels）
+- 日付順ソート・カード表示・詳細モーダル
+- 画像表示対応（`image_url`）
 
 ### インフラストラクチャ
 
@@ -403,58 +399,7 @@ image:
 
 ## 開発規則
 
-### コーディング規約
-
-#### Python
-
-1. **スタイル**
-   - Python 3.11+
-   - 4スペースインデント
-   - 型ヒント必須（すべての関数・メソッド）
-   - `snake_case`: モジュール・関数
-   - `PascalCase`: クラス
-   - `UPPER_CASE`: 定数
-
-2. **禁止事項**
-   - **コメント禁止**: コードは自己説明的であるべき
-   - **エラーハンドリング禁止**: 失敗時はクラッシュさせる（fail-fast）
-   - **ハードコード禁止**: すべて設定ファイル化
-
-3. **設計原則**
-   - 小さく組み合わせ可能な関数
-   - データクラスまたはPydanticモデル使用
-   - 成功パスのみ実装
-   - ファイルは短く保つ
-   - 関心の分離
-
-4. **品質管理**
-   ```bash
-   uv run ruff check src tests
-   uv run ruff format src tests
-   ```
-
-#### TypeScript/React
-
-1. **スタイル**
-   - TypeScript必須
-   - 関数コンポーネント
-   - hooks使用
-
-2. **設定**
-   - Next.js App Router
-   - サーバーコンポーネント優先
-
-### アーキテクチャ原則
-
-1. **依存性の逆転（DIP）**
-   - `domain/interfaces.py`でProtocol定義
-   - 実装は抽象に依存
-
-2. **単一責任原則（SRP）**
-   - 1ファイル1責務
-
-3. **開放閉鎖原則（OCP）**
-   - 拡張に開き、修正に閉じる
+コーディング規約・アーキテクチャ原則・品質管理コマンドは [AGENTS.md](file:///home/kafka/projects/vlog/AGENTS.md) を参照。
 
 ---
 
@@ -664,11 +609,9 @@ task photo novel=data/novels/20251204.md
 
 ```python
 from src.use_cases.process_recording import ProcessRecordingUseCase
-from src.infrastructure.transcriber import Transcriber
-from src.infrastructure.preprocessor import TranscriptPreprocessor
-from src.infrastructure.summarizer import Summarizer
-from src.infrastructure.supabase_repository import SupabaseRepository
-from src.infrastructure.file_repository import FileRepository
+from src.infrastructure.system import Transcriber, TranscriptPreprocessor
+from src.infrastructure.ai import Summarizer
+from src.infrastructure.repositories import SupabaseRepository, FileRepository
 
 use_case = ProcessRecordingUseCase(
     transcriber=Transcriber(),
@@ -685,8 +628,7 @@ success = use_case.execute("data/recordings/audio.flac")
 
 ```python
 from src.use_cases.build_novel import BuildNovelUseCase
-from src.infrastructure.novelizer import Novelizer
-from src.infrastructure.image_generator import ImageGenerator
+from src.infrastructure.ai import Novelizer, ImageGenerator
 
 use_case = BuildNovelUseCase(
     novelizer=Novelizer(),
@@ -802,126 +744,33 @@ USING (bucket_id = 'vlog-photos');
 
 ## 運用ガイド
 
-### 日常運用
-
-#### 起動・停止
-
-```bash
-# 起動
-task up
-
-# 停止
-task down
-
-# 再起動
-task restart
-
-# ステータス確認
-task status
-```
-
-#### ログ確認
-
-```bash
-# リアルタイムログ
-task logs
-
-# ログ解析のみ
-task log:status
-```
-
-#### データ同期
-
-```bash
-# 通常同期（更新分のみ）
-task sync
-
-# 強制全件同期
-task sync:full
-```
-
----
+コマンド一覧（`task up`, `task status`, `task sync` 等）は [AGENTS.md](file:///home/kafka/projects/vlog/AGENTS.md) を参照。
 
 ### トラブルシューティング
 
 #### 録音されない
 
-1. VRChatプロセス名を確認:
-   ```bash
-   ps aux | grep -i vrchat
-   ```
-
+1. VRChatプロセス名を確認: `ps aux | grep -i vrchat`
 2. `config.yaml`の`process.names`を調整
-
-3. サービス再起動:
-   ```bash
-   task restart
-   ```
-
----
+3. サービス再起動: `task restart`
 
 #### 文字起こし失敗
 
 1. Whisperモデルがダウンロード済みか確認
 2. CPUモード時はメモリ確認
-3. GPU利用時はCUDA設定確認:
-   ```yaml
-   whisper:
-     device: "cuda"
-     compute_type: "float16"
-   ```
-
----
+3. GPU利用時は`whisper.device: "cuda"`、`compute_type: "float16"`を設定
 
 #### Gemini APIエラー
 
-1. APIキー確認:
-   ```bash
-   grep GOOGLE_API_KEY .env
-   ```
-
+1. APIキー確認: `grep GOOGLE_API_KEY .env`
 2. API利用上限確認（Google AI Studio）
-
-3. モデル名確認:
-   ```yaml
-   gemini:
-     model: "gemini-2.5-flash"
-   ```
-
----
+3. モデル名確認: `gemini.model: "gemini-2.5-flash"`
 
 #### Supabase同期エラー
 
-1. 認証情報確認:
-   ```bash
-   grep SUPABASE .env
-   ```
-
+1. 認証情報確認: `grep SUPABASE .env`
 2. ネットワーク接続確認
-
 3. RLSポリシー確認（管理画面）
-
----
-
-### メンテナンス
-
-#### リント・フォーマット
-
-```bash
-task lint
-```
-
-#### キャッシュクリア
-
-```bash
-task clean
-```
-
-#### Git操作
-
-```bash
-task commit MESSAGE="変更内容"
-```
 
 ---
 
