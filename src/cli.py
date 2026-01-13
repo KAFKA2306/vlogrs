@@ -79,15 +79,8 @@ def cmd_jules(args):
             return
 
         print(f"Jules is thinking about: {args.content}...")
-        try:
-            client = JulesClient()
-            task_data = client.parse_task(args.content)
-        except ValueError as e:
-            print(f"Configuration Error: {e}")
-            return
-        except Exception as e:
-            print(f"AI Error: {e}")
-            task_data = {"title": args.content, "priority": "medium", "tags": []}
+        client = JulesClient()
+        task_data = client.parse_task(args.content)
 
         new_task = repo.add(task_data)
         print(
@@ -201,19 +194,16 @@ def cmd_pending(args):
 
         for audio_path in pending_transcription:
             print(f"Transcribing {audio_path.name}...")
-            try:
-                transcript, saved_path = transcriber.transcribe_and_save(
-                    str(audio_path)
-                )
+            transcript, saved_path = transcriber.transcribe_and_save(
+                str(audio_path)
+            )
 
-                cleaned = preprocessor.process(transcript)
-                cleaned_path = str(
-                    Path(saved_path).with_name(f"cleaned_{Path(saved_path).name}")
-                )
-                file_repo.save_text(cleaned_path, cleaned)
-                print(f"  Created {Path(saved_path).name} and cleaned version")
-            except Exception as e:
-                print(f"  Failed to transcribe {audio_path.name}: {e}")
+            cleaned = preprocessor.process(transcript)
+            cleaned_path = str(
+                Path(saved_path).with_name(f"cleaned_{Path(saved_path).name}")
+            )
+            file_repo.save_text(cleaned_path, cleaned)
+            print(f"  Created {Path(saved_path).name} and cleaned version")
 
         transcriber.unload()
 
