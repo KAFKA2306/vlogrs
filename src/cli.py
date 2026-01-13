@@ -181,15 +181,12 @@ def cmd_pending(args):
     novel_dir = Path("data/novels")
     recording_dir = Path("data/recordings")
 
-    # 1. Check for untranscribed recordings
     pending_transcription = []
-    # Recursively find audio files? Or just flat? Taskfile uses flat glob.
-    # Also ignore subdirs if any (like YYYYMMDD folders if we used those, but we seem to use flat)
+
     for f in recording_dir.glob("*"):
         if f.suffix.lower() not in [".wav", ".flac", ".mp3"]:
             continue
 
-        # Check if transcript exists
         transcript_path = transcript_dir / f"{f.stem}.txt"
         if not transcript_path.exists():
             pending_transcription.append(f)
@@ -209,7 +206,6 @@ def cmd_pending(args):
                     str(audio_path)
                 )
 
-                # Clean
                 cleaned = preprocessor.process(transcript)
                 cleaned_path = str(
                     Path(saved_path).with_name(f"cleaned_{Path(saved_path).name}")
@@ -221,7 +217,6 @@ def cmd_pending(args):
 
         transcriber.unload()
 
-    # 2. Collect unique dates from transcripts
     dates = set()
     for f in transcript_dir.glob("*.txt"):
         match = re.search(r"(\d{8})", f.stem)
