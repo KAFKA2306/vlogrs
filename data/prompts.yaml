@@ -9,9 +9,8 @@ jules:
     - title: A concise summary of the task.
     - description: A more detailed description (if available).
     - priority: "high", "medium", or "low".
-    - tags: A list of relevant tags (e.g., ["code", "chore", "urgent"]).
-    - estimated_minutes: An integer estimate of time required (default to 15 
-      if unknown).
+    - tags: A list of relevant tags.
+    - estimated_minutes: An integer estimate of time required.
 
     Output ONLY the JSON object. No markdown code blocks.
 
@@ -27,7 +26,7 @@ jules:
     Detailed Instructions:
     - Focus on the visual core of the scene.
     - If specific details are missing, creatively infer them to match the mood.
-    - STRICTLY PROHIBITED: Terms referencing the virtual/digital nature of the platform (e.g., VRChat, Unity, Metaverse, instance, avatar, HMD, controllers, polygons, glitch, user, HUD). Treat the scene as an absolute physical reality.
+    - STRICTLY PROHIBITED: Terms referencing the virtual/digital nature of the platform. Treat the scene as an absolute physical reality.
     - Avoid cliche tags like "coffee" or "steam" unless essential.
 
     Novel Text:
@@ -107,6 +106,8 @@ novelizer:
         - 登場人物は生身の人間として、現実の場所で対面しているものとして描いてください。
         - 技術的な話題が出る場合も、人間の体験や感情を中心に据えてください。
         - 「〜に戻る」「〜を外す」などの物語世界の枠を意識させる表現は避けてください。
+    - VR用語の自然置換（必須）:
+        - バーチャル空間特有の用語は、物理的な現実世界の自然な表現に置換してください。
     - 陳腐な表現の回避:
         - 安易な雰囲気作りに頼らず、その瞬間の特異なディテール（具体的な音、光の角度、物の配置）で
               情景を描写してください。
@@ -175,11 +176,18 @@ summarizer:
       評価や感想を独立したセクションとしてまとめる。
     - 名前、特徴、良かった点、気になった点などを整理する。
 
+    【タグ】
+    - 日記の内容を要約する5〜10個のタグを生成する。
+    - フォーマット: tags: ["タグ1", "タグ2", ...]
+    - タグは日本語で、具体的なトピック（人名、場所、活動、感情）を含める。
+
     【出力フォーマット】
 
     【YYYY-MM-DD 日記】
 
     (ここに本文)
+
+    tags: ["タグ1", "タグ2", ...]
 
     Transcript:
     {transcript}
