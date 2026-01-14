@@ -1,6 +1,7 @@
 import json
 import random
 import re
+import time
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -9,6 +10,7 @@ import torch
 from diffusers import DiffusionPipeline
 
 from src.domain.entities import RecordingSession
+from src.infrastructure.observability import TraceLogger
 from src.infrastructure.settings import settings
 
 
@@ -30,12 +32,23 @@ class JulesClient:
 
         genai.configure(api_key=api_key)
         self._model = genai.GenerativeModel(settings.jules_model)
+        self._tracer = TraceLogger()
 
     def parse_task(self, user_input: str) -> Dict[str, Any]:
         prompt = settings.prompts["jules"]["parse_task"].format(user_input=user_input)
-
+        start_time = time.time()
+        
         response = self._model.generate_content(prompt)
         text = response.text.strip()
+        
+        self._tracer.log(
+            component="jules_parse_task",
+            model=settings.jules_model,
+            start_time=start_time,
+            input_text=prompt,
+            output_text=text,
+        )
+
         if text.startswith("```json"):
             text = text[7:-3]
         elif text.startswith("```"):
@@ -44,22 +57,43 @@ class JulesClient:
 
     def chat(self, history: List[Dict[str, str]], message: str) -> str:
         chat = self._model.start_chat(history=history)
+        start_time = time.time()
         response = chat.send_message(message)
-        return response.text
+        text = response.text
+        
+        self._tracer.log(
+            component="jules_chat",
+            model=settings.jules_model,
+            start_time=start_time,
+            input_text=message,
+            output_text=text,
+        )
+        return text
 
     def generate_image_prompt(self, chapter_text: str) -> str:
         template = settings.prompts["jules"]["image_prompt"]
         prompt = template.format(chapter_text=chapter_text[:2000])
+        start_time = time.time()
 
         response = self._model.generate_content(prompt)
+        text = ""
         if response.parts:
-            return response.text.strip()
-        return ""
+            text = response.text.strip()
+            
+        self._tracer.log(
+            component="jules_image_prompt",
+            model=settings.jules_model,
+            start_time=start_time,
+            input_text=prompt,
+            output_text=text,
+        )
+        return text
 
 
 class ImageGenerator:
     def __init__(self):
         self._pipe = None
+        self._tracer = TraceLogger()
 
     def generate_from_novel(self, chapter_text: str, output_path: Path) -> None:
         prompt, negative_prompt = self._extract_prompt(chapter_text)
@@ -109,6 +143,7 @@ class ImageGenerator:
             encoding="utf-8",
         )
 
+        start_time = time.time()
         image = self._pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
@@ -119,6 +154,15 @@ class ImageGenerator:
             generator=generator,
         ).images[0]
 
+        self._tracer.log(
+            component="image_generator",
+            model=settings.image_model,
+            start_time=start_time,
+            input_text=prompt,
+            output_text=f"Saved to {output_path}",
+            metadata={"seed": seed, "negative_prompt": negative_prompt},
+        )
+
         image.save(output_path)
 
 
@@ -126,6 +170,7 @@ class Novelizer:
     def __init__(self):
         self._model = None
         self._prompt_template = settings.prompts["novelizer"]["template"]
+        self._tracer = TraceLogger()
 
     def generate_chapter(
         self,
@@ -140,18 +185,29 @@ class Novelizer:
             novel_so_far=novel_so_far,
             today_summary=today_summary,
         )
-
+        
+        start_time = time.time()
         response = self._model.generate_content(
             prompt,
             generation_config={"max_output_tokens": settings.novel_max_output_tokens},
         )
-        return response.text.strip()
+        text = response.text.strip()
+        
+        self._tracer.log(
+            component="novelizer",
+            model=settings.novel_model,
+            start_time=start_time,
+            input_text=prompt,
+            output_text=text,
+        )
+        return text
 
 
 class Summarizer:
     def __init__(self):
         self._model = None
         self._prompt_template = settings.prompts["summarizer"]["template"]
+        self._tracer = TraceLogger()
 
     def summarize(
         self,
@@ -180,5 +236,56 @@ class Summarizer:
             end_time=e,
             transcript=transcript.strip(),
         )
+        
+        start_time = time.time()
         response = self._model.generate_content(prompt)
-        return response.text.strip()
+        text = response.text.strip()
+        
+        self._tracer.log(
+            component="summarizer",
+            model=settings.gemini_model,
+            start_time=start_time,
+            input_text=prompt,
+            output_text=text,
+        )
+        return text
+
+
+class Curator:
+    def __init__(self):
+        self._model = None
+        self._prompt_template = settings.prompts["curator"]["evaluate"]
+        self._tracer = TraceLogger()
+
+    def evaluate(self, summary: str, novel: str) -> Dict[str, Any]:
+        if not self._model:
+            genai.configure(api_key=settings.gemini_api_key)
+            self._model = genai.GenerativeModel(settings.jules_model)
+
+        prompt = self._prompt_template.format(summary=summary, novel=novel)
+        start_time = time.time()
+        
+        response = self._model.generate_content(prompt)
+        text = response.text.strip()
+        
+        self._tracer.log(
+            component="curator_evaluate",
+            model=settings.jules_model,
+            start_time=start_time,
+            input_text=prompt,
+            output_text=text,
+        )
+
+        if text.startswith("```json"):
+            text = text[7:-3]
+        elif text.startswith("```"):
+            text = text[3:-3]
+            
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return {
+                "faithfulness_score": 0,
+                "quality_score": 0,
+                "reasoning": f"JSON Parse Error: {text}"
+            }

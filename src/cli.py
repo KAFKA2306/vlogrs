@@ -316,12 +316,19 @@ def main():
     p_jules.add_argument(
         "content", nargs="?", help="Task content (for add) or Task ID (for done)"
     )
+    p_curator = subparsers.add_parser(
+        "curator", help="Content verification and evaluation"
+    )
+    p_curator.add_argument("action", choices=["eval"], help="Action to perform")
+    p_curator.add_argument("--date", help="Target date (YYYYMMDD)")
 
     args = parser.parse_args()
     if args.command == "jules":
         if args.action == "done":
             args.task_id = args.content
         cmd_jules(args)
+    elif args.command == "curator":
+        cmd_curator(args)
     elif args.command == "process":
         cmd_process(args)
     elif args.command == "novel":
@@ -338,6 +345,14 @@ def main():
         cmd_pending(args)
     else:
         parser.print_help()
+
+
+def cmd_curator(args):
+    from src.use_cases.evaluate import EvaluateDailyContentUseCase
+
+    if args.action == "eval":
+        use_case = EvaluateDailyContentUseCase()
+        use_case.execute(args.date)
 
 
 if __name__ == "__main__":

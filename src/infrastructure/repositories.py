@@ -37,6 +37,16 @@ class FileRepository:
         src.rename(dst)
 
 
+    def save_evaluation(self, evaluation: Dict[str, Any], date_str: str) -> None:
+        eval_path = (
+            Path(settings.summary_dir).parent / "evaluations" / f"{date_str}.json"
+        )
+        eval_path.parent.mkdir(parents=True, exist_ok=True)
+        eval_path.write_text(
+            json.dumps(evaluation, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+
+
 class TaskRepository:
     def __init__(self, file_path: str = "data/tasks.json"):
         self.file_path = Path(file_path)
@@ -101,6 +111,7 @@ class SupabaseRepository:
         self._sync_summaries()
         self._sync_novels()
         self._sync_photos()
+        self._sync_evaluations()
 
     def _sync_summaries(self) -> None:
         rows = []
@@ -190,3 +201,43 @@ class SupabaseRepository:
             self.client.table("daily_entries").update({"image_url": image_url}).eq(
                 "date", date_obj.isoformat()
             ).execute()
+
+    def _sync_evaluations(self) -> None:
+        rows = []
+        eval_dir = Path(settings.summary_dir).parent / "evaluations"
+        if not eval_dir.exists():
+            return
+
+        for path in eval_dir.glob("*.json"):
+            date_str = path.stem
+            if not date_str.isdigit() or len(date_str) != 8:
+                continue
+
+            date_obj = datetime.strptime(date_str, "%Y%m%d").date()
+            data = json.loads(path.read_text(encoding="utf-8"))
+
+            rows.append(
+                {
+                    "date": date_obj.isoformat(),
+                    "target_type": "novel",  # Currently we only evaluate novels
+                    "score": data.get("quality_score", 0),
+                    "reasoning": json.dumps(
+                        {
+                            "faithfulness": data.get("faithfulness_score"),
+                            "quality": data.get("quality_score"),
+                            "reasoning": data.get("reasoning"),
+                        },
+                        ensure_ascii=False,
+                    ),
+                }
+            )
+
+        if rows:
+            # Upsert relying on date + target_type unique constraint?
+            # Or just ignore if table doesn't exist (user needs to create it)
+            try:
+                self.client.table("evaluations").upsert(
+                    rows, on_conflict="date, target_type"
+                ).execute()
+            except Exception as e:
+                print(f"Warning: Failed to sync evaluations. Table might be missing. {e}")

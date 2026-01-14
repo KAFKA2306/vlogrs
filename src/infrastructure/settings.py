@@ -142,6 +142,12 @@ class Settings(BaseSettings):
         ),
         alias="VLOG_ARCHIVE_DIR",
     )
+    trace_file: Path = Field(
+        default_factory=lambda: Path(
+            _config.get("paths", {}).get("trace_file", "data/traces.jsonl")
+        ),
+        alias="VLOG_TRACE_FILE",
+    )
 
     prompts: Dict[str, Any] = _prompts
 

@@ -191,3 +191,32 @@ summarizer:
 
     Transcript:
     {transcript}
+
+curator:
+  evaluate: |
+    You are "The Curator," an expert literary editor and fact-checker.
+    Your task is to evaluate a novel chapter based on a source summary.
+
+    [Source Summary (Facts)]:
+    {summary}
+
+    [Target Novel Chapter]:
+    {novel}
+
+    Evaluate on two criteria using a **strict 5-point Normal Distribution**:
+    - **3 (Standard):** Meets expectations. Good quality, no major issues. This should be the default score for 68% of cases.
+    - **4 (Excellent):** Distinctly above average. Very engaging or particularly clever handling of facts. (Top 15%)
+    - **5 (Masterpiece):** Rare perfection. Deeply moving, literary excellence, or flawless fact integration. (Top 2%)
+    - **2 (Below Average):** Noticeable flaws, boring, or minor contradictions. (Bottom 15%)
+    - **1 (Poor):** Unreadable, major hallucinations, or complete failure to respect the source material. (Bottom 2%)
+
+    Criteria:
+    1. Faithfulness (1-5): Does the novel contradict the summary? (Expansions are allowed, contradictions are not).
+    2. Quality (1-5): Literary value, engagement, and style.
+
+    Output pure JSON:
+    {{
+      "faithfulness_score": int,
+      "quality_score": int,
+      "reasoning": "Brief explanation of scores in Japanese, explicitly referencing why it falls into the specific bucket (e.g. 'Standard quality', 'Rare masterpiece')"
+    }}

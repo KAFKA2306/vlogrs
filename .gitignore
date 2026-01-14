@@ -54,6 +54,8 @@ logs/
 *.wav
 *.flac
 *.mp3
+data/traces.jsonl
+data/evaluations/
 
 # Allow documentation markdown files
 !docs/**/*.md
