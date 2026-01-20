@@ -2,31 +2,75 @@
 
 外部依存の実装層。Domain層のインターフェースを実装。
 
-## コア機能
+## ファイル一覧
 
-- `audio_recorder.py` - 録音機能（sounddevice、FLAC形式保存）
-- `transcriber.py` - 文字起こし（Faster Whisper、日本語特化）
-- `preprocessor.py` - トランスクリプト前処理（フィラー除去、重複削除）
-- `summarizer.py` - 要約生成（Gemini、日記形式プロンプト）
+| ファイル | クラス/関数 | 責務 |
+|----------|------------|------|
+| `ai.py` | `JulesClient` | Jules AI連携（タスク解析、チャット、画像プロンプト生成） |
+| `ai.py` | `ImageGenerator` | Stable Diffusion画像生成 |
+| `ai.py` | `Novelizer` | Gemini小説生成 |
+| `ai.py` | `Summarizer` | Gemini要約生成 |
+| `ai.py` | `Curator` | コンテンツ品質評価 |
+| `observability.py` | `TraceLogger` | AIトレースログ記録（latency, chars） |
+| `repositories.py` | `FileRepository` | ファイル操作（読み書き、アーカイブ） |
+| `repositories.py` | `TaskRepository` | タスクJSON永続化 |
+| `repositories.py` | `SupabaseRepository` | Supabase同期 |
+| `settings.py` | `Settings` | Pydantic設定クラス |
+| `system.py` | `AudioRecorder` | 録音（FLAC保存） |
+| `system.py` | `Transcriber` | Faster Whisper文字起こし |
+| `system.py` | `ProcessMonitor` | VRChatプロセス監視 |
+| `system.py` | `TranscriptPreprocessor` | フィラー除去、重複削除 |
 
-## データ管理
+## 設定パラメータ詳細
 
-- `file_repository.py` - ファイル操作（移動、アーカイブ）
-- `supabase_repository.py` - Supabase DB操作（upsert、タイムスタンプ管理）
+### Audio設定 (`config.yaml` → `AudioRecorder`)
 
-## ユーティリティ
+| パラメータ | 値 | 説明 |
+|-----------|-----|------|
+| `sample_rate` | 16000 | Whisper最適化サンプリングレート |
+| `channels` | 1 | モノラル（音声認識に最適） |
+| `block_size` | 1024 | 1回の読み取りサンプル数 |
+| `SILENCE_THRESHOLD` | 0.02 | RMS閾値（無音判定、録音サイズ削減） |
 
-- `process_monitor.py` - プロセス監視（VRChat起動・終了検出）
-- `settings.py` - 設定管理（config.yaml、.env読み込み）
+### Whisper設定 (`config.yaml` → `Transcriber`)
 
-## 設定ファイル
+| パラメータ | 値 | 説明 |
+|-----------|-----|------|
+| `model_size` | large-v3-turbo | 高速・高精度モデル |
+| `device` | cpu | 実行デバイス（cuda対応可） |
+| `compute_type` | int8 | CPU向け量子化（メモリ削減） |
+| `beam_size` | 5 | ビームサーチ幅（精度向上） |
+| `vad_filter` | true | Voice Activity Detection有効化 |
+| `vad_min_silence_duration_ms` | 100 | 無音判定最小時間 |
+| `vad_speech_pad_ms` | 360 | 音声前後のパディング |
+| `language` | ja | 日本語固定 |
+| `temperature` | 0.0 | 決定論的出力 |
+| `repetition_penalty` | 1.08 | 繰り返し抑制 |
 
-- `summarizer_prompt.txt` - Gemini要約プロンプトテンプレート
+### フィラー除去リスト (`TranscriptPreprocessor.FILLERS`)
 
-## 実装原則
+```
+えー, あのー, うーん, えっと, なんて, まあ, そうですね, あー, んー, うん,
+ふん, あ, はは, ははは, なんか, え, お, ふんふん, ふんふんふん,
+うんうん, うんうんうん, はいはい, はいはいはい, はいはいはいはい,
+おー, ああ, んふん, そっか, そっかぁ, そうか, そうなんだ, えへへ,
+あの, あのね, あのさ, ん
+```
 
-- エラーハンドリング不要（失敗したらクラッシュ）
-- リトライ不要（1回だけ実行）
-- ログは標準ロガーで出力
-- 設定はconfig.yamlから取得
+### 画像生成設定 (`config.yaml` → `ImageGenerator`)
+
+| パラメータ | 値 | 説明 |
+|-----------|-----|------|
+| `model` | Z-Image-Turbo | 高速推論モデル |
+| `num_inference_steps` | 9 | 推論ステップ数（Turbo向け低ステップ） |
+| `guidance_scale` | 0.0 | CFG無効化（Turbo向け） |
+| `width` / `height` | 1024 | 出力解像度 |
+| `seed` | 42 | 再現性のための固定シード |
+
+### 小説生成設定 (`config.yaml` → `Novelizer`)
+
+| パラメータ | 値 | 説明 |
+|-----------|-----|------|
+| `model` | gemini-3-flash-preview | 高速LLM |
+| `max_output_tokens` | 4096 | 最大出力トークン数 |
 

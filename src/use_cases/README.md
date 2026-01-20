@@ -2,43 +2,35 @@
 
 ビジネスロジック層。Domainエンティティを使用し、Infrastructureを調整。
 
-## ファイル
+## ファイル一覧
 
-- `process_recording.py` - 録音処理ユースケース
+| ファイル | クラス/関数 | 責務 |
+|----------|------------|------|
+| `process_recording.py` | `ProcessRecordingUseCase` | 録音処理ユースケース本体 |
+| `process_recording.py` | `.execute()` | ファイルパス指定で処理 |
+| `process_recording.py` | `.execute_session()` | セッション処理（複数ファイル対応） |
+| `process_recording.py` | `._process_transcript()` | 文字起こし→前処理 |
+| `process_recording.py` | `._save_summary()` | 重複チェック付き要約保存 |
+| `process_recording.py` | `._generate_novel_and_photo()` | 小説・画像の存在チェック付き生成 |
+| `build_novel.py` | `BuildNovelUseCase` | 小説生成ユースケース |
+| `build_novel.py` | `.execute()` | 日付指定で小説と画像生成 |
+| `evaluate.py` | `EvaluateDailyContentUseCase` | コンテンツ評価ユースケース |
+| `evaluate.py` | `.execute()` | 要約と小説の品質評価 |
 
-## ProcessRecordingUseCase
+## 処理フロー工夫
 
-録音から要約・保存までの全処理を調整するユースケース。
+### ProcessRecordingUseCase
 
-### 依存
+1. **重複処理防止**: `_save_summary()`で既存要約をチェック、スキップ
+2. **小説・画像の独立生成**: novel/photoそれぞれ存在チェック、片方だけ生成可能
+3. **メモリ管理**: `_transcriber.unload()`でWhisperモデル解放
 
-- `Transcriber` - 文字起こし
-- `TranscriptPreprocessor` - テキスト前処理
-- `Summarizer` - 要約生成
-- `SupabaseRepository` - DB保存
-- `FileRepository` - ファイル操作
+### BuildNovelUseCase
 
-### 処理フロー
+1. **追記モード**: 既存小説がある場合、新チャプターを追記
+2. **原子的生成**: 小説生成後に画像生成（順序保証）
 
-1. 音声ファイルから文字起こし
-2. トランスクリプトの前処理（フィラー除去、重複削除）
-3. 前処理済みテキストから要約生成
-4. 要約をSupabaseに保存
-5. 処理済み録音をアーカイブに移動
+## サブディレクトリ
 
-### メソッド
+- `mbti/` - MBTI分析ユースケース
 
-- `execute(audio_path: str)` - ファイルパス指定で処理
-- `execute_session(session: RecordingSession)` - セッションオブジェクトで処理
-
-### 呼び出し元
-
-- `app.py` - 自動監視モード（別スレッドで非同期実行）
-- `cli.py` - CLI手動実行
-
-## 実装原則
-
-- ユースケースは単一責任
-- インフラ層を適切に調整
-- ログで進捗を出力
-- 失敗したらクラッシュ（エラーハンドリング不要）
