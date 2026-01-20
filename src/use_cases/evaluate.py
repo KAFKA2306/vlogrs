@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 from src.infrastructure.ai import Curator
 from src.infrastructure.repositories import FileRepository, SupabaseRepository

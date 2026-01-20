@@ -4,8 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from src.infrastructure.settings import settings
-
 
 class TraceLogger:
     def __init__(self):

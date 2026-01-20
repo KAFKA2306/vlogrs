@@ -240,4 +240,6 @@ class SupabaseRepository:
                     rows, on_conflict="date, target_type"
                 ).execute()
             except Exception as e:
-                print(f"Warning: Failed to sync evaluations. Table might be missing. {e}")
+                print(
+                    f"Warning: Failed to sync evaluations. Table might be missing. {e}"
+                )
