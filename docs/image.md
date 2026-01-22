@@ -27,6 +27,39 @@ Vlogの画像生成サブシステムは、日々の活動ログ（音声認識�
 
 ---
 
+## 2. 戦略的設計意図 (Strategic Rationale)
+
+なぜこの構成なのか、その意図とトレードオフを解説します。
+
+### 2.1 Z-Image-Turbo の採用理由 (Speed vs Consistency)
+- **理由**: 日次バッチ処理において、画像生成は最も時間のかかる工程です。SDXL（約30-50ステップ）と比較して、Z-Image-Turbo（9ステップ）は数倍高速です。これにより、ユーザー（あなた）がプロセス完了を待つストレスを最小限に抑えます。
+- **トレードオフ**: Turbo系モデルはCFG Scaleが効かないため、細かいプロンプト追従性（Prompt Adherence）が若干劣る場合がありますが、Vlogの用途（雰囲気の再現）では許容範囲内と判断しました。
+
+### 2.2 自然言語プロンプティング (Jules as Art Director)
+- **理由**: 「高品質, 傑作...」といった呪文（Danbooruタグ）の羅列は、モデルの学習データ依存度が高く、シーンの文脈を反映しにくい問題がありました。
+- **戦略**: Gemini 3 Flash（Jules）に「アートディレクター」という役割を与え、小説の文脈を解釈した上で、自然な英語の文章でシーンを記述させることで、より文学的で情緒的な出力を狙っています。
+
+### 2.3 設定ベースのフィルタリング
+- **理由**: モデルの特性上、特定の単語（例: `translucent`）で意図しないアーティファクトが発生することがあります。これらをコードにハードコードすると、モデル変更時に柔軟に対応できません。
+- **解決策**: `config.yaml` に正規表現リストとして外出しすることで、コードを変更せずにモデルごとの「癖」を補正できるようにしました。
+
+### 2.4 "Physical Reality" & Object Hygiene
+- **ポリシー**: VRChatログをソースとしていますが、画像として出力する際は「HMD」「コントローラー」「VR機器」を**徹底的に排除**します。これは「体験の没入感」を物理的な絵画として表現するためです。
+- **対策**:
+### 2.4 "Physical Reality" & Object Hygiene
+- **ポリシー**: VRChatログをソースとしていますが、画像として出力する際は「HMD」「コントローラー」「VR機器」を**徹底的に排除**します。これは「体験の没入感」を物理的な絵画として表現するためです。
+- **対策**:
+    - Prompt: "Absolute Physical Reality" を指示し、手元（Hands）は「何も持っていない (empty/resting)」ことをデフォルトにします。
+    - Negative Prompt: "holding controller", "weird objects" を明示的に排除し、謎の物体（Artifacts）の出現を抑えます。
+
+### 2.5 Shareability & Aesthetic Priority
+- **ポリシー**: "正確な記録" よりも "美しい一枚 (Great Photo)" を優先します。
+- **戦略**:
+    - Prompt: ユーザーがSNS等で共有したくなるような「シネマティックな照明」「美しい構図」を優先的に採用します。
+    - Julesへの指示: "Ignore boring details"（退屈な事実は無視せよ）とし、その日のハイライトとなる「映える瞬間」を切り取らせます。
+
+---
+
 ## 2. 技術アーキテクチャ
 
 ### 2.1 コンポーネント構成
@@ -110,9 +143,10 @@ Gemini 3 Flash は以下の要素を自然言語で記述します。
 
 LLMから返された自然言語プロンプトに対し、以下の処理を行います。
 
-1. 禁止語フィルタリング: 特定の不要な語句をフィルタリング
-   - `pig`, `swine`, `hog`, `boar`, `piglet`
-   - `translucent`, `transparent`, `semi-transparent`, `ethereal`
+1. 禁止語フィルタリング: `config.yaml` の `image.prompt_filters` に基づき削除
+   - デフォルト設定例:
+     - `\b(pig|swine|hog|boar|piglet)s?\b`
+     - `\b(translucent|transparent|semi-transparent|ethereal)\b`
 
 2. テンプレート適用: シンプルなパススルー（`{text}` のみ）
 
@@ -183,6 +217,7 @@ image_generator:
 | Steps | `image.num_inference_steps` | `9` | ノイズ除去ステップ数 (Turboモデル向け) |
 | Guidance Scale | `image.guidance_scale` | `0.0` | CFG無効 (Flow Matchingの特性) |
 | Seed | `image.seed` | `42` | 乱数シード (実行時にランダム化) |
+| Filters | `image.prompt_filters` | `List[str]` | 正規表現による除外フィルタ |
 
 ### 5.2 Gemini設定
 
@@ -299,6 +334,51 @@ uv run python scripts/create_composite_header.py data/photos/img1.png data/photo
 対策:
 1. `data/photos_prompts/` のログを確認
 2. `data/prompts.yaml` の `image_prompt` を調整
+
+---
+
+## 10. 生成特性分析 (Capability Analysis)
+
+Z-Image-Turbo (Flow Matching) + Gemini 3 Flash (Prompting) の組み合わせにおける、生成の得意・不得意の傾向分析です。
+
+### 10.1 得意なカテゴリ (Easy / High Success Rate)
+これらの要素は高い確率で美しく生成されます。
+
+- **ポートレートと表情**:
+  - アニメスタイルのキャラクターのバストアップ、ウエストアップ。
+  - 基本的な感情（笑顔、泣き顔、怒り）の表現。
+- **照明と雰囲気**:
+  - シネマティックライティング、夕暮れ、木漏れ日、サイバーパンクなネオン街。
+  - 「エモい（Emotional）」空気感の再現。
+- **典型的なシチュエーション**:
+  - カフェでの会話、学校の教室、街角、ベッドルームなどの学習データに多い背景。
+- **抽象的な概念**:
+  - 「孤独」「希望」「混沌」といった概念的な指示も、Geminiが視覚的メタファー（広い空、光、雑踏など）に変換するため、それらしい絵になりやすい。
+
+### 10.2 苦手なカテゴリ (Hard / Low Success Rate)
+これらの要素は崩れやすく、期待通りの結果を得るのが難しいです。
+
+- **VR機器 (HMDs)**:
+  - "VR Headset" は学習データ内で形状が安定しておらず、しばしば「スキーゴーグル」や「巨大なサングラス」、あるいは「顔と一体化した機械」として描画されます。
+- **複雑な指・手**:
+  - ピースサインや、物を掴む動作などの精密な手指の描写は、低ステップ（9 steps）かつCFG 0.0環境では崩壊しやすい最頻出ポイントです。
+- **複数人の相互作用**:
+  - 「二人が抱き合っている」「手をつないでいる」など、体が重なる構図は手足が融合しやすく難易度が高いです。
+- **テキスト・UI要素**:
+  - 空間上のディスプレイに表示された「文字」や「メニュー画面」は、判読不能な幾何学模様になります。
+- **特定の小道具**:
+  - VRChat特有のアイテム（トラッカー、特定のアバターギミック）は再現できません。
+
+### 10.3 対策 (Mitigation Strategies)
+苦手要素を回避するための戦略です。
+
+1. **Julesへの指示 (Object Hygiene)**:
+   - "Treat as ABSOLUTE PHYSICAL REALITY." (HMD/Controller禁止)
+   - "Hands empty, resting, or out of frame" (手元を描写しない、または何も持たせない)
+   - 「必須アイテム」以外は持たせないことで、変な物体（Weird Objects）の生成を防ぐ。
+2. **「雰囲気」への逃げ**:
+   - 具体的な動作（例: 複雑な機械操作）よりも、その時の「感情」や「光」にフォーカスしたプロンプトを生成させる。
+   - キャラクターポートレートに固執せず、情景（Scenery）描写へ逃げる。
 
 ---
 

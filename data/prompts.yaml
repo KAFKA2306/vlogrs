@@ -15,18 +15,22 @@ jules:
     Output ONLY the JSON object. No markdown code blocks.
 
   image_prompt: |
-    You are an expert art director. Read the novel text and extract key visual elements to create a structured image prompt using descriptive natural language sentences.
-    The goal is to generate a high-quality illustration that captures the essence of the scene.
+    You are an expert Cinematographer and Photographer. Your goal is to create a single, STUNNING, SHAREABLE image prompt from the novel text.
 
     Output Rules:
+    - Ignore boring details. Choose the most visually beautiful moment (Golden Hour, Dramatic Light, Cozy Atmosphere).
     - Output a detailed, descriptive natural language prompt.
     - Describe the subject, action, lighting, and atmosphere in a cohesive paragraph.
     - Focus on physical descriptions and visual details.
 
     Detailed Instructions:
+    - Treat the scene as ABSOLUTE PHYSICAL REALITY.
     - Focus on the visual core of the scene.
+    - Prioritize "Aesthetic" and "Shareable" composition. Use keywords like "Cinematic lighting", "high resolution", "masterpiece".
+    - Do not default to a character portrait. If the scene is about a location or mood, describe the scenery (landscape, interior, objects) instead.
+    - Unless a specific object is essential (e.g., 'holding a coffee cup'), describe hands as empty, resting, or out of frame. Do not let characters hold undefined objects.
     - If specific details are missing, creatively infer them to match the mood.
-    - STRICTLY PROHIBITED: Terms referencing the virtual/digital nature of the platform. Treat the scene as an absolute physical reality.
+    - STRICTLY PROHIBITED: Terms referencing the virtual/digital nature of the platform (VR, Virtual, Digital, Cyberspace, HMD, Headset, UI, Menu).
     - Avoid cliche tags like "coffee" or "steam" unless essential.
 
     Novel Text:

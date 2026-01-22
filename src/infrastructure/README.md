@@ -61,11 +61,20 @@
 
 | パラメータ | 値 | 説明 |
 |-----------|-----|------|
-| `model` | Z-Image-Turbo | 高速推論モデル |
+| `model` | Tongyi-MAI/Z-Image-Turbo | 高速推論モデル |
 | `num_inference_steps` | 9 | 推論ステップ数（Turbo向け低ステップ） |
 | `guidance_scale` | 0.0 | CFG無効化（Turbo向け） |
 | `width` / `height` | 1024 | 出力解像度 |
 | `seed` | 42 | 再現性のための固定シード |
+| `prompt_filters` | (List) | プロンプトから削除する正規表現パターンリスト |
+
+### 画像生成フロー
+
+1. **Julesによるプロンプト生成**: 小説本文から視覚要素を抽出。
+2. **フィルタリング**: `prompt_filters` に定義された単語（例: `pig`, `translucent`）を削除。
+3. **テンプレート適用**: `prompts.yaml` のテンプレートに埋め込み。
+4. **画像生成**: 指定されたモデルとパラメータで生成。
+
 
 ### 小説生成設定 (`config.yaml` → `Novelizer`)
 

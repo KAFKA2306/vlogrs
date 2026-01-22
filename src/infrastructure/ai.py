@@ -103,15 +103,8 @@ class ImageGenerator:
         jules = JulesClient()
         text = jules.generate_image_prompt(chapter_text)
 
-        text = re.sub(
-            r"\b(pig|swine|hog|boar|piglet)s?\b", "", text, flags=re.IGNORECASE
-        )
-        text = re.sub(
-            r"\b(translucent|transparent|semi-transparent|ethereal)\b",
-            "",
-            text,
-            flags=re.IGNORECASE,
-        )
+        for pattern in settings.image_prompt_filters:
+            text = re.sub(pattern, "", text, flags=re.IGNORECASE)
 
         template = settings.prompts["image_generator"]["template"]
         negative_prompt = settings.prompts["image_generator"]["negative_prompt"]

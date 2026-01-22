@@ -50,3 +50,8 @@ image:
   num_inference_steps: 9
   guidance_scale: 0.0
   seed: 42
+  prompt_filters:
+    - '\b(pig|swine|hog|boar|piglet)s?\b'
+    - '\b(translucent|transparent|semi-transparent|ethereal)\b'
+    - '\b(vr|virtual|cyber|digital|hmd|headset|interface|hud|gui)\b'
+    - '\b(controller|tracker|vive|oculus|quest)\b'
