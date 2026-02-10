@@ -58,7 +58,6 @@ def main():
 
         dates_to_process.append(date_str)
 
-    import traceback
 
     dates_to_process.sort()
     logger.info(f"Found {len(dates_to_process)} valid daily summary dates.")
