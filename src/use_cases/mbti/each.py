@@ -1,10 +1,14 @@
 import os
 import sys
 from pathlib import Path
+
 import google.generativeai as genai
 from dotenv import load_dotenv
+
 sys.path.append(os.getcwd())
 from src.infrastructure.settings import settings
+
+
 def analyze_mbti():
     load_dotenv()
     genai.configure(api_key=settings.gemini_api_key)
@@ -36,5 +40,7 @@ def analyze_mbti():
         result = response.text.strip()
         output_file.write_text(result, encoding="utf-8")
         print(f"Saved analysis to {output_file}")
+
+
 if __name__ == "__main__":
     analyze_mbti()

@@ -1,10 +1,14 @@
 import os
 import sys
 from pathlib import Path
+
 import google.generativeai as genai
 from dotenv import load_dotenv
+
 sys.path.append(os.getcwd())
 from src.infrastructure.settings import settings
+
+
 def analyze_overall():
     load_dotenv()
     if not settings.gemini_api_key:
@@ -33,5 +37,7 @@ def analyze_overall():
     result = response.text.strip()
     output_file.write_text(result, encoding="utf-8")
     print(f"Saved strict overall analysis to {output_file}")
+
+
 if __name__ == "__main__":
     analyze_overall()

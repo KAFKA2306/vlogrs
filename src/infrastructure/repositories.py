@@ -4,20 +4,28 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
+
 from dotenv import load_dotenv
+
 from src.infrastructure.settings import settings
 from supabase import create_client
+
+
 class FileRepository:
     def exists(self, path: str) -> bool:
         return Path(path).exists()
+
     def read(self, path: str) -> str:
         return Path(path).read_text(encoding="utf-8")
+
     def save_text(self, path: str, content: str) -> None:
         Path(path).write_text(content, encoding="utf-8")
+
     def save_summary(self, summary: str, date_str: str) -> None:
         summary_path = Path(settings.summary_dir) / f"{date_str}_summary.txt"
         summary_path.parent.mkdir(parents=True, exist_ok=True)
         self.save_text(str(summary_path), summary)
+
     def archive(self, path: str) -> None:
         if not settings.archive_after_process:
             return
@@ -26,6 +34,7 @@ class FileRepository:
         src = Path(path)
         dst = archive_dir / src.name
         src.rename(dst)
+
     def save_evaluation(self, evaluation: Dict[str, Any], date_str: str) -> None:
         eval_path = (
             Path(settings.summary_dir).parent / "evaluations" / f"{date_str}.json"
@@ -34,53 +43,74 @@ class FileRepository:
         eval_path.write_text(
             json.dumps(evaluation, indent=2, ensure_ascii=False), encoding="utf-8"
         )
+
+
 class TaskRepository:
     def __init__(self, file_path: str = "data/tasks.json"):
         self.file_path = Path(file_path)
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
         if not self.file_path.exists():
             self.file_path.write_text("[]", encoding="utf-8")
+
     def _load(self) -> List[Dict[str, Any]]:
         return json.loads(self.file_path.read_text(encoding="utf-8"))
+
     def _save(self, tasks: List[Dict[str, Any]]):
         self.file_path.write_text(
             json.dumps(tasks, indent=2, ensure_ascii=False), encoding="utf-8"
         )
+
     def add(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         tasks = self._load()
         new_task = {
             "id": str(uuid.uuid4()),
             "created_at": datetime.now().isoformat(),
             "status": "pending",
+            "retry_count": 0,
             **task_data,
         }
         tasks.append(new_task)
         self._save(tasks)
         return new_task
+
+    def list_runnable(self) -> List[Dict[str, Any]]:
+        tasks = self._load()
+        return [t for t in tasks if t.get("status") in ("pending", "failed")]
+
     def list_pending(self) -> List[Dict[str, Any]]:
         tasks = self._load()
         return [t for t in tasks if t.get("status") != "completed"]
-    def complete(self, task_id_prefix: str) -> Dict[str, Any] | None:
+
+    def update_status(
+        self, task_id: str, status: str, error: str | None = None
+    ) -> None:
         tasks = self._load()
         found = False
-        target_task = None
         for task in tasks:
-            if task["id"].startswith(task_id_prefix):
-                task["status"] = "completed"
-                task["completed_at"] = datetime.now().isoformat()
-                target_task = task
+            if task["id"] == task_id:
+                task["status"] = status
+                task["updated_at"] = datetime.now().isoformat()
+                if status == "completed":
+                    task["completed_at"] = datetime.now().isoformat()
+                if error:
+                    task["error"] = error
+                    task["retry_count"] = task.get("retry_count", 0) + 1
                 found = True
                 break
         if found:
             self._save(tasks)
-            return target_task
-        return None
+
+    def complete(self, task_id: str) -> None:
+        self.update_status(task_id, "completed")
+
+
 class SupabaseRepository:
     def __init__(self):
         load_dotenv()
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
         self.client = create_client(url, key) if url and key else None
+
     def sync(self) -> None:
         if not self.client:
             return
@@ -88,6 +118,7 @@ class SupabaseRepository:
         self._sync_novels()
         self._sync_photos()
         self._sync_evaluations()
+
     def _sync_summaries(self) -> None:
         rows = []
         summary_dir = Path(settings.summary_dir)
@@ -114,6 +145,7 @@ class SupabaseRepository:
             self.client.table("daily_entries").upsert(
                 rows, on_conflict="file_path"
             ).execute()
+
     def _sync_novels(self) -> None:
         rows = []
         novel_dir = Path(settings.novel_out_dir)
@@ -136,6 +168,7 @@ class SupabaseRepository:
             )
         if rows:
             self.client.table("novels").upsert(rows, on_conflict="file_path").execute()
+
     def _sync_photos(self) -> None:
         photo_dir = Path(settings.photo_dir)
         if not photo_dir.exists():
@@ -161,6 +194,7 @@ class SupabaseRepository:
             self.client.table("daily_entries").update({"image_url": image_url}).eq(
                 "date", date_obj.isoformat()
             ).execute()
+
     def _sync_evaluations(self) -> None:
         rows = []
         eval_dir = Path(settings.summary_dir).parent / "evaluations"

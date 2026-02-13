@@ -1,16 +1,21 @@
 import logging
 import sys
 from pathlib import Path
+
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
-from src.infrastructure.ai import ImageGenerator, Novelizer
-from src.infrastructure.repositories import SupabaseRepository
-from src.infrastructure.settings import settings
-from src.use_cases.build_novel import BuildNovelUseCase
+
+from src.infrastructure.ai import ImageGenerator, Novelizer  # noqa: E402
+from src.infrastructure.repositories import SupabaseRepository  # noqa: E402
+from src.infrastructure.settings import settings  # noqa: E402
+from src.use_cases.build_novel import BuildNovelUseCase  # noqa: E402
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
 def main():
     logger.info("Starting check for missing content...")
     settings.summary_dir.mkdir(parents=True, exist_ok=True)
@@ -59,5 +64,7 @@ def main():
     supabase_repo.sync()
     logger.info("Sync complete.")
     logger.info("Done.")
+
+
 if __name__ == "__main__":
     main()

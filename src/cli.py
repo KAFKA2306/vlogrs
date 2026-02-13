@@ -1,4 +1,5 @@
 import argparse
+
 from src.infrastructure.ai import (
     ImageGenerator,
     JulesClient,
@@ -12,6 +13,8 @@ from src.infrastructure.repositories import (
 from src.infrastructure.system import Transcriber, TranscriptPreprocessor
 from src.use_cases.build_novel import BuildNovelUseCase
 from src.use_cases.process_recording import ProcessRecordingUseCase
+
+
 def cmd_process(args):
     use_case = ProcessRecordingUseCase(
         transcriber=Transcriber(),
@@ -23,6 +26,8 @@ def cmd_process(args):
         image_generator=ImageGenerator(),
     )
     use_case.execute(args.file)
+
+
 def cmd_novel(args):
     use_case = BuildNovelUseCase(Novelizer(), ImageGenerator())
     novel_path = use_case.execute(args.date)
@@ -31,11 +36,16 @@ def cmd_novel(args):
         SupabaseRepository().sync()
     else:
         print("要約ファイルが見つかりません")
+
+
 def cmd_sync(args):
     SupabaseRepository().sync()
     print("Synced with Supabase")
+
+
 def cmd_image_generate(args):
     from pathlib import Path
+
     novel_path = Path(args.novel_file)
     if not novel_path.exists():
         print(f"Error: Novel file not found at {novel_path}")
@@ -51,8 +61,11 @@ def cmd_image_generate(args):
     image_generator = ImageGenerator()
     image_generator.generate_from_novel(novel_content, output_path)
     print(f"Image generated successfully to {output_path}")
+
+
 def cmd_jules(args):
     from src.infrastructure.repositories import TaskRepository
+
     repo = TaskRepository()
     if args.action == "add":
         if not args.content:
@@ -83,13 +96,18 @@ def cmd_jules(args):
             print(f"Completed: {completed['title']}")
         else:
             print("Task not found.")
+
+
 def cmd_transcribe(args):
     transcriber = Transcriber()
     transcriber.transcribe_and_save(args.file)
     print(f"Transcribed: {args.file}")
+
+
 def cmd_summarize(args):
     import re
     from pathlib import Path
+
     file_repo = FileRepository()
     summarizer = Summarizer()
     if getattr(args, "date", None):
@@ -128,9 +146,12 @@ def cmd_summarize(args):
         print(f"Summarized: {args.file}")
     else:
         print("Error: Either --file or --date must be specified")
+
+
 def cmd_pending(args):
     import re
     from pathlib import Path
+
     transcript_dir = Path("data/transcripts")
     summary_dir = Path("data/summaries")
     novel_dir = Path("data/novels")
@@ -207,8 +228,11 @@ def cmd_pending(args):
         print("Done!")
     else:
         print("All data is up to date!")
+
+
 def main():
     from dotenv import load_dotenv
+
     load_dotenv()
     parser = argparse.ArgumentParser(description="VLog CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -272,10 +296,15 @@ def main():
         cmd_pending(args)
     else:
         parser.print_help()
+
+
 def cmd_curator(args):
     from src.use_cases.evaluate import EvaluateDailyContentUseCase
+
     if args.action == "eval":
         use_case = EvaluateDailyContentUseCase()
         use_case.execute(args.date)
+
+
 if __name__ == "__main__":
     main()

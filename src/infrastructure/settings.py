@@ -1,11 +1,16 @@
 import platform
 from pathlib import Path
 from typing import Any, Dict, List, Set
+
 import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
 def _get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
+
+
 def load_config() -> Dict[str, Any]:
     config_path = _get_project_root() / "data/config.yaml"
     if config_path.exists():
@@ -13,6 +18,8 @@ def load_config() -> Dict[str, Any]:
             return yaml.safe_load(f)
     print(f"Warning: Config not found at {config_path}")
     return {}
+
+
 def load_prompts() -> Dict[str, Any]:
     prompts_path = _get_project_root() / "data/prompts.yaml"
     if prompts_path.exists():
@@ -20,8 +27,12 @@ def load_prompts() -> Dict[str, Any]:
             return yaml.safe_load(f)
     print(f"Warning: Prompts not found at {prompts_path}")
     return {}
+
+
 _config = load_config()
 _prompts = load_prompts()
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
@@ -59,6 +70,8 @@ class Settings(BaseSettings):
     sample_rate: int = _config.get("audio", {}).get("sample_rate", 16000)
     channels: int = _config.get("audio", {}).get("channels", 1)
     block_size: int = _config.get("audio", {}).get("block_size", 1024)
+    device_index: int | None = _config.get("audio", {}).get("device_index", None)
+    device_name: str | None = _config.get("audio", {}).get("device_name", None)
     whisper_model_size: str = _config.get("whisper", {}).get("model_size", "large-v3")
     whisper_device: str = _config.get("whisper", {}).get("device", "cuda")
     whisper_compute_type: str = _config.get("whisper", {}).get(
@@ -94,9 +107,7 @@ class Settings(BaseSettings):
         ),
         alias="VLOG_NOVEL_OUT_DIR",
     )
-    image_model: str = _config.get("image", {}).get(
-        "model", "Tongyi-MAI/Z-Image-Turbo"
-    )
+    image_model: str = _config.get("image", {}).get("model", "Tongyi-MAI/Z-Image-Turbo")
     image_device: str = _config.get("image", {}).get("device", "cuda")
     image_height: int = _config.get("image", {}).get("height", 1024)
     image_width: int = _config.get("image", {}).get("width", 1024)
@@ -106,12 +117,8 @@ class Settings(BaseSettings):
     image_guidance_scale: float = _config.get("image", {}).get("guidance_scale", 0.0)
     image_seed: int = _config.get("image", {}).get("seed", 42)
     image_prompt_filters: List[str] = _config.get("image", {}).get("prompt_filters", [])
-    image_generator_default_prompt: str = (
-        "(masterpiece, best quality:1.2), anime scenery, highly detailed, expressive lighting, aesthetic, {text}"
-    )
-    image_generator_default_negative_prompt: str = (
-        "low quality, worst quality, bad anatomy, vr, headset, holding controller, holding object, holding weapon, floating objects, weird objects"
-    )
+    image_generator_default_prompt: str = "(masterpiece, best quality:1.2), anime scenery, highly detailed, expressive lighting, aesthetic, {text}"  # noqa: E501
+    image_generator_default_negative_prompt: str = "low quality, worst quality, bad anatomy, vr, headset, holding controller, holding object, holding weapon, floating objects, weird objects"  # noqa: E501
     archive_after_process: bool = _config.get("processing", {}).get(
         "archive_after_process", True
     )
@@ -128,6 +135,7 @@ class Settings(BaseSettings):
         alias="VLOG_TRACE_FILE",
     )
     prompts: Dict[str, Any] = _prompts
+
     @field_validator(
         "recording_dir",
         "transcript_dir",
@@ -160,4 +168,6 @@ class Settings(BaseSettings):
             if default_val:
                 return Path(default_val)
         return v
+
+
 settings = Settings()

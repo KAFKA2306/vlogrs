@@ -4,12 +4,16 @@ import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List
+
 import google.generativeai as genai
 import torch
 from diffusers import DiffusionPipeline
+
 from src.domain.entities import RecordingSession
 from src.infrastructure.observability import TraceLogger
 from src.infrastructure.settings import settings
+
+
 class JulesClient:
     def __init__(self):
         jules_key = settings.jules_api_key
@@ -26,6 +30,7 @@ class JulesClient:
         genai.configure(api_key=api_key)
         self._model = genai.GenerativeModel(settings.jules_model)
         self._tracer = TraceLogger()
+
     def parse_task(self, user_input: str) -> Dict[str, Any]:
         prompt = settings.prompts["jules"]["parse_task"].format(user_input=user_input)
         start_time = time.time()
@@ -43,6 +48,7 @@ class JulesClient:
         elif text.startswith("```"):
             text = text[3:-3]
         return json.loads(text)
+
     def chat(self, history: List[Dict[str, str]], message: str) -> str:
         chat = self._model.start_chat(history=history)
         start_time = time.time()
@@ -56,6 +62,7 @@ class JulesClient:
             output_text=text,
         )
         return text
+
     def generate_image_prompt(self, chapter_text: str) -> str:
         template = settings.prompts["jules"]["image_prompt"]
         prompt = template.format(chapter_text=chapter_text[:2000])
@@ -72,13 +79,17 @@ class JulesClient:
             output_text=text,
         )
         return text
+
+
 class ImageGenerator:
     def __init__(self):
         self._pipe = None
         self._tracer = TraceLogger()
+
     def generate_from_novel(self, chapter_text: str, output_path: Path) -> None:
         prompt, negative_prompt = self._extract_prompt(chapter_text)
         self.generate(prompt, negative_prompt, output_path)
+
     def _extract_prompt(self, chapter_text: str) -> tuple[str, str]:
         jules = JulesClient()
         text = jules.generate_image_prompt(chapter_text)
@@ -87,6 +98,7 @@ class ImageGenerator:
         template = settings.prompts["image_generator"]["template"]
         negative_prompt = settings.prompts["image_generator"]["negative_prompt"]
         return template.format(text=text), negative_prompt
+
     def generate(
         self, prompt: str, negative_prompt: str, output_path: Path, seed: int = None
     ) -> None:
@@ -126,11 +138,14 @@ class ImageGenerator:
             metadata={"seed": seed, "negative_prompt": negative_prompt},
         )
         image.save(output_path)
+
+
 class Novelizer:
     def __init__(self):
         self._model = None
         self._prompt_template = settings.prompts["novelizer"]["template"]
         self._tracer = TraceLogger()
+
     def generate_chapter(
         self,
         today_summary: str,
@@ -157,11 +172,14 @@ class Novelizer:
             output_text=text,
         )
         return text
+
+
 class Summarizer:
     def __init__(self):
         self._model = None
         self._prompt_template = settings.prompts["summarizer"]["template"]
         self._tracer = TraceLogger()
+
     def summarize(
         self,
         transcript: str,
@@ -198,11 +216,14 @@ class Summarizer:
             output_text=text,
         )
         return text
+
+
 class Curator:
     def __init__(self):
         self._model = None
         self._prompt_template = settings.prompts["curator"]["evaluate"]
         self._tracer = TraceLogger()
+
     def evaluate(self, summary: str, novel: str) -> Dict[str, Any]:
         if not self._model:
             genai.configure(api_key=settings.gemini_api_key)
@@ -228,5 +249,5 @@ class Curator:
             return {
                 "faithfulness_score": 0,
                 "quality_score": 0,
-                "reasoning": f"JSON Parse Error: {text}"
+                "reasoning": f"JSON Parse Error: {text}",
             }

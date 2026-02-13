@@ -1,5 +1,6 @@
 from datetime import datetime
 from pathlib import Path
+
 from src.domain.entities import RecordingSession
 from src.domain.interfaces import (
     FileRepositoryProtocol,
@@ -11,6 +12,8 @@ from src.domain.interfaces import (
     TranscriptPreprocessorProtocol,
 )
 from src.infrastructure.settings import settings
+
+
 class ProcessRecordingUseCase:
     def __init__(
         self,
@@ -29,6 +32,7 @@ class ProcessRecordingUseCase:
         self._files = file_repository
         self._novelizer = novelizer
         self._image_generator = image_generator
+
     def execute(self, audio_path: str) -> bool:
         if not self._files.exists(audio_path):
             return False
@@ -38,6 +42,7 @@ class ProcessRecordingUseCase:
         self._generate_novel_and_photo(session)
         self._finalize(audio_path)
         return True
+
     def execute_session(self, session: RecordingSession) -> None:
         transcripts = [
             self._transcriber.transcribe_and_save(path) for path in session.file_paths
@@ -49,6 +54,7 @@ class ProcessRecordingUseCase:
         self._storage.sync()
         for audio_path in session.file_paths:
             self._files.archive(audio_path)
+
     def _create_session(self, audio_path: str) -> RecordingSession:
         basename = Path(audio_path).stem
         start_time = datetime.strptime(basename, "%Y%m%d_%H%M%S")
@@ -57,6 +63,7 @@ class ProcessRecordingUseCase:
             start_time=start_time,
             end_time=datetime.now(),
         )
+
     def _process_transcript(self, audio_path: str) -> str:
         transcript, transcript_path = self._transcriber.transcribe_and_save(audio_path)
         self._transcriber.unload()
@@ -66,6 +73,7 @@ class ProcessRecordingUseCase:
         )
         self._files.save_text(cleaned_path, cleaned)
         return cleaned
+
     def _save_summary(self, transcript: str, session: RecordingSession) -> None:
         summary_path = (
             settings.summary_dir
@@ -77,6 +85,7 @@ class ProcessRecordingUseCase:
             return
         summary_text = self._summarizer.summarize(transcript, session)
         self._files.save_text(str(summary_path), summary_text)
+
     def _generate_novel_and_photo(self, session: RecordingSession) -> None:
         if not (self._novelizer and self._image_generator):
             return
@@ -104,6 +113,7 @@ class ProcessRecordingUseCase:
             chapter = novel_path.read_text(encoding="utf-8")
             photo_path.parent.mkdir(parents=True, exist_ok=True)
             self._image_generator.generate_from_novel(chapter, photo_path)
+
     def _finalize(self, audio_path: str) -> None:
         self._storage.sync()
         self._files.archive(audio_path)

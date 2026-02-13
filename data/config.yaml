@@ -12,6 +12,8 @@ audio:
   sample_rate: 16000
   channels: 1
   block_size: 1024
+  # device_index: 1  # Use 'task devices' to find the index for your loopback device (e.g., CABLE Output)
+  # device_name: "CABLE Output"
   silence_threshold: 0.02
   max_duration_minutes: 30
 processing:
@@ -43,7 +45,7 @@ novel:
   max_output_tokens: 4096
 
 image:
-  model: "gemini-2.5-flash"
+  model: "Tongyi-MAI/Z-Image-Turbo"
   device: "cuda"
   width: 1024
   height: 1024

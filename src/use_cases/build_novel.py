@@ -1,7 +1,10 @@
 from datetime import datetime
 from pathlib import Path
+
 from src.domain.interfaces import ImageGeneratorProtocol, NovelizerProtocol
 from src.infrastructure.settings import settings
+
+
 class BuildNovelUseCase:
     def __init__(
         self,
@@ -10,6 +13,7 @@ class BuildNovelUseCase:
     ):
         self._novelizer = novelizer
         self._image_generator = image_generator
+
     def execute(self, date: str = None) -> Path | None:
         target_date = date or datetime.now().strftime("%Y%m%d")
         summary_path = settings.summary_dir / f"{target_date}_summary.txt"
