@@ -1,6 +1,19 @@
 -- Add image_url to novels if not exists
 alter table novels add column if not exists image_url text;
 
+-- Evaluations table
+create table if not exists evaluations (
+  id bigint generated always as identity primary key,
+  date date not null,
+  target_type text not null default 'novel',
+  score numeric not null default 0,
+  reasoning text,
+  created_at timestamptz default now(),
+  unique (date, target_type)
+);
+
+alter table evaluations enable row level security;
+
 -- Create bucket if not exists
 insert into storage.buckets (id, name, public)
 values ('vlog-photos', 'vlog-photos', true)
@@ -42,6 +55,14 @@ begin
   
   if not exists (select 1 from pg_policies where tablename = 'objects' and policyname = 'Service role can update photos') then
     create policy "Service role can update photos" on storage.objects for update using (bucket_id = 'vlog-photos');
+  end if;
+  -- Evaluations Policies
+  if not exists (select 1 from pg_policies where tablename = 'evaluations' and policyname = 'Evaluations are viewable by everyone') then
+    create policy "Evaluations are viewable by everyone" on evaluations for select using (true);
+  end if;
+
+  if not exists (select 1 from pg_policies where tablename = 'evaluations' and policyname = 'Service role can do everything on evaluations') then
+    create policy "Service role can do everything on evaluations" on evaluations for all using (true) with check (true);
   end if;
 end
 $$;

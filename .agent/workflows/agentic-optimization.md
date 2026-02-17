@@ -1,23 +1,36 @@
 ---
-description: Procedures for agentic health check and maintenance of the vlog project.
+description: コンテンツ品質改善とコードベース最適化ワークフロー
 ---
 
-# Agentic Management Workflow
+# Agentic Optimization Workflow
 
-Follow these steps to ensure the project remains in a healthy state and all data is processed correctly.
+// turbo-all
 
-## 1. Health Survey
-- Run `task status` to verify `systemd` unit states.
-- Check `journalctl --user -n 50 -u vlog` for any persistent errors in the audio pipeline.
-- Verify `supabase` connectivity by running `task sync`.
+## 1. Content Coverage Analysis
 
-## 2. Processing Audit
-// turbo
-- Run `task process:pending` to catch any files missed by the auto-pipeline.
-- Check `data/recordings` vs `data/summaries` to ensure 1:1 mapping for processed dates.
-- Run `task photos:fill` to identify and generate missing photos for past entries.
+- List all dates in `data/recordings/` and build a date inventory.
+- Cross-reference against `data/summaries/`, `data/novels/`, `data/photos/` to identify coverage gaps per date.
+- Report missing artifacts by date as a gap table.
 
-## 3. Maintenance
-- Run `task lint` to ensure code stability.
-- Run `task clean` if local caches (e.g., Whisper, Python) are consuming excessive disk space.
-- Perform a Git commit using `task commit MESSAGE="Maintenance: [Summary of changes]"` if any automatic fixes were applied.
+## 2. Quality Audit
+
+- Run `task curator:eval date=YYYYMMDD` on recent dates to evaluate content quality scores.
+- Spot-check novel files for truncation or empty content: `find data/novels -size 0 -o -size -100c`.
+- Spot-check photo files for zero-byte images: `find data/photos -size 0`.
+
+## 3. Backfill Generation
+
+- For each date with missing novels: `task novel:build date=YYYYMMDD`.
+- For each date with missing photos: `task photo novel=data/novels/YYYYMMDD.md`.
+- Run `task photos:fill` to batch-detect and generate remaining missing photos.
+
+## 4. Codebase Optimization
+
+- Run `task lint` and fix any reported issues.
+- Identify unused imports or dead code in `src/` with `uv run ruff check src --select F401,F841`.
+- Review `src/` file sizes — flag any file exceeding 200 lines for potential decomposition.
+
+## 5. Sync & Commit
+
+- Run `task sync` to push all new/updated content to Supabase.
+- Run `task commit MESSAGE="optimization: [summary]"` to persist changes.

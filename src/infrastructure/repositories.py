@@ -222,11 +222,6 @@ class SupabaseRepository:
                 }
             )
         if rows:
-            try:
-                self.client.table("evaluations").upsert(
-                    rows, on_conflict="date, target_type"
-                ).execute()
-            except Exception as e:
-                print(
-                    f"Warning: Failed to sync evaluations. Table might be missing. {e}"
-                )
+            self.client.table("evaluations").upsert(
+                rows, on_conflict="date, target_type"
+            ).execute()

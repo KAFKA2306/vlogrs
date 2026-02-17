@@ -80,3 +80,7 @@ yarn.lock
 *.temp
 *.bak
 *copy*
+
+# Added by cargo
+
+/target
