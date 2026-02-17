@@ -22,3 +22,5 @@ hound = "3.5" # WAV file manipulation
 sysinfo = "0.30" # Process monitoring
 config = { version = "0.13", features = ["yaml"] }
 serde_yaml = "0.9"
+regex = "1.12.3"
+base64 = "0.21"

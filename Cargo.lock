@@ -2227,6 +2227,7 @@ name = "vlog-rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.21.7",
  "chrono",
  "clap",
  "config",
@@ -2236,6 +2237,7 @@ dependencies = [
  "hound",
  "log",
  "postgrest",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

@@ -10,32 +10,29 @@ from src.infrastructure.repositories import (
     FileRepository,
     SupabaseRepository,
 )
-from src.infrastructure.system import Transcriber, TranscriptPreprocessor
+# from src.infrastructure.system import Transcriber, TranscriptPreprocessor
 from src.use_cases.build_novel import BuildNovelUseCase
 from src.use_cases.process_recording import ProcessRecordingUseCase
 
 
 def cmd_process(args):
-    use_case = ProcessRecordingUseCase(
-        transcriber=Transcriber(),
-        preprocessor=TranscriptPreprocessor(),
-        summarizer=Summarizer(),
-        storage=SupabaseRepository(),
-        file_repository=FileRepository(),
-        novelizer=Novelizer(),
-        image_generator=ImageGenerator(),
-    )
-    use_case.execute(args.file)
+    print("Command 'process' is currently disabled in Python. Use Rust version.")
+    # use_case = ProcessRecordingUseCase(
+    #     transcriber=Transcriber(),
+    #     preprocessor=TranscriptPreprocessor(),
+    #     summarizer=Summarizer(),
+    #     storage=SupabaseRepository(),
+    #     file_repository=FileRepository(),
+    #     novelizer=Novelizer(),
+    #     image_generator=ImageGenerator(),
+    # )
+    # use_case.execute(args.file)
 
 
 def cmd_novel(args):
-    use_case = BuildNovelUseCase(Novelizer(), ImageGenerator())
-    novel_path = use_case.execute(args.date)
-    if novel_path:
-        print(f"章を追加: {novel_path}")
-        SupabaseRepository().sync()
-    else:
-        print("要約ファイルが見つかりません")
+    print("Command 'novel' is currently disabled in Python. Use Rust version.")
+    # use_case = BuildNovelUseCase(Novelizer(), ImageGenerator())
+    # ...
 
 
 def cmd_sync(args):
@@ -98,10 +95,10 @@ def cmd_jules(args):
             print("Task not found.")
 
 
-def cmd_transcribe(args):
-    transcriber = Transcriber()
-    transcriber.transcribe_and_save(args.file)
-    print(f"Transcribed: {args.file}")
+    print("Command 'transcribe' is currently disabled in Python. Use Rust version.")
+    # transcriber = Transcriber()
+    # transcriber.transcribe_and_save(args.file)
+    # print(f"Transcribed: {args.file}")
 
 
 def cmd_summarize(args):
@@ -148,86 +145,8 @@ def cmd_summarize(args):
         print("Error: Either --file or --date must be specified")
 
 
-def cmd_pending(args):
-    import re
-    from pathlib import Path
-
-    transcript_dir = Path("data/transcripts")
-    summary_dir = Path("data/summaries")
-    novel_dir = Path("data/novels")
-    recording_dir = Path("data/recordings")
-    pending_transcription = []
-    for f in recording_dir.glob("*"):
-        if f.suffix.lower() not in [".wav", ".flac", ".mp3"]:
-            continue
-        transcript_path = transcript_dir / f"{f.stem}.txt"
-        if not transcript_path.exists():
-            pending_transcription.append(f)
-    print(f"Missing transcripts: {len(pending_transcription)}")
-    file_repo = FileRepository()
-    if pending_transcription:
-        transcriber = Transcriber()
-        preprocessor = TranscriptPreprocessor()
-        for audio_path in pending_transcription:
-            print(f"Transcribing {audio_path.name}...")
-            transcript, saved_path = transcriber.transcribe_and_save(str(audio_path))
-            cleaned = preprocessor.process(transcript)
-            cleaned_path = str(
-                Path(saved_path).with_name(f"cleaned_{Path(saved_path).name}")
-            )
-            file_repo.save_text(cleaned_path, cleaned)
-            print(f"  Created {Path(saved_path).name} and cleaned version")
-        transcriber.unload()
-    dates = set()
-    for f in transcript_dir.glob("*.txt"):
-        match = re.search(r"(\d{8})", f.stem)
-        if match:
-            dates.add(match.group(1))
-    dates = sorted(dates)
-    print(f"Found {len(dates)} unique dates with transcripts")
-    pending_summary = []
-    pending_novel = []
-    for date_str in dates:
-        summary_path = summary_dir / f"{date_str}_summary.txt"
-        novel_path = novel_dir / f"{date_str}.md"
-        if not summary_path.exists():
-            pending_summary.append(date_str)
-        if not novel_path.exists():
-            pending_novel.append(date_str)
-    print(f"Missing summaries: {len(pending_summary)}")
-    print(f"Missing novels: {len(pending_novel)}")
-    summarizer = Summarizer()
-    for date_str in pending_summary:
-        print(f"Generating summary for {date_str}...")
-        files = sorted(list(transcript_dir.glob(f"cleaned_{date_str}_*.txt")))
-        if not files:
-            files = sorted(list(transcript_dir.glob(f"{date_str}_*.txt")))
-        if not files:
-            print("  No transcripts found, skipping")
-            continue
-        combined_text = ""
-        for f in files:
-            text = file_repo.read(str(f))
-            combined_text += f"\n\n--- {f.name} ---\n{text}"
-        summary = summarizer.summarize(combined_text, date_str=date_str)
-        file_repo.save_summary(summary, date_str)
-        print(f"  Created {date_str}_summary.txt")
-    use_case = BuildNovelUseCase(Novelizer(), ImageGenerator())
-    for date_str in pending_novel:
-        summary_path = summary_dir / f"{date_str}_summary.txt"
-        if not summary_path.exists():
-            print(f"Skipping novel for {date_str} (no summary)")
-            continue
-        print(f"Generating novel for {date_str}...")
-        novel_path = use_case.execute(date_str)
-        if novel_path:
-            print(f"  Created {novel_path.name}")
-    if pending_transcription or pending_summary or pending_novel:
-        print("Syncing to Supabase...")
-        SupabaseRepository().sync()
-        print("Done!")
-    else:
-        print("All data is up to date!")
+    print("Command 'pending' is currently disabled in Python. Use Rust version.")
+    # ... (rest of the function is also broken due to system.py)
 
 
 def main():
@@ -305,11 +224,11 @@ def main():
 
 
 def cmd_curator(args):
-    from src.use_cases.evaluate import EvaluateDailyContentUseCase
-
-    if args.action == "eval":
-        use_case = EvaluateDailyContentUseCase()
-        use_case.execute(args.date)
+    print("Command 'curator' is currently disabled in Python. Use Rust version.")
+    # from src.use_cases.evaluate import EvaluateDailyContentUseCase
+    # if args.action == "eval":
+    #     use_case = EvaluateDailyContentUseCase()
+    #     use_case.execute(args.date)
 
 
 def cmd_dashboard(args):

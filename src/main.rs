@@ -4,11 +4,8 @@ pub mod models;
 pub mod use_cases;
 
 use clap::{Parser, Subcommand};
-use infrastructure::process::ProcessMonitor;
 use infrastructure::settings::Settings;
-use log::{error, info};
-use std::time::Duration;
-use tokio::time::sleep;
+use log::info;
 
 #[derive(Parser)]
 #[command(name = "vlog-rs")]
@@ -20,16 +17,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// 監視モード
     Monitor,
-    /// 手動録音
     Record,
-    /// 1ファイルの処理
     Process {
         #[arg(short, long)]
         file: String,
     },
-    /// Supabase同期
+    Novel {
+        #[arg(short, long)]
+        date: String,
+    },
+    Evaluate {
+        #[arg(short, long)]
+        date: String,
+    },
     Sync,
 }
 
@@ -44,59 +45,8 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Some(Commands::Monitor) | None => {
             info!("Starting monitor mode...");
-            let mut monitor = ProcessMonitor::new(settings.process_names.clone());
-            let recorder = infrastructure::audio::AudioRecorder::new();
-            let mut is_recording = false;
-
-            let settings_clone = settings.clone();
-            tokio::spawn(async move {
-                let repo = infrastructure::tasks::TaskRepository::new("data/tasks.json");
-                let gemini = infrastructure::api::GeminiClient::new(
-                    settings_clone.google_api_key.clone(),
-                    settings_clone.gemini_model.clone(),
-                );
-                let use_case = use_cases::process::ProcessUseCase::new(gemini);
-
-                loop {
-                    if let Ok(tasks) = repo.load() {
-                        for task in tasks {
-                            if task.status == "pending" {
-                                if let Err(e) = use_case.execute_session(task).await {
-                                    error!("Task processing failed: {}", e);
-                                } else {
-                                    info!("Task completed");
-                                }
-                            }
-                        }
-                    }
-                    sleep(Duration::from_secs(30)).await;
-                }
-            });
-
-            loop {
-                let running = monitor.is_running();
-                if running && !is_recording {
-                    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-                    let path = format!("data/recordings/{}.wav", timestamp);
-                    std::fs::create_dir_all("data/recordings")?;
-                    if let Err(e) = recorder.start(path, 16000, 1) {
-                        error!("Failed to start recording: {}", e);
-                    } else {
-                        is_recording = true;
-                    }
-                } else if !running && is_recording {
-                    if let Some(path) = recorder.stop() {
-                        info!("Session recording saved to: {}", path);
-                        let tasks = infrastructure::tasks::TaskRepository::new("data/tasks.json");
-                        if let Err(e) = tasks.add("process_session", vec![path]) {
-                            error!("Failed to add task: {}", e);
-                        }
-                    }
-                    is_recording = false;
-                }
-
-                sleep(Duration::from_secs(settings.check_interval)).await;
-            }
+            let use_case = use_cases::monitor::MonitorUseCase::new(settings);
+            use_case.execute().await?;
         }
         Some(Commands::Record) => {
             info!("Starting manual record...");
@@ -118,35 +68,39 @@ async fn main() -> anyhow::Result<()> {
                 })
                 .await?;
         }
-        Some(Commands::Sync) => {
-            let client = infrastructure::api::SupabaseClient::new(
-                settings.supabase_url,
-                settings.supabase_service_role_key,
+        Some(Commands::Novel { date }) => {
+            info!("Building novel for: {}", date);
+            let gemini = infrastructure::api::GeminiClient::new(
+                settings.google_api_key.clone(),
+                settings.gemini_model.clone(),
             );
-            let summaries = std::fs::read_dir("data/summaries")?;
-            for entry in summaries {
-                let entry = entry?;
-                let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) == Some("txt") {
-                    let content = std::fs::read_to_string(&path)?;
-                    let date_str = path
-                        .file_stem()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .split('_')
-                        .next()
-                        .unwrap();
-                    let data = serde_json::json!({
-                        "file_path": path.to_string_lossy(),
-                        "date": date_str,
-                        "content": content,
-                        "tags": ["summary"]
-                    });
-                    client.upsert("daily_entries", data).await?;
-                    info!("Synced {}", path.display());
-                }
-            }
+            let novelizer = infrastructure::ai::Novelizer::new(gemini);
+            let image_generator = infrastructure::ai::ImageGenerator::new();
+            let use_case =
+                use_cases::build_novel::BuildNovelUseCase::new(novelizer, image_generator);
+            use_case.execute(&date).await?;
+        }
+        Some(Commands::Evaluate { date }) => {
+            info!("Evaluating content for: {}", date);
+            let gemini = infrastructure::api::GeminiClient::new(
+                settings.google_api_key.clone(),
+                settings.gemini_model.clone(),
+            );
+            let curator = infrastructure::ai::Curator::new(gemini);
+            let supabase = if !settings.supabase_url.is_empty() {
+                Some(infrastructure::api::SupabaseClient::new(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key,
+                ))
+            } else {
+                None
+            };
+            let use_case = use_cases::evaluate::EvaluateDailyContentUseCase::new(curator, supabase);
+            use_case.execute(&date).await?;
+        }
+        Some(Commands::Sync) => {
+            let use_case = use_cases::sync::SyncUseCase::new(settings);
+            use_case.execute().await?;
         }
     }
 

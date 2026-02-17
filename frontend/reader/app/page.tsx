@@ -69,8 +69,8 @@ export default function Page() {
       )
 
       setEntries(allEntries)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
