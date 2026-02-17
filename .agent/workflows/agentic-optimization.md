@@ -1,49 +1,78 @@
 ---
-description: コンテンツ品質改善とコードベース最適化ワークフロー
+description: Context7-Driven Content Quality & Codebase Optimization
 ---
 
 # Agentic Optimization Workflow (Context7 Elite Edition)
 
 // turbo-all
 
-## 1. Context7: Environment & Toolchain Integrity (Layer 1-2)
+## [Layer 1] Runtime Integrity (Hard Foundation)
+Strictest validation of the execution environment to prevent "phantom bugs".
 
-### 1.1 Fundamental Foundation (Layer 1: Runtime)
-- **Rust Toolchain**: `rustc --version` (stable)。環境の不整合を排除。
-- **Lockfile Enforcement**: `cargo check --locked`。外部依存の「不純物」を排除。
+1. **Verify Rust Environment**:
+   - `rustc --version` must be 1.75+.
+   - `cargo check --locked` must pass with zero errors.
+2. **Verify Python Environment**:
+   - `uv run python --version` must be 3.12+.
+   - `uv sync --locked` to ensure no dependency drift.
 
-### 1.2 Configuration Context (Layer 2: Environment)
-- **Zero-Drift .env**: `.env.example` との完全同期を検証。
-  ```bash
-  comm -23 <(grep -Po '^[^#=]+' .env.example | sort) <(grep -Po '^[^#=]+' .env | sort)
-  ```
+## [Layer 2] Secret & Configuration Hardening
+Zero-drift configuration management.
 
-## 2. Context7: Resource & Content Audit (Layer 3-4)
+1. **Secret Entropy Audit**:
+   - Check if `GOOGLE_API_KEY` exists and has a valid pattern (not `your_api_key`).
+   - `grep -E "sk-|AIza" .env || echo "WARNING: Critical API Keys missing or invalid format"`
+2. **Configuration Parity**:
+   - Cross-reference `.env` with `src/infrastructure/settings.rs` to ensure all `std::env::var` calls are mapped.
+   - Cross-reference `data/config.yaml` with `ProcessSettings` struct.
 
-### 2.1 State Context (Layer 3: Current Assets)
-- **Storage Profile**: `du -sh data/*`。
-- **Inventory Matrix**: Recordings vs Summaries の 1:1 対応を物理的に監査。
+## [Layer 3] Data Inventory & Ghost Auditing
+Physical tracking of project assets.
 
-### 2.2 Fidelity Context (Layer 4: Data Quality)
-- **Empty Archive Purge**: `find data/ -type f -size 0 -delete`。
-- **Content Health**: `task curator:eval` によるスコアリングと無音ファイルの抽出。
+1. **The Inventory Matrix**:
+   - Generate a date inventory from `data/recordings/` (WAV/FLAC).
+   - Cross-reference with `data/summaries/` (TXT) and `data/novels/` (MD).
+   - **Strict Rule**: Every summary MUST have a corresponding novel or be flagged as "Stalled Pipeline".
+2. **Ghost Purge**:
+   - `find data/ -type f -size 0 -delete` (Auto-delete zero-byte failures).
+   - `find data/recordings -name "*.tmp" -mmin +60 -delete` (Cleanup stalled recordings).
 
-## 3. Context7: Codebase & Complexity Audit (Layer 5-6)
+## [Layer 4] Content Fidelity & Narrative Audit
+Ensuring the "Soul" of the project remains high-quality.
 
-### 3.1 Structural Context (Layer 5: Architecture)
-- **Iron Rule Enforcement**: `cargo clippy -- -D warnings`。警告は負債である。
-- **Modular Purity**: 200行超えのファイルを「構造的汚染」とみなし、即座に分解を計画。
+1. **Novel Length Audit**:
+   - `find data/novels -name "*.md" -size -500c` (Identify "thin" chapters).
+2. **The Curator Evaluation**:
+   - Run `task curator:eval date=YYYYMMDD` for the most recent 3 active dates.
+   - **Threshold**: Reliability score < 0.8 requires mandatory manual review.
+3. **Visual Integrity**:
+   - `identify data/photos/*.png` (Ensure valid image headers and correct resolution).
 
-### 3.2 Logic Context (Layer 6: Use Cases)
-- **Delegation Review**: `main.rs` が薄く保たれ、`use_cases/` にビジネスロジックがカプセル化されているかコードレビュー。
-- **Atomic Operations**: 関数が単一責任（SR）を全うしているか検証。
+## [Layer 5] Architectural Purity (Iron Rules)
+Code is a liability; keep it lean and clean.
 
-## 4. Context7: Vision & Synchronization (Layer 7)
+1. **The 200-Line Ceiling**:
+   - `find src -name "*.rs" -o -name "*.py" | xargs wc -l | awk '$1 > 200 {print $2 " is OVER LIMIT (" $1 " lines)"}'`
+   - **Action**: Any file over 200 lines MUST be prioritized for decomposition in the next task.
+2. **Clippy Zero-Tolerance**:
+   - `cargo clippy --all-targets -- -D warnings`. Warnings are treated as compilation errors.
+3. **Rust Atomic Purity**:
+   - Ensure `src/domain/` has NO dependencies on `src/infrastructure/`.
+   - `grep -r "infrastructure" src/domain && echo "ERROR: Domain leakage detected"`
 
-### 4.1 Knowledge Context (Layer 7: Documentation)
-- **Truth Sync**: `README.md` / `AGENTS.md` と `main.rs` の完全な同期。
-- **Mermaid Reality**: ダイアグラムが現状の Rust シーケンスを正確に反映しているか監査。
+## [Layer 6] Logic & Side-Effect Safety
+1. **Unwrap Audit**:
+   - `grep -r "unwrap()" src | grep ".rs"`
+   - **Strict Rule**: `unwrap()` is forbidden in `use_cases/` and `infrastructure/`. Use `expect("Contextual message")` or `Result` handling.
+2. **Test Baseline**:
+   - `cargo test` must achieve 100% pass rate.
 
-### 4.2 Cloud Synthesis
-- **Rust Atomic Sync**: `cargo run -- sync`。
-- **Final Consensus**: `task commit MESSAGE="optimization: Context7 alignment & destructive cleanup"`。
+## [Layer 7] Knowledge & Vision Sync (The Truth)
+1. **Manifest Alignment**:
+   - Check if `AGENTS.md` correctly lists all current command-line tools found in `src/main.rs`.
+   - Check if `README.md` reflects the current production status of the Rust migration.
+2. **Mermaid Reality Sync**:
+   - Audit `docs/diagrams/` against `src/infrastructure/system.py` and `src/main.rs` call flows.
+3. **Atomic Sync & Commit**:
+   - `task sync` to push metadata to the cloud.
+   - `task commit MESSAGE="optimization: Context7 Full Audit [L1-L7] completed"`
