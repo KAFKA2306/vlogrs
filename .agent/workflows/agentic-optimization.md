@@ -2,35 +2,48 @@
 description: コンテンツ品質改善とコードベース最適化ワークフロー
 ---
 
-# Agentic Optimization Workflow
+# Agentic Optimization Workflow (Context7 Elite Edition)
 
 // turbo-all
 
-## 1. Content Coverage Analysis
+## 1. Context7: Environment & Toolchain Integrity (Layer 1-2)
 
-- List all dates in `data/recordings/` and build a date inventory.
-- Cross-reference against `data/summaries/`, `data/novels/`, `data/photos/` to identify coverage gaps per date.
-- Report missing artifacts by date as a gap table.
+### 1.1 Fundamental Foundation (Layer 1: Runtime)
+- **Rust Toolchain**: `rustc --version` (stable)。環境の不整合を排除。
+- **Lockfile Enforcement**: `cargo check --locked`。外部依存の「不純物」を排除。
 
-## 2. Quality Audit
+### 1.2 Configuration Context (Layer 2: Environment)
+- **Zero-Drift .env**: `.env.example` との完全同期を検証。
+  ```bash
+  comm -23 <(grep -Po '^[^#=]+' .env.example | sort) <(grep -Po '^[^#=]+' .env | sort)
+  ```
 
-- Run `task curator:eval date=YYYYMMDD` on recent dates to evaluate content quality scores.
-- Spot-check novel files for truncation or empty content: `find data/novels -size 0 -o -size -100c`.
-- Spot-check photo files for zero-byte images: `find data/photos -size 0`.
+## 2. Context7: Resource & Content Audit (Layer 3-4)
 
-## 3. Backfill Generation
+### 2.1 State Context (Layer 3: Current Assets)
+- **Storage Profile**: `du -sh data/*`。
+- **Inventory Matrix**: Recordings vs Summaries の 1:1 対応を物理的に監査。
 
-- For each date with missing novels: `task novel:build date=YYYYMMDD`.
-- For each date with missing photos: `task photo novel=data/novels/YYYYMMDD.md`.
-- Run `task photos:fill` to batch-detect and generate remaining missing photos.
+### 2.2 Fidelity Context (Layer 4: Data Quality)
+- **Empty Archive Purge**: `find data/ -type f -size 0 -delete`。
+- **Content Health**: `task curator:eval` によるスコアリングと無音ファイルの抽出。
 
-## 4. Codebase Optimization
+## 3. Context7: Codebase & Complexity Audit (Layer 5-6)
 
-- Run `task lint` and fix any reported issues.
-- Identify unused imports or dead code in `src/` with `uv run ruff check src --select F401,F841`.
-- Review `src/` file sizes — flag any file exceeding 200 lines for potential decomposition.
+### 3.1 Structural Context (Layer 5: Architecture)
+- **Iron Rule Enforcement**: `cargo clippy -- -D warnings`。警告は負債である。
+- **Modular Purity**: 200行超えのファイルを「構造的汚染」とみなし、即座に分解を計画。
 
-## 5. Sync & Commit
+### 3.2 Logic Context (Layer 6: Use Cases)
+- **Delegation Review**: `main.rs` が薄く保たれ、`use_cases/` にビジネスロジックがカプセル化されているかコードレビュー。
+- **Atomic Operations**: 関数が単一責任（SR）を全うしているか検証。
 
-- Run `task sync` to push all new/updated content to Supabase.
-- Run `task commit MESSAGE="optimization: [summary]"` to persist changes.
+## 4. Context7: Vision & Synchronization (Layer 7)
+
+### 4.1 Knowledge Context (Layer 7: Documentation)
+- **Truth Sync**: `README.md` / `AGENTS.md` と `main.rs` の完全な同期。
+- **Mermaid Reality**: ダイアグラムが現状の Rust シーケンスを正確に反映しているか監査。
+
+### 4.2 Cloud Synthesis
+- **Rust Atomic Sync**: `cargo run -- sync`。
+- **Final Consensus**: `task commit MESSAGE="optimization: Context7 alignment & destructive cleanup"`。

@@ -1,63 +1,62 @@
 # src
 
-VLog Auto Diaryのメインソースコード。Clean Architectureパターン。
+VLog Auto Diaryのメインソースコード。Rustへの移行進行中（Clean Architectureパターン）。
 
 ## ディレクトリ構成
 
-- `domain/` - エンティティとインターフェース（外部依存なし）
+- `domain/` - エンティティとインターフェース
 - `use_cases/` - ビジネスロジック
-- `infrastructure/` - 外部依存実装
+- `infrastructure/` - 外部依存実装（API, Audio, Process監視等）
+- `models.rs` - 共用データモデル
+- `main.rs` - Rust版エントリーポイント
 
 ## アーキテクチャ
 
 ```
-Entry Points (main.py, app.py, cli.py)
+Entry Points (main.rs)
     ↓
-Use Cases (process_recording.py)
+Use Cases (process.rs)
     ↓
-Infrastructure (ai, system, repositories)
+Infrastructure (api.rs, audio.rs, process.rs, tasks.rs)
     ↓
-Domain (entities, interfaces) ← 依存なし
+Domain (domain.rs) ← 依存なし
 ```
 
-## ファイル一覧
+> [!NOTE]
+> 現在、一部の機能（文字起こし等）は `use_cases/process.rs` から `uv run python` を通じて Python 側の `cli.py` を呼び出しています。
 
-| ファイル | クラス/関数 | 責務 |
-|----------|------------|------|
-| `main.py` | `setup_logging()` | ロギング設定（stdout + file） |
-| `app.py` | `Application` | 自動監視メインループ |
-| `app.py` | `.run()` | 無限ループ（`check_interval`秒毎） |
-| `app.py` | `._tick()` | プロセス監視→録音制御→処理トリガー |
-| `cli.py` | `cmd_process()` | `--file`指定で録音処理 |
-| `cli.py` | `cmd_novel()` | `--date`指定で小説生成 |
-| `cli.py` | `cmd_sync()` | Supabase同期 |
-| `cli.py` | `cmd_image_generate()` | 画像生成（`--prompt`または`--novel`） |
-| `cli.py` | `cmd_jules()` | Jules AIチャット |
-| `cli.py` | `cmd_transcribe()` | 文字起こしのみ |
-| `cli.py` | `cmd_summarize()` | 要約生成のみ |
-| `cli.py` | `cmd_pending()` | 保留タスク処理 |
-| `cli.py` | `cmd_curator()` | コンテンツ評価 |
+## ファイル / モジュール一覧
 
-## 設定パラメータ
-
-| パラメータ | 設定元 | 値 | 説明 |
-|-----------|--------|-----|------|
-| `check_interval` | config.yaml | 5 | プロセス監視間隔（秒） |
-| `process_names` | config.yaml | VRChat.exe,VRChat | 監視対象プロセス名 |
+| モジュール | 役割 | 備考 |
+|------------|------|------|
+| `main.rs` | CLI引数解析・メインループ | 監視モード、手動処理、同期 |
+| `use_cases::process` | 録音データの処理フロー | Gemini連携、Pythonスクリプト呼出 |
+| `infrastructure::process` | ターゲットプロセスの監視 | `sysinfo` を使用 |
+| `infrastructure::audio` | 音声録音制御 | `cpal`, `hound` を使用 |
+| `infrastructure::api` | Gemini / Supabase クライアント | `reqwest` を使用 |
+| `infrastructure::tasks` | 処理待ちタスクの管理 | `data/tasks.json` |
 
 ## 実行方法
 
 ### 自動監視モード
 
 ```bash
-python -m src.main
+cargo run -- monitor
 ```
 
-### CLI
+### CLI操作
 
 ```bash
-python -m src.cli process --file data/recordings/audio.wav
-python -m src.cli novel --date 20250120
-python -m src.cli sync
+# 特定ファイルの処理
+cargo run -- process --file data/recordings/audio.wav
+
+# Supabaseへの同期
+cargo run -- sync
 ```
+
+## Legacy (Python)
+
+移行完了まで、以下の Python ファイルが残存・使用されています：
+- `cli.py`: 文字起こし (`transcribe`) や要約 (`summarize`) のバックエンドとして利用。
+- `app.py`: 旧メインループ。
 

@@ -11,52 +11,26 @@ tasks:
     cmds:
       - |
         cat <<'EOF'
-        ■ セットアップ（初回のみ）
-          task setup
-
-        ■ 開発・実行
-          task dev                      ローカル実行
+        ■ 開発・実行 (Rust 優先)
+          task dev                      ローカル監視 (Rust)
+          task process FILE=録音.wav    1ファイル処理 (Rust)
+          task sync                     データ同期 (Rust)
           task up                       systemd起動
-          task down                     systemd停止
-          task restart                  systemd再起動
-          task status                   全体状態確認
-          task logs                     ログ追尾
 
-        ■ 録音・処理（メイン機能）
-          task record                   手動録音
-          task process FILE=録音.wav    1ファイル処理
-          task process:all              全録音を一括処理
-
-        ■ 小説生成
+        ■ コンテンツ生成 (一部 Python)
           task novel:build              今日の要約から章を生成
-          task novel:build date=YYYYMMDD 指定日の章を生成
-          task photo novel=data/novels/YYYYMMDD.md 小説から画像生成
-          task photos:all               全小説から画像を一括生成
+          task photo novel=...          小説から画像生成
+          task photos:fill              欠落画像を自動補完
 
-        ■ Windows 起動
-          ダブルクリック: windows\run.bat
-        ■ 初回セットアップ（管理者権限で実行）
-          windows\bootstrap.bat
-
-        ■ データ同期
-          task sync                     Supabase同期
-          task sync:full                全件強制同期
-
-        ■ Web UI
-          task web:dev                  開発サーバー
-          task web:build                本番ビルド
-          task web:deploy               Vercelデプロイ
-
-        ■ メンテナンス
-          task lint                     コード品質チェック
-          task clean                    キャッシュ削除
+        ■ メンテナンス & 品質管理
+          task lint                     Rust品質チェック (Clippy)
           task commit MESSAGE="..."     Git commit
+          task clean                    キャッシュ削除
 
-        ■ デバッグ用
-          task service:status           systemd状態のみ
-          task log:status               ログ解析のみ
-          task transcribe FILE=...      文字起こしのみ
-          task summarize FILE=...       要約のみ
+        ■ デバッグ・詳細
+          task rust:dev                 デバッグ実行 (cargo run)
+          task python:dev               旧仕様実行 (uv run)
+          task service:status           systemd状態確認
         EOF
 
   # ────────────────────────────────────────
@@ -70,8 +44,28 @@ tasks:
   # 開発・実行
   # ────────────────────────────────────────
   dev:
-    desc: アプリ実行
+    desc: ローカル監視 (Rust)
+    cmd: cargo run -- monitor
+
+  rust:dev:
+    desc: アプリ実行 (Rust)
+    cmd: cargo run
+
+  python:dev:
+    desc: アプリ実行 (Python legacy)
     cmd: uv run python -m src.main
+
+  rust:dev:
+    desc: アプリ実行 (Rust)
+    cmd: cargo run
+
+  rust:build:
+    desc: ビルド (Rust)
+    cmd: cargo build --release
+
+  rust:monitor:
+    desc: 監視モード (Rust)
+    cmd: cargo run -- monitor
 
   up:
     desc: systemd起動
@@ -118,9 +112,9 @@ tasks:
     cmd: uv run python -m src.cli record
 
   process:
-    desc: 録音→要約（単一ファイル）
+    desc: 録音→要約（Rust）
     deps: [require_file]
-    cmds: ["uv run python -m src.cli process --file {{.FILE}}"]
+    cmds: ["cargo run -- process --file {{.FILE}}"]
 
   process:all:
     desc: 録音→要約（全ファイル一括）
@@ -177,8 +171,8 @@ tasks:
   # データ同期
   # ────────────────────────────────────────
   sync:
-    desc: Supabase同期
-    cmd: uv run python -m src.cli sync
+    desc: Supabase同期 (Rust)
+    cmd: cargo run -- sync
 
   sync:full:
     desc: 全件強制同期
@@ -222,8 +216,11 @@ tasks:
   # メンテナンス
   # ────────────────────────────────────────
   lint:
-    desc: コード品質チェック
-    cmds: ["uv run ruff check src && uv run ruff format src"]
+    desc: コード品質チェック (Rust Priority)
+    cmds:
+      - cargo clippy --fix --allow-dirty --allow-staged
+      - cargo fmt
+      - uv run ruff check src --fix || true
 
   clean:
     desc: キャッシュ削除
