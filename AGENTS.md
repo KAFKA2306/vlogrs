@@ -27,7 +27,7 @@ See [Global Configuration](file:///home/kafka/projects/.agent/AGENTS.md)
 - Language: `ja`
 
 ### Gemini Config
-- Model: `gemini-2.5-flash`
+- Model: `gemini-3-flash`
 
 ## Commands
 
