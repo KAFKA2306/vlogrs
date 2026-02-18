@@ -1,13 +1,14 @@
 [Unit]
 Description=VLog Autonomous Life Logger Service
 After=network.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 WorkingDirectory=/home/kafka/vlog
 ExecStart=/usr/bin/cargo run --release -- monitor
 Restart=always
-RestartSec=10
+RestartSec=5
 Environment=PYTHONUNBUFFERED=1
 
 [Install]

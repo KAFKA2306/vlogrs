@@ -6,3 +6,5 @@ Type=oneshot
 WorkingDirectory=/home/kafka/vlog
 ExecStart=/usr/bin/task process:daily
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Restart=on-failure
+RestartSec=5
