@@ -2,29 +2,32 @@ use crate::domain::{self, Environment};
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
+use anyhow::{Result, Context};
+use tracing::info;
 
 pub struct LocalEnvironment;
 
 impl Environment for LocalEnvironment {
-    fn ensure_directories(&self) {
+    fn ensure_directories(&self) -> Result<()> {
         for dir in domain::constants::APP_DIRS {
-            fs::create_dir_all(dir).expect("Failed to create directory");
+            fs::create_dir_all(dir).with_context(|| format!("Failed to create directory: {}", dir))?;
         }
+        Ok(())
     }
 
-    fn ensure_config(&self) {
+    fn ensure_config(&self) -> Result<()> {
         let config_path = Path::new(domain::constants::CONFIG_PATH);
         if config_path.exists() {
-            println!("Config already exists: {}", config_path.display());
-            return;
+            info!("Config already exists: {}", config_path.display());
+            return Ok(());
         }
 
         let process_names = self.prompt_with_default(
             "Process names (comma separated)",
             "VRChat.exe,vrchat,VRChatClient.exe",
-        );
-        let check_interval = self.prompt_with_default("Check interval seconds", "5");
-        let device_name = self.prompt_with_default("Audio device name (blank = default)", "");
+        )?;
+        let check_interval = self.prompt_with_default("Check interval seconds", "5")?;
+        let device_name = self.prompt_with_default("Audio device name (blank = default)", "")?;
 
         let config = format!(
             "process:\n  names: \"{}\"\n  check_interval: {}\npaths:\n  recording_dir: \"data/recordings\"\naudio:\n  device_name: {}\n",
@@ -37,26 +40,27 @@ impl Environment for LocalEnvironment {
             }
         );
 
-        fs::write(config_path, config).expect("Failed to write config");
-        println!("Created: {}", config_path.display());
+        fs::write(config_path, config).context("Failed to write config")?;
+        info!("Created: {}", config_path.display());
+        Ok(())
     }
 }
 
 impl LocalEnvironment {
-    fn prompt_with_default(&self, label: &str, default: &str) -> String {
+    fn prompt_with_default(&self, label: &str, default: &str) -> Result<String> {
         print!("{} [{}]: ", label, default);
-        io::stdout().flush().expect("Failed to flush stdout");
+        io::stdout().flush().context("Failed to flush stdout")?;
 
         let mut input = String::new();
         if io::stdin().read_line(&mut input).is_err() {
-            return default.to_string();
+            return Ok(default.to_string());
         }
 
         let trimmed = input.trim();
         if trimmed.is_empty() {
-            default.to_string()
+            Ok(default.to_string())
         } else {
-            trimmed.to_string()
+            Ok(trimmed.to_string())
         }
     }
 }

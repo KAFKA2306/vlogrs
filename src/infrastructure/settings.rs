@@ -27,7 +27,7 @@ pub struct RawSettings {
     pub audio: AudioSettings,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Settings {
     pub google_api_key: String,
     pub gemini_model: String,
@@ -40,40 +40,45 @@ pub struct Settings {
     pub silence_threshold: f32,
 }
 
-impl Default for Settings {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Settings {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, anyhow::Error> {
         let s = Config::builder()
-            .set_default("process.check_interval", 5)
-            .expect("Failed to set default check_interval")
-            .set_default("process.names", "VRChat")
-            .expect("Failed to set default process.names")
-            .set_default("paths.recording_dir", "data/recordings")
-            .expect("Failed to set default recording_dir")
-            .set_default("audio.silence_threshold", 0.02)
-            .expect("Failed to set default silence_threshold")
+            .set_default("process.check_interval", 5)?
+            .set_default("process.names", "VRChat")?
+            .set_default("paths.recording_dir", "data/recordings")?
+            .set_default("audio.silence_threshold", 0.02)?
             .add_source(File::with_name("data/config").required(false))
             .add_source(Environment::default().separator("__"))
-            .build()
-            .expect("Failed to build configuration");
+            .build()?;
 
-        let raw: RawSettings = s.try_deserialize().expect("Failed to deserialize configuration");
+        let raw: RawSettings = s.try_deserialize()?;
 
-        Self {
-            google_api_key: env::var("GOOGLE_API_KEY").expect("GOOGLE_API_KEY must be set"),
-            gemini_model: env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-3-flash".to_string()),
-            supabase_url: env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
-            supabase_service_role_key: env::var("SUPABASE_SERVICE_ROLE_KEY").expect("SUPABASE_SERVICE_ROLE_KEY must be set"),
+        let google_api_key = env::var("GOOGLE_API_KEY")
+            .map_err(|_| anyhow::anyhow!("GOOGLE_API_KEY must be set"))?;
+        
+        let gemini_model = env::var("GEMINI_MODEL")
+            .unwrap_or_else(|_| {
+                tracing::warn!("GEMINI_MODEL not set, falling back to gemini-3-flash");
+                "gemini-3-flash".to_string()
+            });
+
+        let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
+        let supabase_service_role_key = env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap_or_default();
+
+        if supabase_url.is_empty() {
+            tracing::warn!("SUPABASE_URL is not set. Supabase integration will be disabled.");
+        }
+
+        Ok(Self {
+            google_api_key,
+            gemini_model,
+            supabase_url,
+            supabase_service_role_key,
             check_interval: raw.process.check_interval,
             process_names: raw.process.names.split(',').map(|s| s.trim().to_string()).collect(),
             recording_dir: PathBuf::from(raw.paths.recording_dir),
             audio_device: raw.audio.device_name,
             silence_threshold: raw.audio.silence_threshold,
-        }
+        })
     }
 }

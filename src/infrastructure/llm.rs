@@ -1,10 +1,11 @@
 use crate::domain::{Curator, Evaluation, Novelizer};
 use crate::infrastructure::prompts::Prompts;
 use base64::{engine::general_purpose, Engine as _};
-use log::warn;
+use tracing::warn;
 use reqwest::Client;
 use serde_json::{json, Value};
 use tokio::time::{sleep, Duration};
+use anyhow::{Result, Context};
 
 #[derive(Clone)]
 pub struct GeminiClient {
@@ -24,7 +25,7 @@ impl GeminiClient {
         }
     }
 
-    pub async fn generate_content(&self, prompt: &str) -> String {
+    pub async fn generate_content(&self, prompt: &str) -> Result<String> {
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             self.model, self.api_key
@@ -41,7 +42,7 @@ impl GeminiClient {
         self.post_and_parse(&url, body).await
     }
 
-    pub async fn transcribe_audio(&self, audio_data: &[u8], mime_type: &str) -> String {
+    pub async fn transcribe_audio(&self, audio_data: &[u8], mime_type: &str) -> Result<String> {
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             self.model, self.api_key
@@ -68,7 +69,7 @@ impl GeminiClient {
         self.post_and_parse(&url, body).await
     }
 
-    async fn post_and_parse(&self, url: &str, body: Value) -> String {
+    async fn post_and_parse(&self, url: &str, body: Value) -> Result<String> {
         let max_retries = 5;
         let base_delay_ms = 500;
         let cap_delay_ms = 8000;
@@ -78,20 +79,20 @@ impl GeminiClient {
                 Ok(r) => r,
                 Err(e) => {
                     if attempt == max_retries {
-                         panic!("LLM request failed after retries: {}", e);
+                         anyhow::bail!("LLM request failed after {} retries: {}", max_retries, e);
                     }
                     self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
                     continue;
                 }
             };
 
-            let text = resp.text().await.expect("Failed to read response text");
+            let text = resp.text().await.context("Failed to read response text")?;
             
             let parsed: Value = match serde_json::from_str(&text) {
                 Ok(p) => p,
                 Err(e) => {
                      if attempt == max_retries {
-                         panic!("Failed to parse LLM response: {}", e);
+                         anyhow::bail!("Failed to parse LLM response after {} retries: {}", max_retries, e);
                     }
                     self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
                     continue;
@@ -99,16 +100,16 @@ impl GeminiClient {
             };
 
             if let Some(content) = parsed["candidates"][0]["content"]["parts"][0]["text"].as_str() {
-                return content.to_string();
+                return Ok(content.to_string());
             }
             
             if attempt == max_retries {
-                panic!("LLM response bad format: {:?}", parsed);
+                anyhow::bail!("LLM response bad format: {:?}", parsed);
             }
              self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
         }
 
-        String::new()
+        anyhow::bail!("LLM request failed to return content after {} retries", max_retries)
     }
 
     async fn backoff(&self, attempt: u32, base: u64, cap: u64) {
@@ -128,7 +129,10 @@ impl Novelizer for GeminiClient {
         let prompt = template
             .replace("{novel_so_far}", context)
             .replace("{today_summary}", summary);
-        self.generate_content(&prompt).await
+        self.generate_content(&prompt).await.unwrap_or_else(|e| {
+            warn!("Novel generation failed: {}", e);
+            "Generation failed.".to_string()
+        })
     }
 }
 
@@ -140,14 +144,18 @@ impl Curator for GeminiClient {
             .replace("{summary}", summary)
             .replace("{novel}", novel);
             
-        let content = self.generate_content(&prompt).await;
+        let content = self.generate_content(&prompt).await.unwrap_or_default();
 
         let cleaned = content
             .trim_start_matches("```json")
             .trim_end_matches("```")
             .trim();
 
-        serde_json::from_str(cleaned).expect("Failed to parse Evaluation JSON")
+        serde_json::from_str(cleaned).unwrap_or_else(|_| Evaluation {
+            faithfulness_score: 0,
+            quality_score: 0,
+            reasoning: "Evaluation failed".to_string(),
+        })
     }
 }
 

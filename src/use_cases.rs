@@ -6,3 +6,6 @@ pub mod process;
 pub mod setup;
 pub mod sync;
 pub mod status;
+pub mod synthesis;
+pub mod transcode;
+pub mod doctor;

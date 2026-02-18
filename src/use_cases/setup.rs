@@ -9,9 +9,10 @@ impl SetupUseCase {
         Self { env }
     }
 
-    pub fn execute(&self) {
-        self.env.ensure_directories();
-        self.env.ensure_config();
+    pub fn execute(&self) -> anyhow::Result<()> {
+        self.env.ensure_directories()?;
+        self.env.ensure_config()?;
         println!("Setup complete.");
+        Ok(())
     }
 }

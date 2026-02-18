@@ -16,7 +16,7 @@ impl SupabaseClient {
         }
     }
 
-    pub async fn upsert(&self, table: &str, data: &Value) {
+    pub async fn upsert(&self, table: &str, data: &Value) -> anyhow::Result<()> {
         let url = format!("{}/rest/v1/{}", self.url, table);
 
         let response = self.client
@@ -28,11 +28,14 @@ impl SupabaseClient {
             .json(data)
             .send()
             .await
-            .expect("Failed to send Supabase request");
+            .map_err(|e| anyhow::anyhow!("Supabase request failed: {}", e))?;
 
         if !response.status().is_success() {
-            let error = response.text().await.expect("Failed to read error text");
-            panic!("Supabase upsert failed: {}", error);
+            let status = response.status();
+            let error = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            anyhow::bail!("Supabase upsert failed with status {}: {}", status, error);
         }
+
+        Ok(())
     }
 }

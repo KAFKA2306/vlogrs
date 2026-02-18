@@ -4,7 +4,8 @@ pub mod use_cases;
 
 use clap::{Parser, Subcommand};
 use infrastructure::settings::Settings;
-use log::info;
+use tracing::info;
+use anyhow::Result;
 
 #[derive(Parser)]
 #[command(name = "vlog-rs")]
@@ -34,12 +35,27 @@ enum Commands {
     Pending,
     Status,
     Setup,
+    Doctor,
 }
 
+
+
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
+    
+    // Initialize tracing with file appender
+    let file_appender = tracing_appender::rolling::daily("logs", "vlog.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
+        .with_writer(non_blocking)
+        .with_ansi(false)
+        .json() // Structured logging as required
+        .init();
+
+    info!("VLog initialized. System starting...");
 
     let cli: Cli = Cli::parse();
     
@@ -50,21 +66,21 @@ async fn main() {
         Some(Commands::Monitor) | None => {
             // Self-healing: Ensure directories exist
             use domain::Environment;
-            env.ensure_directories();
+            env.ensure_directories()?;
 
-            let settings: Settings = Settings::new();
+            let settings = Settings::new()?;
             info!("Starting monitor mode...");
             let use_case: use_cases::monitor::MonitorUseCase =
                 use_cases::monitor::MonitorUseCase::new(settings);
-            use_case.execute().await;
+            use_case.execute().await?;
         }
         Some(Commands::Record) => {
             info!("Starting manual record...");
         }
         Some(Commands::Process { file }) => {
-            let settings = Settings::new();
+            let settings = Settings::new()?;
             info!("Processing file: {}", file);
-            let prompts = infrastructure::prompts::Prompts::load();
+            let prompts = infrastructure::prompts::Prompts::load()?;
             let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key,
                 settings.gemini_model,
@@ -79,12 +95,12 @@ async fn main() {
                     task_type: "process_session".to_string(),
                     file_paths: vec![file],
                 })
-                .await;
+                .await?;
         }
         Some(Commands::Novel { date }) => {
-            let settings = Settings::new();
+            let settings = Settings::new()?;
             info!("Building novel for: {}", date);
-            let prompts = infrastructure::prompts::Prompts::load();
+            let prompts = infrastructure::prompts::Prompts::load()?;
             let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
@@ -97,12 +113,12 @@ async fn main() {
                 Box::new(gemini),
                 Box::new(image_generator),
             );
-            use_case.execute(&date).await;
+            use_case.execute(&date).await?;
         }
         Some(Commands::Evaluate { date }) => {
-            let settings = Settings::new();
+            let settings = Settings::new()?;
             info!("Evaluating content for: {}", date);
-            let prompts = infrastructure::prompts::Prompts::load();
+            let prompts = infrastructure::prompts::Prompts::load()?;
             let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
@@ -119,25 +135,32 @@ async fn main() {
             };
 
             let use_case = use_cases::evaluate::EvaluateDailyContentUseCase::new(Box::new(gemini), supabase);
-            use_case.execute(&date).await;
+            use_case.execute(&date).await?;
         }
         Some(Commands::Sync) => {
-            let settings = Settings::new();
+            let settings = Settings::new()?;
             let use_case = use_cases::sync::SyncUseCase::new(settings);
-            use_case.execute().await;
+            use_case.execute().await?;
         }
         Some(Commands::Pending) => {
             let use_case = use_cases::pending::PendingUseCase::new();
-            use_case.execute().await;
+            use_case.execute().await?;
         }
         Some(Commands::Status) => {
             let use_case = use_cases::status::StatusUseCase::new();
-            use_case.execute().await;
+            use_case.execute().await?;
         }
         Some(Commands::Setup) => {
-            let use_case: use_cases::setup::SetupUseCase =
-                use_cases::setup::SetupUseCase::new(env);
-            use_case.execute();
+            let use_case = use_cases::setup::SetupUseCase::new(
+                Box::new(infrastructure::fs_utils::LocalEnvironment)
+            );
+            use_case.execute()?;
+        }
+        Some(Commands::Doctor) => {
+            let use_case = use_cases::doctor::DoctorUseCase::new();
+            use_case.execute()?;
         }
     }
+
+    Ok(())
 }

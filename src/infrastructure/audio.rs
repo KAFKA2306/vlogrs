@@ -1,10 +1,11 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use log::{error, info};
+use tracing::{error, info, warn};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use anyhow::{Result, Context};
 
 pub struct AudioRecorder {
     is_recording: Arc<AtomicBool>,
@@ -25,32 +26,39 @@ impl AudioRecorder {
         }
     }
 
-    pub fn start(&self, output_path: impl Into<PathBuf>, sample_rate: u32, channels: u16, device_name: Option<String>, silence_threshold: f32) {
+    pub fn start(&self, output_path: impl Into<PathBuf>, sample_rate: u32, channels: u16, device_name: Option<String>, silence_threshold: f32) -> Result<()> {
         if self.is_recording.load(Ordering::SeqCst) {
-            return;
+            return Ok(());
         }
 
         let output_path = output_path.into();
         self.is_recording.store(true, Ordering::SeqCst);
-        *self.current_file.lock().expect("Failed to lock current_file") = Some(output_path.clone());
+        let mut current_file = self.current_file.lock()
+            .map_err(|_| anyhow::anyhow!("Failed to lock current_file"))?;
+        *current_file = Some(output_path.clone());
 
         let is_recording = self.is_recording.clone();
 
         thread::spawn(move || {
             let part_path = output_path.with_extension("wav.part");
-            Self::record_loop(part_path, sample_rate, channels, is_recording, device_name, silence_threshold);
+            if let Err(e) = Self::record_loop(part_path, sample_rate, channels, is_recording, device_name, silence_threshold) {
+                error!("Audio recording loop failed: {}", e);
+            }
         });
 
         info!("Started recording...");
+        Ok(())
     }
 
-    pub fn stop(&self) -> Option<PathBuf> {
+    pub fn stop(&self) -> Result<Option<PathBuf>> {
         self.is_recording.store(false, Ordering::SeqCst);
-        let path = self.current_file.lock().expect("Failed to lock current_file").take();
+        let mut current_file = self.current_file.lock()
+            .map_err(|_| anyhow::anyhow!("Failed to lock current_file"))?;
+        let path = current_file.take();
         if let Some(ref p) = path {
             let part_path = p.with_extension("wav.part");
             if part_path.exists() {
-                std::fs::rename(&part_path, p).expect("Failed to rename part file");
+                std::fs::rename(&part_path, p).context("Failed to rename part file")?;
                 // Sync parent directory
                 if let Some(parent) = p.parent() {
                      if let Ok(dir) = std::fs::File::open(parent) {
@@ -60,21 +68,21 @@ impl AudioRecorder {
             }
             info!("Stopped recording: {:?}", p);
         }
-        path
+        Ok(path)
     }
 
-    fn record_loop(path: PathBuf, sample_rate: u32, channels: u16, is_recording: Arc<AtomicBool>, device_name: Option<String>, silence_threshold: f32) {
+    fn record_loop(path: PathBuf, sample_rate: u32, channels: u16, is_recording: Arc<AtomicBool>, device_name: Option<String>, silence_threshold: f32) -> Result<()> {
         let host = cpal::default_host();
         
         let device = match device_name {
             Some(name) => host.input_devices()
-                .expect("Failed to list input devices")
+                .context("Failed to list input devices")?
                 .find(|d| d.name().map(|n| n.contains(&name)).unwrap_or(false))
                 .unwrap_or_else(|| {
-                    error!("Device '{}' not found, falling back to default.", name);
+                    warn!("Device '{}' not found, falling back to default.", name);
                     host.default_input_device().expect("No default input device found")
                 }),
-            None => host.default_input_device().expect("No default input device found"),
+            None => host.default_input_device().context("No default input device found")?,
         };
 
         info!("Using audio device: {}", device.name().unwrap_or_default());
@@ -93,40 +101,43 @@ impl AudioRecorder {
         };
 
         let writer = Arc::new(Mutex::new(Some(
-            hound::WavWriter::create(&path, spec).expect("Failed to create wav writer"),
+            hound::WavWriter::create(&path, spec).context("Failed to create wav writer")?,
         )));
         let writer_cb = writer.clone();
 
         let stream = device.build_input_stream(
             &config,
             move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                let mut guard = writer_cb.lock().expect("Failed to lock wav writer in callback");
-                if let Some(w) = guard.as_mut() {
-                    for &sample in data {
-                        if sample.abs() > silence_threshold {
-                            let s = (sample * i16::MAX as f32) as i16;
-                            w.write_sample(s).expect("Failed to write sample");
+                if let Ok(mut guard) = writer_cb.lock() {
+                    if let Some(w) = guard.as_mut() {
+                        for &sample in data {
+                            if sample.abs() > silence_threshold {
+                                let s = (sample * i16::MAX as f32) as i16;
+                                let _ = w.write_sample(s);
+                            }
                         }
                     }
                 }
             },
             move |err| {
-                panic!("Audio stream error: {}", err);
+                error!("Audio stream error: {}", err);
             },
             None,
-        ).expect("Failed to build input stream");
+        ).context("Failed to build input stream")?;
 
-        stream.play().expect("Failed to start audio stream");
+        stream.play().context("Failed to start audio stream")?;
 
         while is_recording.load(Ordering::SeqCst) {
             thread::sleep(Duration::from_millis(100));
         }
 
         drop(stream);
-        let mut guard = writer.lock().expect("Failed to lock wav writer for finalization");
-        if let Some(w) = guard.take() {
-            w.finalize().expect("Failed to finalize wav file");
+        if let Ok(mut guard) = writer.lock() {
+            if let Some(w) = guard.take() {
+                w.finalize().context("Failed to finalize wav file")?;
+            }
         }
+        Ok(())
     }
 
     pub fn normalize_audio(input: &PathBuf, output: &PathBuf) -> std::io::Result<()> {

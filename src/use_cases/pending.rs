@@ -1,6 +1,7 @@
-use log::info;
+use tracing::info;
 use std::fs;
 use std::path::Path;
+use anyhow::Result;
 
 pub struct PendingUseCase;
 
@@ -15,25 +16,26 @@ impl PendingUseCase {
         Self
     }
 
-    pub async fn execute(&self) {
+    pub async fn execute(&self) -> Result<()> {
         let summary_dir = Path::new("data/summaries");
         if !summary_dir.exists() {
-            return;
+            return Ok(());
         }
 
-        for entry in fs::read_dir(summary_dir).expect("Failed to read summary directory") {
-            let entry = entry.expect("Failed to read directory entry");
+        for entry in fs::read_dir(summary_dir)? {
+            let entry = entry?;
             let path = entry.path();
             if path.extension().unwrap_or_default() != "txt" {
                 continue;
             }
 
             let file_stem = path.file_stem()
-                .expect("Invalid file stem")
+                .ok_or_else(|| anyhow::anyhow!("Invalid file stem"))?
                 .to_str()
-                .expect("Invalid unicode in filename");
+                .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename"))?;
                 
-            let date = file_stem.split('_').next().expect("Invalid filename format");
+            let date = file_stem.split('_').next()
+                .ok_or_else(|| anyhow::anyhow!("Invalid filename format"))?;
 
             let novel_path = format!("data/novels/{}.md", date);
             if !Path::new(&novel_path).exists() {
@@ -41,5 +43,6 @@ impl PendingUseCase {
                 info!("  Run: task novel:build date={}", date);
             }
         }
+        Ok(())
     }
 }

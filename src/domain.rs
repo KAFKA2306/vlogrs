@@ -1,3 +1,6 @@
+pub mod event;
+pub use event::{LifeEvent, SourceType};
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,12 +22,12 @@ pub trait Curator: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait ImageGenerator: Send + Sync {
-    async fn generate(&self, prompt: &str, output_path: &str);
+    async fn generate(&self, prompt: &str, output_path: &str) -> anyhow::Result<()>;
 }
 
 pub mod constants;
 
 pub trait Environment: Send + Sync {
-    fn ensure_directories(&self);
-    fn ensure_config(&self);
+    fn ensure_directories(&self) -> anyhow::Result<()>;
+    fn ensure_config(&self) -> anyhow::Result<()>;
 }

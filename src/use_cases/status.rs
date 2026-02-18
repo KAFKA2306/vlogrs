@@ -1,5 +1,6 @@
 use crate::infrastructure::tasks::TaskRepository;
 use chrono::{Duration, Utc};
+use anyhow::{Result, Context};
 use std::fs;
 use std::path::Path;
 
@@ -16,12 +17,12 @@ impl StatusUseCase {
         Self
     }
 
-    pub async fn execute(&self) {
+    pub async fn execute(&self) -> Result<()> {
         let now = Utc::now();
         let since = now - Duration::hours(24);
 
         let repo = TaskRepository::new("data/tasks.json");
-        let tasks = repo.load();
+        let tasks = repo.load().context("Failed to load tasks")?;
 
         let pending_count = tasks.iter().filter(|t| t.status == "pending").count();
         let processing_count = tasks.iter().filter(|t| t.status == "processing").count();
@@ -36,6 +37,7 @@ impl StatusUseCase {
         println!("Tasks completed/created: {}", completed_24h);
         println!("Pending tasks: {}", pending_count);
         println!("Processing tasks: {}", processing_count);
+        Ok(())
     }
 
     fn count_recent_files(&self, dir: &str, since_ts: i64) -> usize {

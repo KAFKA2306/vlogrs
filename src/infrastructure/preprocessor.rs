@@ -1,4 +1,5 @@
 use regex::Regex;
+use anyhow::{Result, Context};
 
 pub struct TranscriptPreprocessor;
 
@@ -13,18 +14,18 @@ impl TranscriptPreprocessor {
         Self
     }
 
-    pub fn process(&self, txt: &str) -> String {
-        let mut txt = self.normalize_text(txt);
+    pub fn process(&self, txt: &str) -> Result<String> {
+        let mut txt = self.normalize_text(txt)?;
         txt = self.remove_repetition(&txt);
-        txt = self.remove_fillers(&txt);
+        txt = self.remove_fillers(&txt)?;
         txt = self.dedupe_words(&txt);
         self.merge_lines(&txt)
     }
 
-    fn normalize_text(&self, txt: &str) -> String {
+    fn normalize_text(&self, txt: &str) -> Result<String> {
         let txt = txt.replace("…", " ");
-        let re = Regex::new(r"\.{2,}").expect("Invalid regex");
-        re.replace_all(&txt, " ").to_string()
+        let re = Regex::new(r"\.{2,}").context("Invalid regex in normalize_text")?;
+        Ok(re.replace_all(&txt, " ").to_string())
     }
 
     fn remove_repetition(&self, txt: &str) -> String {
@@ -63,7 +64,7 @@ impl TranscriptPreprocessor {
         result
     }
 
-    fn remove_fillers(&self, txt: &str) -> String {
+    fn remove_fillers(&self, txt: &str) -> Result<String> {
         let fillers = [
             "えー", "あのー", "うーん", "えっと", "なんて", "まあ", "そうですね",
             "あー", "んー", "うん", "ふん", "あ", "はは", "ははは", "なんか",
@@ -78,7 +79,7 @@ impl TranscriptPreprocessor {
 
         let pattern_str = sorted_fillers.join("|");
         let pattern = format!(r"(^|[\s、。?!])({})(?=[\s、。?!]||$)", pattern_str);
-        let re = Regex::new(&pattern).expect("Invalid regex");
+        let re = Regex::new(&pattern).context("Invalid regex in remove_fillers")?;
 
         let mut current_txt = txt.to_string();
         for _ in 0..20 {
@@ -93,7 +94,7 @@ impl TranscriptPreprocessor {
             }
         }
 
-        let re_space = Regex::new(r"\s+").expect("Invalid regex");
+        let re_space = Regex::new(r"\s+").context("Invalid regex in remove_fillers space")?;
         let txt = re_space.replace_all(&current_txt, " ").trim().to_string();
 
         let mut next_txt = String::new();
@@ -106,13 +107,13 @@ impl TranscriptPreprocessor {
         }
         
         let txt = next_txt;
-        let re_start_punct = Regex::new(r"^[、。]+").expect("Invalid regex");
+        let re_start_punct = Regex::new(r"^[、。]+").context("Invalid regex in remove_fillers start_punct")?;
         let txt = re_start_punct.replace_all(&txt, "").trim().to_string();
 
-        let re_space_punct = Regex::new(r"\s+[、。]+").expect("Invalid regex");
+        let re_space_punct = Regex::new(r"\s+[、。]+").context("Invalid regex in remove_fillers space_punct")?;
         let txt = re_space_punct.replace_all(&txt, "").to_string();
 
-        re_space.replace_all(&txt, " ").trim().to_string()
+        Ok(re_space.replace_all(&txt, " ").trim().to_string())
     }
 
     fn dedupe_words(&self, txt: &str) -> String {
@@ -130,9 +131,9 @@ impl TranscriptPreprocessor {
         result.join(" ")
     }
 
-    fn merge_lines(&self, txt: &str) -> String {
+    fn merge_lines(&self, txt: &str) -> Result<String> {
         let txt = txt.replace('\n', " ");
-        let re = Regex::new(r"\s+").expect("Invalid regex");
-        re.replace_all(&txt, " ").trim().to_string()
+        let re = Regex::new(r"\s+").context("Invalid regex in merge_lines")?;
+        Ok(re.replace_all(&txt, " ").trim().to_string())
     }
 }

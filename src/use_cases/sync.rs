@@ -1,7 +1,8 @@
 use crate::infrastructure::api::SupabaseClient;
 use crate::infrastructure::settings::Settings;
-use log::info;
+use tracing::info;
 use std::fs;
+use anyhow::{Result, Context};
 
 pub struct SyncUseCase {
     settings: Settings,
@@ -12,28 +13,39 @@ impl SyncUseCase {
         Self { settings }
     }
 
-    pub async fn execute(&self) {
+    pub async fn execute(&self) -> Result<()> {
         let client = SupabaseClient::new(
             self.settings.supabase_url.clone(),
             self.settings.supabase_service_role_key.clone(),
         );
-        let summaries = fs::read_dir("data/summaries").expect("Failed to read summaries directory");
+
+        if self.settings.supabase_url.is_empty() {
+            tracing::warn!("Supabase URL is not set. Skipping sync.");
+            return Ok(());
+        }
+
+        let summaries_dir = "data/summaries";
+        if !std::path::Path::new(summaries_dir).exists() {
+            return Ok(());
+        }
+
+        let summaries = fs::read_dir(summaries_dir).context("Failed to read summaries directory")?;
         
         for entry in summaries {
-            let entry = entry.expect("Failed to read summary entry");
+            let entry = entry.context("Failed to read summary entry")?;
             let path = entry.path();
             
             if path.extension().and_then(|s| s.to_str()) == Some("txt") {
-                let content = fs::read_to_string(&path).expect("Failed to read summary content");
+                let content = fs::read_to_string(&path).context("Failed to read summary content")?;
                 
                 let file_stem = path.file_stem()
-                    .expect("Invalid file stem")
+                    .ok_or_else(|| anyhow::anyhow!("Invalid file stem"))?
                     .to_str()
-                    .expect("Invalid unicode in filename");
+                    .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename"))?;
                     
                 let date_str = file_stem.split('_')
                     .next()
-                    .expect("Invalid summary filename format");
+                    .ok_or_else(|| anyhow::anyhow!("Invalid summary filename format"))?;
                     
                 let data = serde_json::json!({
                     "file_path": path.to_string_lossy(),
@@ -42,9 +54,10 @@ impl SyncUseCase {
                     "tags": ["summary"]
                 });
                 
-                client.upsert("daily_entries", &data).await;
+                client.upsert("daily_entries", &data).await?;
                 info!("Synced {}", path.display());
             }
         }
+        Ok(())
     }
 }

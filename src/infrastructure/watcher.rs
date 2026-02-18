@@ -1,7 +1,8 @@
-use log::{error, info};
+use tracing::{error, info, warn};
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
+use anyhow::Context;
 
 use crate::infrastructure::tasks::TaskRepository;
 
@@ -16,19 +17,23 @@ impl FileWatcher {
         }
     }
 
-    pub fn start(&self) {
+    pub fn start(&self) -> anyhow::Result<()> {
         let path = self.path.clone();
+        let (tx, rx) = channel();
+        let config = Config::default()
+            .with_poll_interval(std::time::Duration::from_secs(2));
+        
+        let mut watcher: RecommendedWatcher = Watcher::new(tx, config)
+            .context("Failed to create file watcher")?;
+
+        watcher.watch(&path, RecursiveMode::Recursive)
+            .context("Failed to watch directory")?;
+
+        info!("Started watching directory: {:?}", path);
+
         std::thread::spawn(move || {
-            let (tx, rx) = channel();
-            let config = Config::default()
-                .with_poll_interval(std::time::Duration::from_secs(2));
-            let mut watcher: RecommendedWatcher = Watcher::new(tx, config)
-                .expect("Failed to create file watcher");
-
-            watcher.watch(&path, RecursiveMode::Recursive)
-                .expect("Failed to watch directory");
-
-            info!("Started watching directory: {:?}", path);
+            // Move ownership of watcher to the thread to keep it alive
+            let _watcher = watcher;
 
             for res in rx {
                 let event = match res {
@@ -49,9 +54,12 @@ impl FileWatcher {
                     }
                     info!("New file detected: {:?}", path);
                     let repo = TaskRepository::new("data/tasks.json");
-                    repo.add("process_session", vec![path.to_string_lossy().to_string()]);
+                    if let Err(e) = repo.add("process_session", vec![path.to_string_lossy().to_string()]) {
+                         error!("Failed to add task for new file: {}", e);
+                    }
                 }
             }
         });
+        Ok(())
     }
 }
