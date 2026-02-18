@@ -1,8 +1,8 @@
 use crate::infrastructure::api::SupabaseClient;
 use crate::infrastructure::settings::Settings;
-use tracing::info;
+use anyhow::{Context, Result};
 use std::fs;
-use anyhow::{Result, Context};
+use tracing::info;
 
 pub struct SyncUseCase {
     settings: Settings,
@@ -30,30 +30,32 @@ impl SyncUseCase {
         }
 
         let summaries = fs::read_dir(summaries_dir).context("Failed to read summaries directory")?;
-        
+
         for entry in summaries {
             let entry = entry.context("Failed to read summary entry")?;
             let path = entry.path();
-            
+
             if path.extension().and_then(|s| s.to_str()) == Some("txt") {
                 let content = fs::read_to_string(&path).context("Failed to read summary content")?;
-                
-                let file_stem = path.file_stem()
+
+                let file_stem = path
+                    .file_stem()
                     .ok_or_else(|| anyhow::anyhow!("Invalid file stem"))?
                     .to_str()
                     .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename"))?;
-                    
-                let date_str = file_stem.split('_')
+
+                let date_str = file_stem
+                    .split('_')
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("Invalid summary filename format"))?;
-                    
+
                 let data = serde_json::json!({
                     "file_path": path.to_string_lossy(),
                     "date": date_str,
                     "content": content,
                     "tags": ["summary"]
                 });
-                
+
                 client.upsert("daily_entries", &data).await?;
                 info!("Synced {}", path.display());
             }

@@ -1,10 +1,9 @@
 use crate::domain::{Curator, ImageGenerator, Novelizer};
 use crate::infrastructure::fs_utils;
-use tracing::{info, warn};
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use anyhow::{Result, Context};
-
+use tracing::{info, warn};
 
 pub struct BuildNovelUseCase {
     novelizer: Box<dyn Novelizer>,
@@ -25,7 +24,6 @@ impl BuildNovelUseCase {
         }
     }
 
-
     pub async fn execute(&self, date: &str) -> Result<String> {
         let summary_path = format!("data/summaries/{}_summary.txt", date);
         if !Path::new(&summary_path).exists() {
@@ -42,17 +40,16 @@ impl BuildNovelUseCase {
         };
 
         info!("Generating chapter for {}...", date);
-        
+
         let mut chapter = String::new();
         let max_retries = 3;
-        
+
         for attempt in 1..=max_retries {
             chapter = self
                 .novelizer
                 .generate_chapter(&today_summary, &novel_so_far)
                 .await;
-                
-            // 1. Prohibited Words Check (Fast Fail)
+
             let mut found_prohibited = false;
             for word in crate::domain::constants::PROHIBITED_WORDS {
                 if chapter.to_lowercase().contains(&word.to_lowercase()) {
@@ -61,20 +58,25 @@ impl BuildNovelUseCase {
                     break;
                 }
             }
-            
+
             if found_prohibited {
                 info!("Retry {}/{}: Prohibited words found.", attempt, max_retries);
                 continue;
             }
 
-            // 2. Curator Evaluation
             let eval = self.curator.evaluate(&today_summary, &chapter).await;
-            info!("Curator Score: Faithfulness={}, Quality={}, Reason={}", eval.faithfulness_score, eval.quality_score, eval.reasoning);
-            
+            info!(
+                "Curator Score: Faithfulness={}, Quality={}, Reason={}",
+                eval.faithfulness_score, eval.quality_score, eval.reasoning
+            );
+
             if eval.quality_score >= 3 {
                 break;
             } else {
-                 info!("Retry {}/{}: Quality verification failed (Score < 3).", attempt, max_retries);
+                info!(
+                    "Retry {}/{}: Quality verification failed (Score < 3).",
+                    attempt, max_retries
+                );
             }
         }
 

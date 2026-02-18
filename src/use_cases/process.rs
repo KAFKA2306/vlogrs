@@ -1,10 +1,11 @@
+use crate::domain::{Task, TaskRepository as TaskRepositoryTrait};
 use crate::infrastructure::llm::GeminiClient;
 use crate::infrastructure::preprocessor::TranscriptPreprocessor;
-use crate::infrastructure::tasks::{Task, TaskRepository};
+use crate::infrastructure::tasks::TaskRepository;
 use crate::infrastructure::transcription::Transcriber;
-use tracing::info;
-use anyhow::{Result, Context};
+use anyhow::Result;
 use std::path::Path;
+use tracing::info;
 
 pub struct ProcessUseCase {
     gemini: GeminiClient,

@@ -1,4 +1,5 @@
 use crate::domain::Environment;
+use tracing::info;
 
 pub struct SetupUseCase {
     env: Box<dyn Environment>,
@@ -12,7 +13,7 @@ impl SetupUseCase {
     pub fn execute(&self) -> anyhow::Result<()> {
         self.env.ensure_directories()?;
         self.env.ensure_config()?;
-        println!("Setup complete.");
+        info!("Setup complete.");
         Ok(())
     }
 }

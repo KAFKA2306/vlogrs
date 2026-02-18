@@ -1,8 +1,10 @@
+use crate::domain::TaskRepository as TaskRepositoryTrait;
 use crate::infrastructure::tasks::TaskRepository;
+use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
-use anyhow::{Result, Context};
 use std::fs;
 use std::path::Path;
+use tracing::info;
 
 pub struct StatusUseCase;
 
@@ -31,12 +33,12 @@ impl StatusUseCase {
         let recordings_24h = self.count_recent_files("data/recordings", since.timestamp());
         let runtime_hours = self.estimate_runtime_hours_from_recordings(since.timestamp());
 
-        println!("=== VLog Status (Last 24h) ===");
-        println!("Estimated active hours: {:.2}h", runtime_hours);
-        println!("New recordings: {}", recordings_24h);
-        println!("Tasks completed/created: {}", completed_24h);
-        println!("Pending tasks: {}", pending_count);
-        println!("Processing tasks: {}", processing_count);
+        info!("=== VLog Status (Last 24h) ===");
+        info!("Estimated active hours: {:.2}h", runtime_hours);
+        info!("New recordings: {}", recordings_24h);
+        info!("Tasks completed/created: {}", completed_24h);
+        info!("Pending tasks: {}", pending_count);
+        info!("Processing tasks: {}", processing_count);
         Ok(())
     }
 
@@ -51,9 +53,15 @@ impl StatusUseCase {
                 entries
                     .filter_map(Result::ok)
                     .filter(|entry| {
-                        entry.metadata()
+                        entry
+                            .metadata()
                             .and_then(|m| m.modified())
-                            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64 >= since_ts)
+                            .map(|t| {
+                                t.duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64
+                                    >= since_ts
+                            })
                             .unwrap_or(false)
                     })
                     .count()
@@ -76,9 +84,12 @@ impl StatusUseCase {
                         if !meta.is_file() {
                             return None;
                         }
-                        
+
                         let modified = meta.modified().ok()?;
-                        let ts = modified.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs() as i64;
+                        let ts = modified
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .ok()?
+                            .as_secs() as i64;
                         if ts < since_ts {
                             return None;
                         }
@@ -88,7 +99,6 @@ impl StatusUseCase {
             })
             .unwrap_or(0);
 
-        // Rough estimate for 16-bit PCM mono 16kHz WAV (32kB/s)
         let bytes_per_second = 16000.0 * 2.0;
         (total_bytes as f64 / bytes_per_second) / 3600.0
     }

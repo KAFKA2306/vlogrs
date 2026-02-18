@@ -17,9 +17,17 @@ impl TranscodeUseCase {
 
         info!("Transcoding {} to Opus...", input_path);
 
-        // Milestone 46: ffmpeg to Opus
         let status = Command::new("ffmpeg")
-            .args(["-y", "-i", input_path, "-c:a", "libopus", "-b:a", "64k", &output_str])
+            .args([
+                "-y",
+                "-i",
+                input_path,
+                "-c:a",
+                "libopus",
+                "-b:a",
+                "64k",
+                &output_str,
+            ])
             .status()
             .context("Failed to execute ffmpeg")?;
 
@@ -27,12 +35,17 @@ impl TranscodeUseCase {
             anyhow::bail!("ffmpeg failed with status {}", status);
         }
 
-        // Milestone 47: Delete original on success
         if let Err(e) = std::fs::remove_file(input_path) {
             error!("Failed to remove original file {}: {}", input_path, e);
         }
 
         info!("Transcoding complete: {}", output_str);
         Ok(output_str)
+    }
+}
+
+impl Default for TranscodeUseCase {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -1,9 +1,9 @@
 use crate::domain::{Curator, Evaluation};
 use crate::infrastructure::api::SupabaseClient;
-use tracing::info;
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use anyhow::{Result, Context};
+use tracing::info;
 
 pub struct EvaluateDailyContentUseCase {
     curator: Box<dyn Curator>,
@@ -31,8 +31,11 @@ impl EvaluateDailyContentUseCase {
 
         let eval_path = format!("data/evaluations/{}.json", date);
         fs::create_dir_all("data/evaluations").context("Failed to create evaluations directory")?;
-        fs::write(&eval_path, serde_json::to_string_pretty(&result).context("Failed to serialize evaluation")?)
-            .context("Failed to write evaluation")?;
+        fs::write(
+            &eval_path,
+            serde_json::to_string_pretty(&result).context("Failed to serialize evaluation")?,
+        )
+        .context("Failed to write evaluation")?;
         info!("Evaluation saved to {}", eval_path);
 
         if let Some(ref supabase) = self.supabase {

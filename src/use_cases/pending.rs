@@ -1,7 +1,7 @@
-use tracing::info;
+use anyhow::Result;
 use std::fs;
 use std::path::Path;
-use anyhow::Result;
+use tracing::info;
 
 pub struct PendingUseCase;
 
@@ -29,18 +29,20 @@ impl PendingUseCase {
                 continue;
             }
 
-            let file_stem = path.file_stem()
+            let file_stem = path
+                .file_stem()
                 .ok_or_else(|| anyhow::anyhow!("Invalid file stem"))?
                 .to_str()
                 .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename"))?;
-                
-            let date = file_stem.split('_').next()
+
+            let date = file_stem
+                .split('_')
+                .next()
                 .ok_or_else(|| anyhow::anyhow!("Invalid filename format"))?;
 
             let novel_path = format!("data/novels/{}.md", date);
             if !Path::new(&novel_path).exists() {
                 info!("Found pending novel for date: {}", date);
-                info!("  Run: task novel:build date={}", date);
             }
         }
         Ok(())

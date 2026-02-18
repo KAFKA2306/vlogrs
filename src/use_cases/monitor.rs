@@ -1,50 +1,58 @@
-use crate::infrastructure::audio::AudioRecorder;
+use crate::domain::{AudioRecorder, Environment, ProcessMonitor, TaskRepository as TaskRepositoryTrait};
 use crate::infrastructure::llm::GeminiClient;
-use crate::infrastructure::process::ProcessMonitor;
-use crate::infrastructure::settings::Settings;
-use crate::infrastructure::tasks::{TaskRepository, Task};
 use crate::use_cases::process::ProcessUseCase;
-use tracing::{info, warn, error};
+use anyhow::Result;
+use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::System;
 use tokio::time::sleep;
-use anyhow::{Result, Context};
+use tracing::{error, info, warn};
 
 pub struct MonitorUseCase {
-    settings: Settings,
+    audio_recorder: Arc<dyn AudioRecorder>,
+    process_monitor: Arc<tokio::sync::Mutex<dyn ProcessMonitor>>,
+    task_repository: Arc<dyn TaskRepositoryTrait>,
+    environment: Arc<dyn Environment>,
+    gemini_client: GeminiClient,
+    check_interval: u64,
+    audio_device: Option<String>,
+    silence_threshold: f32,
 }
 
 impl MonitorUseCase {
-    pub fn new(settings: Settings) -> Self {
-        Self { settings }
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        audio_recorder: Arc<dyn AudioRecorder>,
+        process_monitor: Arc<tokio::sync::Mutex<dyn ProcessMonitor>>,
+        task_repository: Arc<dyn TaskRepositoryTrait>,
+        environment: Arc<dyn Environment>,
+        gemini_client: GeminiClient,
+        check_interval: u64,
+        audio_device: Option<String>,
+        silence_threshold: f32,
+    ) -> Self {
+        Self {
+            audio_recorder,
+            process_monitor,
+            task_repository,
+            environment,
+            gemini_client,
+            check_interval,
+            audio_device,
+            silence_threshold,
+        }
     }
 
     pub async fn execute(&self) -> Result<()> {
-        let mut monitor = ProcessMonitor::new(self.settings.process_names.clone());
-        let recorder = AudioRecorder::new();
-        let mut is_recording = false;
+        self.environment.ensure_directories()?;
 
-        let settings_clone = self.settings.clone();
-        
         let watcher = crate::infrastructure::watcher::FileWatcher::new("data/cloud_sync");
         watcher.start()?;
 
+        let gemini = self.gemini_client.clone();
+        let repo = self.task_repository.clone();
         tokio::spawn(async move {
-            let repo = TaskRepository::new("data/tasks.json");
-            let prompts = match crate::infrastructure::prompts::Prompts::load() {
-                Ok(p) => p,
-                Err(e) => {
-                    error!("Failed to load prompts in monitor loop: {}", e);
-                    return;
-                }
-            };
-            let gemini = GeminiClient::new(
-                settings_clone.google_api_key.clone(),
-                settings_clone.gemini_model.clone(),
-                prompts,
-            );
             let use_case = ProcessUseCase::new(gemini);
-
             loop {
                 let tasks = match repo.load() {
                     Ok(t) => t,
@@ -76,7 +84,6 @@ impl MonitorUseCase {
             loop {
                 sys.refresh_cpu();
                 sys.refresh_memory();
-
                 let cpu = sys.global_cpu_info().cpu_usage();
                 let total_mem = sys.total_memory();
                 let used_mem = sys.used_memory();
@@ -85,49 +92,49 @@ impl MonitorUseCase {
                 } else {
                     0.0
                 };
-
                 if cpu >= 90.0 || mem_pct >= 90.0 {
                     warn!(
-                        "health-check high usage cpu={:.1}% memory={:.1}% - Triggering self-restart for OOM protection",
+                        "health-check high usage cpu={:.1}% memory={:.1}% - Triggering self-restart",
                         cpu, mem_pct
                     );
                     std::process::exit(1);
                 } else {
                     info!("health-check cpu={:.1}% memory={:.1}%", cpu, mem_pct);
                 }
-
                 sleep(Duration::from_secs(30)).await;
             }
         });
 
+        let mut is_recording = false;
         loop {
-            let running = monitor.is_running();
+            let running = self.process_monitor.lock().await.is_running();
             if running && !is_recording {
                 let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-                let path = format!("data/recordings/{}.wav", timestamp);
-                if let Err(e) = recorder.start(
+                let path = std::path::PathBuf::from(format!("data/recordings/{}.wav", timestamp));
+                if let Err(e) = self.audio_recorder.start(
                     path,
                     16000,
                     1,
-                    self.settings.audio_device.clone(),
-                    self.settings.silence_threshold,
+                    self.audio_device.clone(),
+                    self.silence_threshold,
                 ) {
                     error!("Failed to start recording: {}", e);
                 } else {
                     is_recording = true;
                 }
             } else if !running && is_recording {
-                if let Some(path) = recorder.stop().ok().flatten() {
+                if let Ok(Some(path)) = self.audio_recorder.stop() {
                     info!("Session recording saved to: {:?}", path);
-                    let tasks = TaskRepository::new("data/tasks.json");
-                    if let Err(e) = tasks.add("process_session", vec![path.to_string_lossy().to_string()]) {
+                    if let Err(e) = self
+                        .task_repository
+                        .add("process_session", vec![path.to_string_lossy().to_string()])
+                    {
                         error!("Failed to add task: {}", e);
                     }
                 }
                 is_recording = false;
             }
-
-            sleep(Duration::from_secs(self.settings.check_interval)).await;
+            sleep(Duration::from_secs(self.check_interval)).await;
         }
     }
 }
