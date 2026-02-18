@@ -21,3 +21,10 @@ pub trait Curator: Send + Sync {
 pub trait ImageGenerator: Send + Sync {
     async fn generate(&self, prompt: &str, output_path: &str);
 }
+
+pub mod constants;
+
+pub trait Environment: Send + Sync {
+    fn ensure_directories(&self);
+    fn ensure_config(&self);
+}
