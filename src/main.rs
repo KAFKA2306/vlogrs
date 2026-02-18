@@ -32,6 +32,8 @@ enum Commands {
     },
     Sync,
     Pending,
+    Status,
+    Setup,
 }
 
 #[tokio::main]
@@ -40,10 +42,9 @@ async fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
 
     let cli: Cli = Cli::parse();
-    let settings: Settings = Settings::new();
-
     match cli.command {
         Some(Commands::Monitor) | None => {
+            let settings: Settings = Settings::new();
             info!("Starting monitor mode...");
             let use_case: use_cases::monitor::MonitorUseCase =
                 use_cases::monitor::MonitorUseCase::new(settings);
@@ -53,6 +54,7 @@ async fn main() {
             info!("Starting manual record...");
         }
         Some(Commands::Process { file }) => {
+            let settings: Settings = Settings::new();
             info!("Processing file: {}", file);
             let gemini: infrastructure::llm::GeminiClient = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key,
@@ -71,6 +73,7 @@ async fn main() {
                 .await;
         }
         Some(Commands::Novel { date }) => {
+            let settings: Settings = Settings::new();
             info!("Building novel for: {}", date);
             let gemini: infrastructure::llm::GeminiClient = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
@@ -87,6 +90,7 @@ async fn main() {
             use_case.execute(&date).await;
         }
         Some(Commands::Evaluate { date }) => {
+            let settings: Settings = Settings::new();
             info!("Evaluating content for: {}", date);
             let gemini: infrastructure::llm::GeminiClient = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
@@ -108,6 +112,7 @@ async fn main() {
             use_case.execute(&date).await;
         }
         Some(Commands::Sync) => {
+            let settings: Settings = Settings::new();
             let use_case: use_cases::sync::SyncUseCase =
                 use_cases::sync::SyncUseCase::new(settings);
             use_case.execute().await;
@@ -116,6 +121,15 @@ async fn main() {
             let use_case: use_cases::pending::PendingUseCase =
                 use_cases::pending::PendingUseCase::new();
             use_case.execute().await;
+        }
+        Some(Commands::Status) => {
+            let use_case: use_cases::status::StatusUseCase =
+                use_cases::status::StatusUseCase::new();
+            use_case.execute().await;
+        }
+        Some(Commands::Setup) => {
+            let use_case: use_cases::setup::SetupUseCase = use_cases::setup::SetupUseCase::new();
+            use_case.execute();
         }
     }
 }

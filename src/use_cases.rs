@@ -3,4 +3,6 @@ pub mod evaluate;
 pub mod monitor;
 pub mod pending;
 pub mod process;
+pub mod setup;
 pub mod sync;
+pub mod status;

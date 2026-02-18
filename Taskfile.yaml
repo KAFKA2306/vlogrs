@@ -36,8 +36,8 @@ tasks:
   # セットアップ
   # ────────────────────────────────────────
   setup:
-    desc: 依存同期
-    cmd: uv sync
+    desc: 対話セットアップ (Rust)
+    cmd: cargo run -- setup
 
   # ────────────────────────────────────────
   # 開発・実行 (Rust Core)
@@ -81,10 +81,7 @@ tasks:
   status:
     desc: 全体状態確認
     cmds:
-      - echo "■ systemd 状態"
-      - systemctl --user status vlog --no-pager --lines=10 || true
-      - echo ""
-      - echo "■ ログ解析"
+      - cargo run -- status
 
   logs:
     desc: ログ追尾
