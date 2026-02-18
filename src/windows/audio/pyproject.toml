@@ -1,0 +1,15 @@
+[project]
+name = "vlog-audio-recorder"
+version = "0.1.0"
+description = "High-fidelity Windows audio recording with VAD"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pyaudio>=0.2.14",
+    "webrtcvad-wheels>=2.0.14",
+    "numpy>=1.26.0",
+]
+
+[tool.uv]
+managed = true
+package = false
