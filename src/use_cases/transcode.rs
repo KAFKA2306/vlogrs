@@ -1,7 +1,7 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
-use tracing::{info, error};
+use tracing::{error, info};
 
 pub struct TranscodeUseCase;
 

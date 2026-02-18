@@ -36,7 +36,14 @@ pub trait Environment: Send + Sync {
 }
 
 pub trait AudioRecorder: Send + Sync {
-    fn start(&self, output_path: std::path::PathBuf, sample_rate: u32, channels: u16, device_name: Option<String>, silence_threshold: f32) -> anyhow::Result<()>;
+    fn start(
+        &self,
+        output_path: std::path::PathBuf,
+        sample_rate: u32,
+        channels: u16,
+        device_name: Option<String>,
+        silence_threshold: f32,
+    ) -> anyhow::Result<()>;
     fn stop(&self) -> anyhow::Result<Option<std::path::PathBuf>>;
 }
 

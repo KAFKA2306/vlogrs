@@ -29,14 +29,16 @@ impl SyncUseCase {
             return Ok(());
         }
 
-        let summaries = fs::read_dir(summaries_dir).context("Failed to read summaries directory")?;
+        let summaries =
+            fs::read_dir(summaries_dir).context("Failed to read summaries directory")?;
 
         for entry in summaries {
             let entry = entry.context("Failed to read summary entry")?;
             let path = entry.path();
 
             if path.extension().and_then(|s| s.to_str()) == Some("txt") {
-                let content = fs::read_to_string(&path).context("Failed to read summary content")?;
+                let content =
+                    fs::read_to_string(&path).context("Failed to read summary content")?;
 
                 let file_stem = path
                     .file_stem()

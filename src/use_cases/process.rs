@@ -32,12 +32,15 @@ impl ProcessUseCase {
             let summary = self.gemini.generate_content(&prompt).await?;
 
             let path = Path::new(&file_path);
-            let stem = path.file_stem()
+            let stem = path
+                .file_stem()
                 .ok_or_else(|| anyhow::anyhow!("Invalid file stem"))?
                 .to_str()
                 .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename"))?;
 
-            let date_str = stem.split('_').next()
+            let date_str = stem
+                .split('_')
+                .next()
                 .ok_or_else(|| anyhow::anyhow!("Invalid filename format"))?;
 
             let summary_out_path = format!("data/summaries/{}_summary.txt", date_str);

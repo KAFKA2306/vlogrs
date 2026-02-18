@@ -71,7 +71,9 @@ async fn main() -> Result<()> {
             let monitor = Arc::new(tokio::sync::Mutex::new(
                 infrastructure::process::ProcessMonitor::new(settings.process_names.clone()),
             ));
-            let repo = Arc::new(infrastructure::tasks::TaskRepository::new("data/tasks.json"));
+            let repo = Arc::new(infrastructure::tasks::TaskRepository::new(
+                "data/tasks.json",
+            ));
             let prompts = infrastructure::prompts::Prompts::load()?;
             let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),

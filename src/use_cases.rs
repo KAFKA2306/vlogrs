@@ -1,11 +1,11 @@
 pub mod build_novel;
+pub mod doctor;
 pub mod evaluate;
 pub mod monitor;
 pub mod pending;
 pub mod process;
 pub mod setup;
-pub mod sync;
 pub mod status;
+pub mod sync;
 pub mod synthesis;
 pub mod transcode;
-pub mod doctor;

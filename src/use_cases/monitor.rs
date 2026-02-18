@@ -1,4 +1,6 @@
-use crate::domain::{AudioRecorder, Environment, ProcessMonitor, TaskRepository as TaskRepositoryTrait};
+use crate::domain::{
+    AudioRecorder, Environment, ProcessMonitor, TaskRepository as TaskRepositoryTrait,
+};
 use crate::infrastructure::llm::GeminiClient;
 use crate::use_cases::process::ProcessUseCase;
 use anyhow::Result;

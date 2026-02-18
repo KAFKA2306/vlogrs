@@ -10,7 +10,8 @@ pub struct LocalEnvironment;
 impl Environment for LocalEnvironment {
     fn ensure_directories(&self) -> Result<()> {
         for dir in domain::constants::APP_DIRS {
-            fs::create_dir_all(dir).with_context(|| format!("Failed to create directory: {}", dir))?;
+            fs::create_dir_all(dir)
+                .with_context(|| format!("Failed to create directory: {}", dir))?;
         }
         Ok(())
     }

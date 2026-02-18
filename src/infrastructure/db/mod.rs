@@ -1,6 +1,6 @@
-use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use crate::domain::LifeEvent;
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
+use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use std::str::FromStr;
 
 pub struct EventRepository {
@@ -14,7 +14,7 @@ impl EventRepository {
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
 
         let pool = SqlitePool::connect_with(options).await?;
-        
+
         sqlx::query(include_str!("schema.sql"))
             .execute(&pool)
             .await
@@ -25,9 +25,9 @@ impl EventRepository {
 
     pub async fn save(&self, event: &LifeEvent) -> Result<()> {
         let payload = serde_json::to_string(&event.payload)?;
-        
+
         sqlx::query(
-            "INSERT INTO life_events (id, timestamp, source_type, metadata) VALUES (?, ?, ?, ?)"
+            "INSERT INTO life_events (id, timestamp, source_type, metadata) VALUES (?, ?, ?, ?)",
         )
         .bind(event.id.to_string())
         .bind(event.timestamp)

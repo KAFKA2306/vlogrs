@@ -165,4 +165,3 @@ impl Curator for GeminiClient {
         })
     }
 }
-

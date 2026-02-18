@@ -1,6 +1,25 @@
 pub const PROHIBITED_WORDS: &[&str] = &[
-    "VR", "Virtual", "Digital", "Cyberspace", "HMD", "Headset", "Interface", "HUD", "GUI", "Controller", "Tracker", "Vive", "Oculus", "Quest",
-    "Avatar", "Log", "Login", "Logout", "Button", "Menu", "Settings",
+    "VR",
+    "Virtual",
+    "Digital",
+    "Cyberspace",
+    "HMD",
+    "Headset",
+    "Interface",
+    "HUD",
+    "GUI",
+    "Controller",
+    "Tracker",
+    "Vive",
+    "Oculus",
+    "Quest",
+    "Avatar",
+    "Log",
+    "Login",
+    "Logout",
+    "Button",
+    "Menu",
+    "Settings",
 ];
 
 pub const APP_DIRS: &[&str] = &[
