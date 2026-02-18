@@ -1,4 +1,5 @@
 use crate::domain::{Curator, Evaluation, Novelizer};
+use crate::infrastructure::prompts::Prompts;
 use base64::{engine::general_purpose, Engine as _};
 use log::warn;
 use reqwest::Client;
@@ -10,24 +11,26 @@ pub struct GeminiClient {
     api_key: String,
     model: String,
     client: Client,
+    prompts: Prompts,
 }
 
 impl GeminiClient {
-    pub fn new(api_key: String, model: String) -> Self {
+    pub fn new(api_key: String, model: String, prompts: Prompts) -> Self {
         Self {
             api_key,
             model,
             client: Client::new(),
+            prompts,
         }
     }
 
     pub async fn generate_content(&self, prompt: &str) -> String {
-        let url: String = format!(
+        let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             self.model, self.api_key
         );
 
-        let body: Value = json!({
+        let body = json!({
             "contents": [{
                 "parts": [{
                     "text": prompt
@@ -39,14 +42,14 @@ impl GeminiClient {
     }
 
     pub async fn transcribe_audio(&self, audio_data: &[u8], mime_type: &str) -> String {
-        let url: String = format!(
-            "https://generativelanguage.googleapis.com/v1beta/api/models/{}:generateContent?key={}",
+        let url = format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             self.model, self.api_key
         );
 
-        let base64_audio: String = general_purpose::STANDARD.encode(audio_data);
+        let base64_audio = general_purpose::STANDARD.encode(audio_data);
 
-        let body: Value = json!({
+        let body = json!({
             "contents": [{
                 "parts": [
                     {
@@ -56,7 +59,7 @@ impl GeminiClient {
                         }
                     },
                     {
-                        "text": "Please transcribe this audio exactly as it is spoken. Output only the transcript text."
+                        "text": "Using the audio, write strict dictation. Output only the transcript text."
                     }
                 ]
             }]
@@ -66,47 +69,65 @@ impl GeminiClient {
     }
 
     async fn post_and_parse(&self, url: &str, body: Value) -> String {
-        let max_retries: u32 = 5;
-        let base_delay_ms: u64 = 500;
-        let cap_delay_ms: u64 = 8000;
+        let max_retries = 5;
+        let base_delay_ms = 500;
+        let cap_delay_ms = 8000;
 
         for attempt in 0..=max_retries {
-            let res = self.client.post(url).json(&body).send().await;
-            if let Ok(resp) = res {
-                if let Ok(text) = resp.text().await {
-                    if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
-                        if let Some(content) =
-                            parsed["candidates"][0]["content"]["parts"][0]["text"].as_str()
-                        {
-                            return content.to_string();
-                        }
+            let resp = match self.client.post(url).json(&body).send().await {
+                Ok(r) => r,
+                Err(e) => {
+                    if attempt == max_retries {
+                         panic!("LLM request failed after retries: {}", e);
                     }
+                    self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
+                    continue;
                 }
-            }
+            };
 
+            let text = resp.text().await.expect("Failed to read response text");
+            
+            let parsed: Value = match serde_json::from_str(&text) {
+                Ok(p) => p,
+                Err(e) => {
+                     if attempt == max_retries {
+                         panic!("Failed to parse LLM response: {}", e);
+                    }
+                    self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
+                    continue;
+                }
+            };
+
+            if let Some(content) = parsed["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+                return content.to_string();
+            }
+            
             if attempt == max_retries {
-                break;
+                panic!("LLM response bad format: {:?}", parsed);
             }
-
-            let exp = base_delay_ms.saturating_mul(2u64.saturating_pow(attempt));
-            let backoff = exp.min(cap_delay_ms);
-            let jitter = (chrono::Utc::now().timestamp_subsec_millis() % 250) as u64;
-            let wait = backoff + jitter;
-            warn!("LLM request failed. retry={} wait={}ms", attempt + 1, wait);
-            sleep(Duration::from_millis(wait)).await;
+             self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
         }
 
         String::new()
+    }
+
+    async fn backoff(&self, attempt: u32, base: u64, cap: u64) {
+        let exp = base.saturating_mul(2u64.saturating_pow(attempt));
+        let backoff = exp.min(cap);
+        let jitter = (chrono::Utc::now().timestamp_subsec_millis() % 250) as u64;
+        let wait = backoff + jitter;
+        warn!("LLM request retry={} wait={}ms", attempt + 1, wait);
+        sleep(Duration::from_millis(wait)).await;
     }
 }
 
 #[async_trait::async_trait]
 impl Novelizer for GeminiClient {
     async fn generate_chapter(&self, summary: &str, context: &str) -> String {
-        let prompt: String = format!(
-            "これまでのあらすじ:\n{}\n\n今回の出来事要約:\n{}\n\nこれらを元に、日常の1ページを綴るライフログとして、情緒豊かな小説の1章を執筆してください。デジタル（VR、SNS等）か物理（散歩、会議、外出等）かを問わず、その時の情景、音、感情、会話のニュアンスが伝わるような洗練された表現を心がけてください。",
-            context, summary
-        );
+        let template = &self.prompts.novelizer.template;
+        let prompt = template
+            .replace("{novel_so_far}", context)
+            .replace("{today_summary}", summary);
         self.generate_content(&prompt).await
     }
 }
@@ -114,17 +135,19 @@ impl Novelizer for GeminiClient {
 #[async_trait::async_trait]
 impl Curator for GeminiClient {
     async fn evaluate(&self, summary: &str, novel: &str) -> Evaluation {
-        let prompt: String = format!(
-            "以下の要約と小説の内容を比較し、評価してください。JSON形式で出力してください。\n\n要約:\n{}\n\n小説:\n{}\n\n期待する形式:\n{{ \"faithfulness_score\": 1-5, \"quality_score\": 1-5, \"reasoning\": \"評価理由\" }}",
-            summary, novel
-        );
-        let content: String = self.generate_content(&prompt).await;
+        let template = &self.prompts.curator.evaluate;
+        let prompt = template
+            .replace("{summary}", summary)
+            .replace("{novel}", novel);
+            
+        let content = self.generate_content(&prompt).await;
 
-        let cleaned: &str = content
+        let cleaned = content
             .trim_start_matches("```json")
             .trim_end_matches("```")
             .trim();
 
-        serde_json::from_str(cleaned).unwrap()
+        serde_json::from_str(cleaned).expect("Failed to parse Evaluation JSON")
     }
 }
+

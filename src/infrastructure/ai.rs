@@ -1,5 +1,5 @@
 use crate::domain::ImageGenerator;
-use std::process::{Command, ExitStatus};
+use std::process::Command;
 
 pub struct PythonImageGenerator;
 
@@ -18,18 +18,13 @@ impl PythonImageGenerator {
 #[async_trait::async_trait]
 impl ImageGenerator for PythonImageGenerator {
     async fn generate(&self, prompt: &str, output_path: &str) {
-        let status: ExitStatus = Command::new("uv")
-            .arg("run")
-            .arg("src/scripts/image_gen.py")
-            .arg("--prompt")
-            .arg(prompt)
-            .arg("--output")
-            .arg(output_path)
+        let status = Command::new("uv")
+            .args(["run", "src/scripts/image_gen.py", "--prompt", prompt, "--output", output_path])
             .status()
-            .unwrap();
+            .expect("Failed to execute image generation command");
 
         if !status.success() {
-            panic!("Image generation failed");
+            panic!("Image generation process failed with status: {}", status);
         }
     }
 }

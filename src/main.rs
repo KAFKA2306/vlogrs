@@ -42,8 +42,16 @@ async fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
 
     let cli: Cli = Cli::parse();
+    
+    // Autonomy: Ensure environment is ready for critical paths
+    let env = Box::new(infrastructure::fs_utils::LocalEnvironment);
+
     match cli.command {
         Some(Commands::Monitor) | None => {
+            // Self-healing: Ensure directories exist
+            use domain::Environment;
+            env.ensure_directories();
+
             let settings: Settings = Settings::new();
             info!("Starting monitor mode...");
             let use_case: use_cases::monitor::MonitorUseCase =
@@ -54,14 +62,15 @@ async fn main() {
             info!("Starting manual record...");
         }
         Some(Commands::Process { file }) => {
-            let settings: Settings = Settings::new();
+            let settings = Settings::new();
             info!("Processing file: {}", file);
-            let gemini: infrastructure::llm::GeminiClient = infrastructure::llm::GeminiClient::new(
+            let prompts = infrastructure::prompts::Prompts::load();
+            let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key,
                 settings.gemini_model,
+                prompts,
             );
-            let use_case: use_cases::process::ProcessUseCase =
-                use_cases::process::ProcessUseCase::new(gemini);
+            let use_case = use_cases::process::ProcessUseCase::new(gemini);
             use_case
                 .execute_session(infrastructure::tasks::Task {
                     id: "manual".to_string(),
@@ -73,62 +82,61 @@ async fn main() {
                 .await;
         }
         Some(Commands::Novel { date }) => {
-            let settings: Settings = Settings::new();
+            let settings = Settings::new();
             info!("Building novel for: {}", date);
-            let gemini: infrastructure::llm::GeminiClient = infrastructure::llm::GeminiClient::new(
+            let prompts = infrastructure::prompts::Prompts::load();
+            let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
+                prompts,
             );
-            let image_generator: infrastructure::ai::PythonImageGenerator =
-                infrastructure::ai::PythonImageGenerator::new();
+            let image_generator = infrastructure::ai::PythonImageGenerator::new();
 
-            let use_case: use_cases::build_novel::BuildNovelUseCase =
-                use_cases::build_novel::BuildNovelUseCase::new(
-                    Box::new(gemini),
-                    Box::new(image_generator),
-                );
+            let use_case = use_cases::build_novel::BuildNovelUseCase::new(
+                Box::new(gemini.clone()),
+                Box::new(gemini),
+                Box::new(image_generator),
+            );
             use_case.execute(&date).await;
         }
         Some(Commands::Evaluate { date }) => {
-            let settings: Settings = Settings::new();
+            let settings = Settings::new();
             info!("Evaluating content for: {}", date);
-            let gemini: infrastructure::llm::GeminiClient = infrastructure::llm::GeminiClient::new(
+            let prompts = infrastructure::prompts::Prompts::load();
+            let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
+                prompts,
             );
 
-            let supabase: Option<infrastructure::api::SupabaseClient> =
-                if !settings.supabase_url.is_empty() {
-                    Some(infrastructure::api::SupabaseClient::new(
-                        settings.supabase_url,
-                        settings.supabase_service_role_key,
-                    ))
-                } else {
-                    None
-                };
+            let supabase = if !settings.supabase_url.is_empty() {
+                Some(infrastructure::api::SupabaseClient::new(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key,
+                ))
+            } else {
+                None
+            };
 
-            let use_case: use_cases::evaluate::EvaluateDailyContentUseCase =
-                use_cases::evaluate::EvaluateDailyContentUseCase::new(Box::new(gemini), supabase);
+            let use_case = use_cases::evaluate::EvaluateDailyContentUseCase::new(Box::new(gemini), supabase);
             use_case.execute(&date).await;
         }
         Some(Commands::Sync) => {
-            let settings: Settings = Settings::new();
-            let use_case: use_cases::sync::SyncUseCase =
-                use_cases::sync::SyncUseCase::new(settings);
+            let settings = Settings::new();
+            let use_case = use_cases::sync::SyncUseCase::new(settings);
             use_case.execute().await;
         }
         Some(Commands::Pending) => {
-            let use_case: use_cases::pending::PendingUseCase =
-                use_cases::pending::PendingUseCase::new();
+            let use_case = use_cases::pending::PendingUseCase::new();
             use_case.execute().await;
         }
         Some(Commands::Status) => {
-            let use_case: use_cases::status::StatusUseCase =
-                use_cases::status::StatusUseCase::new();
+            let use_case = use_cases::status::StatusUseCase::new();
             use_case.execute().await;
         }
         Some(Commands::Setup) => {
-            let use_case: use_cases::setup::SetupUseCase = use_cases::setup::SetupUseCase::new();
+            let use_case: use_cases::setup::SetupUseCase =
+                use_cases::setup::SetupUseCase::new(env);
             use_case.execute();
         }
     }

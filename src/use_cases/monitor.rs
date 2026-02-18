@@ -2,7 +2,7 @@ use crate::infrastructure::audio::AudioRecorder;
 use crate::infrastructure::llm::GeminiClient;
 use crate::infrastructure::process::ProcessMonitor;
 use crate::infrastructure::settings::Settings;
-use crate::infrastructure::tasks::TaskRepository;
+use crate::infrastructure::tasks::{TaskRepository, Task};
 use crate::use_cases::process::ProcessUseCase;
 use log::{info, warn};
 use std::time::Duration;
@@ -19,21 +19,29 @@ impl MonitorUseCase {
     }
 
     pub async fn execute(&self) {
-        let mut monitor: ProcessMonitor = ProcessMonitor::new(self.settings.process_names.clone());
-        let recorder: AudioRecorder = AudioRecorder::new();
-        let mut is_recording: bool = false;
+        let mut monitor = ProcessMonitor::new(self.settings.process_names.clone());
+        let recorder = AudioRecorder::new();
+        let mut is_recording = false;
 
-        let settings_clone: Settings = self.settings.clone();
+        let settings_clone = self.settings.clone();
+        
+
+
+        let watcher = crate::infrastructure::watcher::FileWatcher::new("data/cloud_sync");
+        watcher.start();
+
         tokio::spawn(async move {
-            let repo: TaskRepository = TaskRepository::new("data/tasks.json");
-            let gemini: GeminiClient = GeminiClient::new(
+            let repo = TaskRepository::new("data/tasks.json");
+            let prompts = crate::infrastructure::prompts::Prompts::load();
+            let gemini = GeminiClient::new(
                 settings_clone.google_api_key.clone(),
                 settings_clone.gemini_model.clone(),
+                prompts,
             );
-            let use_case: ProcessUseCase = ProcessUseCase::new(gemini);
+            let use_case = ProcessUseCase::new(gemini);
 
             loop {
-                let tasks: Vec<crate::infrastructure::tasks::Task> = repo.load();
+                let tasks: Vec<Task> = repo.load();
                 for task in tasks {
                     if task.status == "pending" {
                         repo.update_status(&task.id, "processing");
@@ -62,9 +70,10 @@ impl MonitorUseCase {
 
                 if cpu >= 90.0 || mem_pct >= 90.0 {
                     warn!(
-                        "health-check high usage cpu={:.1}% memory={:.1}%",
+                        "health-check high usage cpu={:.1}% memory={:.1}% - Triggering self-restart for OOM protection",
                         cpu, mem_pct
                     );
+                    std::process::exit(1);
                 } else {
                     info!("health-check cpu={:.1}% memory={:.1}%", cpu, mem_pct);
                 }
@@ -74,18 +83,23 @@ impl MonitorUseCase {
         });
 
         loop {
-            let running: bool = monitor.is_running();
+            let running = monitor.is_running();
             if running && !is_recording {
-                let timestamp: String = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-                let path: String = format!("data/recordings/{}.wav", timestamp);
-                std::fs::create_dir_all("data/recordings").unwrap();
-                recorder.start(path, 16000, 1, self.settings.audio_device.clone());
+                let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+                let path = format!("data/recordings/{}.wav", timestamp);
+                recorder.start(
+                    path,
+                    16000,
+                    1,
+                    self.settings.audio_device.clone(),
+                    self.settings.silence_threshold,
+                );
                 is_recording = true;
             } else if !running && is_recording {
                 if let Some(path) = recorder.stop() {
-                    info!("Session recording saved to: {}", path);
-                    let tasks: TaskRepository = TaskRepository::new("data/tasks.json");
-                    tasks.add("process_session", vec![path]);
+                    info!("Session recording saved to: {:?}", path);
+                    let tasks = TaskRepository::new("data/tasks.json");
+                    tasks.add("process_session", vec![path.to_string_lossy().to_string()]);
                 }
                 is_recording = false;
             }

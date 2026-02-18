@@ -1,9 +1,12 @@
 pub mod ai;
 pub mod api;
 pub mod audio;
+pub mod fs_utils;
 pub mod llm;
 pub mod preprocessor;
 pub mod process;
+pub mod prompts;
 pub mod settings;
 pub mod tasks;
 pub mod transcription;
+pub mod watcher;

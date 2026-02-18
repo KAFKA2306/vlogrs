@@ -1,4 +1,5 @@
 use reqwest::Client;
+use serde_json::Value;
 
 pub struct SupabaseClient {
     url: String,
@@ -15,24 +16,23 @@ impl SupabaseClient {
         }
     }
 
-    pub async fn upsert(&self, table: &str, data: serde_json::Value) {
-        let url: String = format!("{}/rest/v1/{}", self.url, table);
+    pub async fn upsert(&self, table: &str, data: &Value) {
+        let url = format!("{}/rest/v1/{}", self.url, table);
 
-        let resp: reqwest::Response = self
-            .client
+        let response = self.client
             .post(&url)
             .header("apikey", &self.key)
             .header("Authorization", format!("Bearer {}", self.key))
             .header("Content-Type", "application/json")
             .header("Prefer", "resolution=merge-duplicates")
-            .json(&data)
+            .json(data)
             .send()
             .await
-            .unwrap();
+            .expect("Failed to send Supabase request");
 
-        if !resp.status().is_success() {
-            let error_text: String = resp.text().await.unwrap();
-            panic!("Supabase upsert failed: {}", error_text);
+        if !response.status().is_success() {
+            let error = response.text().await.expect("Failed to read error text");
+            panic!("Supabase upsert failed: {}", error);
         }
     }
 }

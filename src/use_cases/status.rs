@@ -44,22 +44,19 @@ impl StatusUseCase {
             return 0;
         }
 
-        let mut count = 0;
-        if let Ok(entries) = fs::read_dir(path) {
-            for entry in entries.flatten() {
-                if let Ok(meta) = entry.metadata() {
-                    if let Ok(modified) = meta.modified() {
-                        if let Ok(elapsed) = modified.elapsed() {
-                            let modified_ts = Utc::now().timestamp() - elapsed.as_secs() as i64;
-                            if modified_ts >= since_ts {
-                                count += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        count
+        fs::read_dir(path)
+            .map(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .filter(|entry| {
+                        entry.metadata()
+                            .and_then(|m| m.modified())
+                            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64 >= since_ts)
+                            .unwrap_or(false)
+                    })
+                    .count()
+            })
+            .unwrap_or(0)
     }
 
     fn estimate_runtime_hours_from_recordings(&self, since_ts: i64) -> f64 {
@@ -68,28 +65,28 @@ impl StatusUseCase {
             return 0.0;
         }
 
-        let mut total_bytes: u64 = 0;
-        if let Ok(entries) = fs::read_dir(path) {
-            for entry in entries.flatten() {
-                if let Ok(meta) = entry.metadata() {
-                    if let Ok(modified) = meta.modified() {
-                        if let Ok(elapsed) = modified.elapsed() {
-                            let modified_ts = Utc::now().timestamp() - elapsed.as_secs() as i64;
-                            if modified_ts < since_ts {
-                                continue;
-                            }
-
-                            if meta.is_file() {
-                                total_bytes += meta.len();
-                            }
+        let total_bytes: u64 = fs::read_dir(path)
+            .map(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .filter_map(|entry| {
+                        let meta = entry.metadata().ok()?;
+                        if !meta.is_file() {
+                            return None;
                         }
-                    }
-                }
-            }
-        }
+                        
+                        let modified = meta.modified().ok()?;
+                        let ts = modified.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs() as i64;
+                        if ts < since_ts {
+                            return None;
+                        }
+                        Some(meta.len())
+                    })
+                    .sum()
+            })
+            .unwrap_or(0);
 
-        // Rough estimate for 16-bit PCM mono 16kHz WAV.
-        // This is intentionally approximate and used only for status display.
+        // Rough estimate for 16-bit PCM mono 16kHz WAV (32kB/s)
         let bytes_per_second = 16000.0 * 2.0;
         (total_bytes as f64 / bytes_per_second) / 3600.0
     }
