@@ -1,10 +1,11 @@
 [Unit]
-Description=VLog Daily Processing
+Description=VLog Daily Processing Service
 
 [Service]
 Type=oneshot
+User=kafka
 WorkingDirectory=/home/kafka/vlog
-ExecStart=/usr/bin/task process:daily
-Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Restart=on-failure
-RestartSec=5
+ExecStart=/home/kafka/vlog/target/release/vlog-rs evaluate --date yesterday
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=vlog-daily

@@ -1,0 +1,17 @@
+[Unit]
+Description=VLog Monitor Service
+After=network.target
+
+[Service]
+Type=simple
+User=kafka
+WorkingDirectory=/home/kafka/vlog
+ExecStart=/home/kafka/vlog/target/release/vlog-rs monitor
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=vlog-monitor
+
+[Install]
+WantedBy=multi-user.target
