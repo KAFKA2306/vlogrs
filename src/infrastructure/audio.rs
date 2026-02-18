@@ -24,96 +24,101 @@ impl AudioRecorder {
         }
     }
 
-    pub fn start(
-        &self,
-        output_path: String,
-        sample_rate: u32,
-        channels: u16,
-    ) -> anyhow::Result<()> {
+    pub fn start(&self, output_path: String, sample_rate: u32, channels: u16, device_name: Option<String>) {
         if self.is_recording.load(Ordering::SeqCst) {
-            return Ok(());
+            return;
         }
 
         self.is_recording.store(true, Ordering::SeqCst);
         *self.current_file.lock().unwrap() = Some(output_path.clone());
 
-        let is_recording = self.is_recording.clone();
+        let is_recording: Arc<AtomicBool> = self.is_recording.clone();
 
         thread::spawn(move || {
-            if let Err(e) = Self::record_loop(output_path, sample_rate, channels, is_recording) {
-                error!("Recording loop error: {}", e);
-            }
+            Self::record_loop(output_path, sample_rate, channels, is_recording, device_name);
         });
 
         info!("Started recording...");
-        Ok(())
     }
 
     pub fn stop(&self) -> Option<String> {
         self.is_recording.store(false, Ordering::SeqCst);
-        let path = self.current_file.lock().unwrap().take();
+        let path: Option<String> = self.current_file.lock().unwrap().take();
         if let Some(ref p) = path {
             info!("Stopped recording: {}", p);
         }
         path
     }
 
-    fn record_loop(
-        path: String,
-        sample_rate: u32,
-        channels: u16,
-        is_recording: Arc<AtomicBool>,
-    ) -> anyhow::Result<()> {
-        let host = cpal::default_host();
-        let device = host
-            .default_input_device()
-            .ok_or_else(|| anyhow::Error::msg("No input device found"))?;
+    fn record_loop(path: String, sample_rate: u32, channels: u16, is_recording: Arc<AtomicBool>, device_name: Option<String>) {
+        let host: cpal::Host = cpal::default_host();
+        
+        let device: cpal::Device = if let Some(name) = device_name {
+            host.input_devices()
+                .unwrap()
+                .find(|d| d.name().unwrap().contains(&name))
+                .unwrap_or_else(|| {
+                    error!("Device '{}' not found, falling back to default.", name);
+                    host.default_input_device().unwrap()
+                })
+        } else {
+            host.default_input_device().unwrap()
+        };
 
-        let config = cpal::StreamConfig {
+        info!("Using audio device: {}", device.name().unwrap());
+
+        let config: cpal::StreamConfig = cpal::StreamConfig {
             channels,
             sample_rate: cpal::SampleRate(sample_rate),
             buffer_size: cpal::BufferSize::Default,
         };
 
-        let spec = hound::WavSpec {
+        let spec: hound::WavSpec = hound::WavSpec {
             channels,
             sample_rate,
             bits_per_sample: 16,
             sample_format: hound::SampleFormat::Int,
         };
 
-        let writer = Arc::new(Mutex::new(Some(hound::WavWriter::create(&path, spec)?)));
-        let writer_cb = writer.clone();
+        let writer: Arc<Mutex<Option<hound::WavWriter<std::io::BufWriter<std::fs::File>>>>> =
+            Arc::new(Mutex::new(Some(
+                hound::WavWriter::create(&path, spec).unwrap(),
+            )));
+        let writer_cb: Arc<Mutex<Option<hound::WavWriter<std::io::BufWriter<std::fs::File>>>>> =
+            writer.clone();
 
-        let stream = device.build_input_stream(
-            &config,
-            move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                if let Some(ref mut w) = *writer_cb.lock().unwrap() {
-                    for &sample in data {
-                        if sample.abs() > 0.005 {
-                            let s = (sample * i16::MAX as f32) as i16;
-                            w.write_sample(s).ok();
+        let stream: cpal::Stream = device
+            .build_input_stream(
+                &config,
+                move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                    let mut guard = writer_cb.lock().unwrap();
+                    if let Some(w) = guard.as_mut() {
+                        for &sample in data {
+                            if sample.abs() > 0.005 {
+                                let s: i16 = (sample * i16::MAX as f32) as i16;
+                                w.write_sample(s).unwrap();
+                            }
                         }
                     }
-                }
-            },
-            move |err| {
-                error!("Audio stream error: {}", err);
-            },
-            None,
-        )?;
+                },
+                move |err| {
+                    error!("Audio stream error: {}", err);
+                    panic!("Audio stream error");
+                },
+                None,
+            )
+            .unwrap();
 
-        stream.play()?;
+        stream.play().unwrap();
 
         while is_recording.load(Ordering::SeqCst) {
             thread::sleep(Duration::from_millis(100));
         }
 
         drop(stream);
-        if let Some(w) = writer.lock().unwrap().take() {
-            w.finalize()?;
+        let mut guard = writer.lock().unwrap();
+        if let Some(w) = guard.take() {
+            w.finalize().unwrap();
         }
-
-        Ok(())
     }
 }

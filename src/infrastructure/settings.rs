@@ -1,4 +1,4 @@
-use config::{Config, ConfigError, Environment, File};
+use config::{Config, Environment, File};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -14,9 +14,15 @@ pub struct PathSettings {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct AudioSettings {
+    pub device_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct RawSettings {
     pub process: ProcessSettings,
     pub paths: PathSettings,
+    pub audio: AudioSettings,
 }
 
 #[derive(Clone)]
@@ -28,35 +34,44 @@ pub struct Settings {
     pub check_interval: u64,
     pub process_names: Vec<String>,
     pub recording_dir: PathBuf,
+    pub audio_device: Option<String>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Settings {
-    pub fn new() -> Result<Self, ConfigError> {
-        let s = Config::builder()
-            .set_default("process.check_interval", 5)?
-            .set_default("process.names", "VRChat")?
-            .set_default("paths.recording_dir", "data/recordings")?
+    pub fn new() -> Self {
+        let s: Config = Config::builder()
+            .set_default("process.check_interval", 5)
+            .unwrap()
+            .set_default("process.names", "VRChat")
+            .unwrap()
+            .set_default("paths.recording_dir", "data/recordings")
+            .unwrap()
             .add_source(File::with_name("data/config").required(false))
             .add_source(Environment::default().separator("__"))
-            .build()?;
+            .build()
+            .unwrap();
 
-        let raw: RawSettings = s.try_deserialize()?;
+        let raw: RawSettings = s.try_deserialize().unwrap();
 
-        let google_api_key = std::env::var("GOOGLE_API_KEY").unwrap_or_default();
-        let gemini_model =
-            std::env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-2.0-flash".to_string());
-        let supabase_url = std::env::var("SUPABASE_URL").unwrap_or_default();
-        let supabase_service_role_key =
-            std::env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap_or_default();
+        let google_api_key: String = std::env::var("GOOGLE_API_KEY").unwrap();
+        let gemini_model: String = std::env::var("GEMINI_MODEL").unwrap();
+        let supabase_url: String = std::env::var("SUPABASE_URL").unwrap();
+        let supabase_service_role_key: String = std::env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap();
 
-        let process_names = raw
+        let process_names: Vec<String> = raw
             .process
             .names
             .split(',')
             .map(|s| s.trim().to_string())
             .collect();
 
-        Ok(Self {
+        Self {
             google_api_key,
             gemini_model,
             supabase_url,
@@ -64,6 +79,7 @@ impl Settings {
             check_interval: raw.process.check_interval,
             process_names,
             recording_dir: PathBuf::from(raw.paths.recording_dir),
-        })
+            audio_device: raw.audio.device_name,
+        }
     }
 }

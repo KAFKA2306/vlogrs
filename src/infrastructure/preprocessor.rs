@@ -14,7 +14,7 @@ impl TranscriptPreprocessor {
     }
 
     pub fn process(&self, txt: &str) -> String {
-        let mut txt = self.normalize_text(txt);
+        let mut txt: String = self.normalize_text(txt);
         txt = self.remove_repetition(&txt);
         txt = self.remove_fillers(&txt);
         txt = self.dedupe_words(&txt);
@@ -23,21 +23,21 @@ impl TranscriptPreprocessor {
     }
 
     fn normalize_text(&self, txt: &str) -> String {
-        let txt = txt.replace("…", " ");
-        let re = Regex::new(r"\.{2,}").unwrap();
+        let txt: String = txt.replace("…", " ");
+        let re: Regex = Regex::new(r"\.{2,}").unwrap();
         re.replace_all(&txt, " ").to_string()
     }
 
     fn remove_repetition(&self, txt: &str) -> String {
-        let mut result = String::new();
+        let mut result: String = String::new();
         let chars: Vec<char> = txt.chars().collect();
-        let mut i = 0;
+        let mut i: usize = 0;
         while i < chars.len() {
-            let mut found = false;
+            let mut found: bool = false;
             for len in 1..=4 {
                 if i + len * 5 <= chars.len() {
-                    let chunk = &chars[i..i + len];
-                    let mut count = 1;
+                    let chunk: &[char] = &chars[i..i + len];
+                    let mut count: usize = 1;
                     while i + (count + 1) * len <= chars.len()
                         && &chars[i + count * len..i + (count + 1) * len] == chunk
                     {
@@ -60,7 +60,7 @@ impl TranscriptPreprocessor {
     }
 
     fn remove_fillers(&self, txt: &str) -> String {
-        let fillers = [
+        let fillers: [&str; 37] = [
             "えー",
             "あのー",
             "うーん",
@@ -97,21 +97,22 @@ impl TranscriptPreprocessor {
             "あのね",
             "あのさ",
             "ん",
+            "えっと",
         ];
 
-        let mut sorted_fillers = fillers.to_vec();
-        sorted_fillers.sort_by_key(|a| std::cmp::Reverse(a.len()));
+        let mut sorted_fillers: Vec<&str> = fillers.to_vec();
+        sorted_fillers.sort_by_key(|a: &&str| std::cmp::Reverse(a.len()));
 
-        let pattern_str = sorted_fillers.join("|");
-        let pattern = format!(r"(^|[\s、。?!])({})(?=[\s、。?!]||$)", pattern_str);
-        let re = Regex::new(&pattern).unwrap();
+        let pattern_str: String = sorted_fillers.join("|");
+        let pattern: String = format!(r"(^|[\s、。?!])({})(?=[\s、。?!]||$)", pattern_str);
+        let re: Regex = Regex::new(&pattern).unwrap();
 
-        let mut current_txt = txt.to_string();
+        let mut current_txt: String = txt.to_string();
         for _ in 0..20 {
-            let prev_txt = current_txt.clone();
+            let prev_txt: String = current_txt.clone();
             current_txt = re
                 .replace_all(&current_txt, |caps: &regex::Captures| {
-                    let leading = caps.get(1).map_or("", |m| m.as_str());
+                    let leading: &str = caps.get(1).map_or("", |m: regex::Match| m.as_str());
                     format!("{} ", leading)
                 })
                 .to_string();
@@ -121,11 +122,11 @@ impl TranscriptPreprocessor {
             }
         }
 
-        let re_space = Regex::new(r"\s+").unwrap();
-        let mut txt = re_space.replace_all(&current_txt, " ").trim().to_string();
+        let re_space: Regex = Regex::new(r"\s+").unwrap();
+        let mut txt: String = re_space.replace_all(&current_txt, " ").trim().to_string();
 
-        let mut next_txt = String::new();
-        let mut prev_char = None;
+        let mut next_txt: String = String::new();
+        let mut prev_char: Option<char> = None;
         for c in txt.chars() {
             if c == '、' || c == '。' {
                 if Some(c) != prev_char {
@@ -138,10 +139,10 @@ impl TranscriptPreprocessor {
         }
         txt = next_txt;
 
-        let re_start_punct = Regex::new(r"^[、。]+").unwrap();
+        let re_start_punct: Regex = Regex::new(r"^[、。]+").unwrap();
         txt = re_start_punct.replace_all(&txt, "").trim().to_string();
 
-        let re_space_punct = Regex::new(r"\s+[、。]+").unwrap();
+        let re_space_punct: Regex = Regex::new(r"\s+[、。]+").unwrap();
         txt = re_space_punct.replace_all(&txt, "").to_string();
 
         re_space.replace_all(&txt, " ").trim().to_string()
@@ -149,8 +150,8 @@ impl TranscriptPreprocessor {
 
     fn dedupe_words(&self, txt: &str) -> String {
         let words: Vec<&str> = txt.split_whitespace().collect();
-        let mut result = Vec::new();
-        let mut i = 0;
+        let mut result: Vec<&str> = Vec::new();
+        let mut i: usize = 0;
         while i < words.len() {
             result.push(words[i]);
             if i + 1 < words.len() && words[i] == words[i + 1] {
@@ -163,8 +164,8 @@ impl TranscriptPreprocessor {
     }
 
     fn merge_lines(&self, txt: &str) -> String {
-        let txt = txt.replace('\n', " ");
-        let re = Regex::new(r"\s+").unwrap();
+        let txt: String = txt.replace('\n', " ");
+        let re: Regex = Regex::new(r"\s+").unwrap();
         re.replace_all(&txt, " ").trim().to_string()
     }
 }
