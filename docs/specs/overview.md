@@ -1,8 +1,8 @@
-# VLog - VRChat Auto-Diary 完全ドキュメント
+# VLog - Autonomous Life Logger 完全ドキュメント
 
-> 開発コマンド・コーディング規約 → [AGENTS.md](file:///home/kafka/projects/vlog/AGENTS.md)  
-> システム構成図 → [docs/architecture.md](file:///home/kafka/projects/vlog/docs/architecture.md)  
-> 画像生成サブシステム → [docs/image.md](file:///home/kafka/projects/vlog/docs/image.md)
+> 開発コマンド・コーディング規約 → [AGENTS.md](file:///home/kafka/vlog/AGENTS.md)  
+> システム構成図 → [docs/architecture.md](file:///home/kafka/vlog/docs/architecture.md)  
+> 画像生成サブシステム → [docs/image.md](file:///home/kafka/vlog/docs/image.md)
 
 ## 目次
 
@@ -19,18 +19,24 @@
 11. [API仕様](#api仕様)
 12. [データベーススキーマ](#データベーススキーマ)
 13. [運用ガイド](#運用ガイド)
+14. [自律運用基準 (Autonomous Standards)](docs/usecases/autonomous_standards.md)
+15. [ユースケース別ガイド (Use Cases)](#ユースケース別ガイド)
+    - [VRChat](docs/usecases/vrchat.md)
+    - [Discord](docs/usecases/discord.md)
+    - [Mobile & Physical Life](docs/usecases/mobile_life.md)
+    - [AI Glass](docs/usecases/ai_glass.md)
 
 ---
 
 ## プロジェクト概要
 
-**VLog (VRChat Auto-Diary)** は、VRChatのプレイセッションを自動的に記録し、AI生成による日記・小説・画像を作成するシステムです。
+**VLog (Autonomous Life Logger)** は、デジタル体験（VRChat、Discord、システム音声など）から、物理的な体験（スマートフォンでのボイスメモ、外出、会議など）までをシームレスに記録し、AI生成による日記・小説・画像を作成するシステムです。
 
 ### プロジェクト情報
 
 - **名前**: vlog
 - **バージョン**: 0.1.0
-- **説明**: VRChat Auto-Diary
+- **説明**: Autonomous Life Logger
 - **Python要件**: >=3.11
 - **ライセンス**: 未指定
 
@@ -40,18 +46,18 @@
 
 ### 最終目的
 
-VRChatでの体験を完全自動で記録・保存し、後から振り返れる形で永続化すること。
+VRChatやDiscordなどのデジタル活動、またはスマートフォンでのボイスメモや現実世界での散歩・会議といった、あらゆる「人生の瞬間」を完全自動または簡単な操作で記録・保存し、後から振り返れる形で永続化すること。
 
 ### 具体的な目標
 
 1. **完全自動化**
-   - VRChatクライアント起動を検知して自動録音
+   - 特定のアプリケーション起動を検知、または常時音声監視による自動録音
    - 終了時に自動処理（文字起こし→要約→同期）
    - ユーザーの手動操作なしで日記生成
 
 2. **高品質なコンテンツ生成**
    - 音声からの高精度文字起こし（Whisper Large-v3-turbo）
-   - AI要約による読みやすい日記（Gemini 2.5 Flash）
+   - AI要約による読みやすい日記（Gemini 3 Flash）
    - 小説形式の長編ダイアリー生成
    - ビジュアル化（AI画像生成）
 
@@ -97,7 +103,7 @@ Infrastructure → Use Cases → Domain
 | **sounddevice** | >=0.4.6 | オーディオ録音 |
 | **soundfile** | >=0.12.1 | 音声ファイルIO（FLAC保存） |
 | **numpy** | >=1.26.0 | 音声データ処理 |
-| **psutil** | >=5.9.0 | プロセス監視（VRChat検知） |
+| **psutil** | >=5.9.0 | プロセス監視（VRChat / Discord等検知） |
 | **faster-whisper** | >=0.10.0 | 音声文字起こし |
 | **google-generativeai** | >=0.8.0 | Gemini API（要約・小説生成） |
 | **python-dotenv** | >=1.0.0 | 環境変数管理 |
@@ -271,7 +277,7 @@ vlog/
        │   └─→ 正規化
        │
        ├─→ Summarizer.summarize()
-       │   └─→ Gemini 2.5 Flash
+       │   └─→ Gemini 3 Flash
        │   └─→ data/summaries/{YYYYMMDD}_summary.txt
        │
        └─→ SupabaseRepository.sync()
@@ -281,12 +287,12 @@ vlog/
 5. 小説生成（オプション）
    └─→ BuildNovelUseCase.execute()
        ├─→ Novelizer.generate_chapter()
-       │   └─→ Gemini 2.5 Flash
+       │   └─→ Gemini 3 Flash
        │   └─→ data/novels/{YYYYMMDD}.md
        │
        └─→ ImageGenerator.generate_from_novel()
            ├─→ Jules.generate_image_prompt()
-           │   └─→ Gemini 2.5 Flash
+           │   └─→ Gemini 3 Flash
            │
            └─→ DiffusionPipeline (Z-Image-Turbo)
                └─→ data/photos/{YYYYMMDD}.png
@@ -376,13 +382,13 @@ whisper:
   word_timestamps: true
 
 gemini:
-  model: "gemini-2.5-flash"
+  model: "gemini-3-flash"
 
 novel:
   enabled: true
   title: "VRChat Long Diary 2025"
   out_dir: "data/novels"
-  model: "gemini-2.5-flash"
+  model: "gemini-3-flash"
   max_output_tokens: 4096
 
 image:
@@ -764,7 +770,7 @@ USING (bucket_id = 'vlog-photos');
 
 1. APIキー確認: `grep GOOGLE_API_KEY .env`
 2. API利用上限確認（Google AI Studio）
-3. モデル名確認: `gemini.model: "gemini-2.5-flash"`
+3. モデル名確認: `gemini.model: "gemini-3-flash"`
 
 #### Supabase同期エラー
 
@@ -868,13 +874,13 @@ whisper:
 
 #### 要約生成
 
-- **モデル**: gemini-2.5-flash
+- **モデル**: gemini-3-flash
 - **最大トークン**: デフォルト
 - **プロンプトテンプレート**: `src/infrastructure/summarizer_prompt.txt`
 
 #### 小説生成
 
-- **モデル**: gemini-2.5-flash
+- **モデル**: gemini-3-flash
 - **最大トークン**: 4096
 - **プロンプトテンプレート**: `src/infrastructure/novelizer_prompt.txt`
 

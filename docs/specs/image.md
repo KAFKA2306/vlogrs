@@ -223,7 +223,7 @@ image_generator:
 
 | パラメータ | 設定キー | 現在値 |
 |---|---|---|
-| Model | `gemini.model` | `models/gemini-3-flash-preview` |
+| Model | `gemini.model` | `gemini-3-flash` |
 
 ---
 
