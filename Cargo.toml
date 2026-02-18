@@ -24,3 +24,4 @@ config = { version = "0.13", features = ["yaml"] }
 serde_yaml = "0.9"
 regex = "1.12.3"
 base64 = "0.21"
+async-trait = "0.1.89"
