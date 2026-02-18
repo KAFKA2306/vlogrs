@@ -17,19 +17,18 @@ tasks:
           task sync                     データ同期 (Rust)
           task up                       systemd起動
 
-        ■ コンテンツ生成 (一部 Python)
+        ■ コンテンツ生成
           task novel:build              今日の要約から章を生成
           task photo novel=...          小説から画像生成
           task photos:fill              欠落画像を自動補完
 
         ■ メンテナンス & 品質管理
-          task lint                     Rust品質チェック (Clippy)
+          task lint                     Rust品質チェック
           task commit MESSAGE="..."     Git commit
           task clean                    キャッシュ削除
 
         ■ デバッグ・詳細
           task rust:dev                 デバッグ実行 (cargo run)
-          task python:dev               旧仕様実行 (uv run)
           task service:status           systemd状態確認
         EOF
 
@@ -41,19 +40,11 @@ tasks:
     cmd: uv sync
 
   # ────────────────────────────────────────
-  # 開発・実行
+  # 開発・実行 (Rust Core)
   # ────────────────────────────────────────
   dev:
     desc: ローカル監視 (Rust)
     cmd: cargo run -- monitor
-
-  rust:dev:
-    desc: アプリ実行 (Rust)
-    cmd: cargo run
-
-  python:dev:
-    desc: アプリ実行 (Python legacy)
-    cmd: uv run python -m src.main
 
   rust:dev:
     desc: アプリ実行 (Rust)
@@ -65,8 +56,11 @@ tasks:
 
   rust:monitor:
     desc: 監視モード (Rust)
-    cmd: cargo run -- monitor
+    cmd: cargo run --release -- monitor
 
+  # ────────────────────────────────────────
+  # Systemd Control
+  # ────────────────────────────────────────
   up:
     desc: systemd起動
     cmds:
@@ -85,7 +79,7 @@ tasks:
     cmd: systemctl --user restart vlog
 
   status:
-    desc: 全体状態確認（service + log）
+    desc: 全体状態確認
     cmds:
       - echo "■ systemd 状態"
       - systemctl --user status vlog --no-pager --lines=10 || true
@@ -93,24 +87,12 @@ tasks:
       - echo "■ ログ解析"
 
   logs:
-    desc: ログ追尾（リアルタイム）
+    desc: ログ追尾
     cmd: journalctl --user -u vlog -f
 
-  dashboard:
-    desc: 管理ダッシュボード (TUI)
-    cmd: uv run python -m src.cli dashboard
-
-  repair:
-    desc: パイプライン修復エージェント
-    cmd: uv run python -m src.cli repair
-
   # ────────────────────────────────────────
-  # 録音・処理
+  # 処理 (Rust)
   # ────────────────────────────────────────
-  record:
-    desc: 手動録音開始
-    cmd: uv run python -m src.cli record
-
   process:
     desc: 録音→要約（Rust）
     deps: [require_file]
@@ -122,7 +104,7 @@ tasks:
       - for f in data/recordings/*.wav data/recordings/*.flac; do [ -f "$f" ] && task process FILE="$f"; done || true
 
   process:today:
-    desc: 今日の録音を一括処理（要約は再生成）
+    desc: 今日の録音を一括処理
     cmds:
       - |
         TODAY=$(date +%Y%m%d)
@@ -146,33 +128,22 @@ tasks:
     cmds:
       - task process:yesterday
       - task process:today
-      - YESTERDAY=$(date -d "yesterday" +%Y%m%d); uv run python -m src.cli summarize --date $YESTERDAY || true
-      - TODAY=$(date +%Y%m%d); uv run python -m src.cli summarize --date $TODAY || true
       - YESTERDAY=$(date -d "yesterday" +%Y%m%d); task novel:build date=$YESTERDAY || true
       - TODAY=$(date +%Y%m%d); task novel:build date=$TODAY || true
-      - task process:pending
+      - task photos:fill
       - YESTERDAY=$(date -d "yesterday" +%Y%m%d); task curator:eval date=$YESTERDAY || true
 
   curator:eval:
-    desc: コンテンツ評価 (The Curator)
+    desc: コンテンツ評価 (Rust)
     cmds:
-      - uv run python -m src.cli curator eval --date {{.date}}
-
-  process:pending:
-    desc: 未処理データを検出して一括処理
-    cmd: uv run python -m src.cli pending
-
-  transcribe:all:
-    desc: 文字起こしのみ（全ファイル）
-    cmds:
-      - for f in data/recordings/*.wav data/recordings/*.flac; do [ -f "$f" ] && task transcribe FILE="$f"; done || true
+      - cargo run -- evaluate --date {{.date}}
 
   # ────────────────────────────────────────
-  # データ同期
+  # データ同期 (Rust)
   # ────────────────────────────────────────
   sync:
     desc: Supabase同期 (Rust)
-    cmd: cargo run -- sync
+    cmd: cargo run --release -- sync
 
   sync:full:
     desc: 全件強制同期
@@ -192,7 +163,7 @@ tasks:
     cmd: cd frontend/reader && npm run build
 
   web:start:
-    desc: 本番起動（ポート4000）
+    desc: 本番起動
     cmd: cd frontend/reader && npm run start -- --hostname 0.0.0.0 --port 4000
 
   web:deploy:
@@ -216,11 +187,10 @@ tasks:
   # メンテナンス
   # ────────────────────────────────────────
   lint:
-    desc: コード品質チェック (Rust Priority)
+    desc: コード品質チェック
     cmds:
       - cargo clippy --fix --allow-dirty --allow-staged
       - cargo fmt
-      - uv run ruff check src --fix || true
 
   clean:
     desc: キャッシュ削除
@@ -240,28 +210,18 @@ tasks:
     desc: systemd状態のみ
     cmd: systemctl --user status vlog
 
-  transcribe:
-    desc: 文字起こしのみ
-    deps: [require_file]
-    cmds: ["uv run python -m src.cli transcribe --file {{.FILE}}"]
-
-  summarize:
-    desc: 要約のみ
-    deps: [require_file]
-    cmds: ["uv run python -m src.cli summarize --file {{.FILE}}"]
-
   # ────────────────────────────────────────
-  # 小説生成
+  # 小説・画像 (Python/Rust Hybrid)
   # ────────────────────────────────────────
   novel:build:
-    desc: 小説の章を生成
+    desc: 小説の章を生成 (Rust)
     cmds:
-      - uv run python -m src.cli novel {{if .date}}--date {{.date}}{{end}}
+      - cargo run -- novel {{if .date}}--date {{.date}}{{end}}
 
   photo:
-    desc: 小説から画像を生成
+    desc: 小説から画像を生成 (Python)
     cmds:
-      - uv run python -m src.cli image-generate --novel-file {{.novel}} --output-file data/photos/$(basename {{.novel}} .md).png
+      - uv run python src/scripts/image_gen.py --prompt "$(cat {{.novel}})" --output data/photos/$(basename {{.novel}} .md).png
     preconditions:
       - sh: test -n "{{.novel}}"
         msg: novel=data/novels/YYYYMMDD.mdを指定してください
@@ -270,29 +230,3 @@ tasks:
     desc: 全小説から画像を一括生成
     cmds:
       - for f in data/novels/*.md; do [ -f "$f" ] && task photo novel="$f"; done || true
-  
-  photos:fill:
-    desc: 写真が欠落している日付を自動検出し、生成タスクを登録
-    cmd: uv run python -m src.main fill-photos
-
-  # ────────────────────────────────────────
-  # 内部ヘルパー
-  # ────────────────────────────────────────
-  require_file:
-    internal: true
-    preconditions:
-      - sh: test -n "{{.FILE}}"
-        msg: FILEを指定してください
-
-  # ────────────────────────────────────────
-  # Serena MCP
-  # ────────────────────────────────────────
-  serena:onboarding:
-    desc: Serenaプロジェクトの初期化（インデックス作成）
-    cmds:
-      - serena project index
-
-  serena:start:
-    desc: Serena MCPサーバーの起動
-    cmds:
-      - serena start-mcp-server

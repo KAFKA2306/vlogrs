@@ -1,11 +1,11 @@
 [Unit]
-Description=VRChat Auto-Diary Service
+Description=VLog Autonomous Life Logger Service
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/kafka/projects/vlog
-ExecStart=/home/kafka/.local/bin/uv run python -m src.main
+WorkingDirectory=/home/kafka/vlog
+ExecStart=/usr/bin/cargo run --release -- monitor
 Restart=always
 RestartSec=10
 Environment=PYTHONUNBUFFERED=1
