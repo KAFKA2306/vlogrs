@@ -2,10 +2,11 @@ pub mod domain;
 pub mod infrastructure;
 pub mod use_cases;
 
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use infrastructure::settings::Settings;
+use std::sync::Arc;
 use tracing::info;
-use anyhow::Result;
 
 #[derive(Parser)]
 #[command(name = "vlog-rs")]
@@ -38,40 +39,56 @@ enum Commands {
     Doctor,
 }
 
-
-
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
-    
-    // Initialize tracing with file appender
+
     let file_appender = tracing_appender::rolling::daily("logs", "vlog.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive(tracing::Level::INFO.into()),
+        )
         .with_writer(non_blocking)
         .with_ansi(false)
-        .json() // Structured logging as required
+        .json()
         .init();
 
     info!("VLog initialized. System starting...");
 
     let cli: Cli = Cli::parse();
-    
-    // Autonomy: Ensure environment is ready for critical paths
-    let env = Box::new(infrastructure::fs_utils::LocalEnvironment);
+
+    let env = Arc::new(infrastructure::fs_utils::LocalEnvironment);
 
     match cli.command {
         Some(Commands::Monitor) | None => {
-            // Self-healing: Ensure directories exist
-            use domain::Environment;
-            env.ensure_directories()?;
-
             let settings = Settings::new()?;
             info!("Starting monitor mode...");
-            let use_case: use_cases::monitor::MonitorUseCase =
-                use_cases::monitor::MonitorUseCase::new(settings);
+
+            let recorder = Arc::new(infrastructure::audio::AudioRecorder::new());
+            let monitor = Arc::new(tokio::sync::Mutex::new(
+                infrastructure::process::ProcessMonitor::new(settings.process_names.clone()),
+            ));
+            let repo = Arc::new(infrastructure::tasks::TaskRepository::new("data/tasks.json"));
+            let prompts = infrastructure::prompts::Prompts::load()?;
+            let gemini = infrastructure::llm::GeminiClient::new(
+                settings.google_api_key.clone(),
+                settings.gemini_model.clone(),
+                prompts,
+            );
+
+            let use_case = use_cases::monitor::MonitorUseCase::new(
+                recorder,
+                monitor,
+                repo,
+                env,
+                gemini,
+                settings.check_interval,
+                settings.audio_device,
+                settings.silence_threshold,
+            );
             use_case.execute().await?;
         }
         Some(Commands::Record) => {
@@ -88,7 +105,7 @@ async fn main() -> Result<()> {
             );
             let use_case = use_cases::process::ProcessUseCase::new(gemini);
             use_case
-                .execute_session(infrastructure::tasks::Task {
+                .execute_session(domain::task::Task {
                     id: "manual".to_string(),
                     created_at: chrono::Utc::now(),
                     status: "processing".to_string(),
@@ -134,7 +151,8 @@ async fn main() -> Result<()> {
                 None
             };
 
-            let use_case = use_cases::evaluate::EvaluateDailyContentUseCase::new(Box::new(gemini), supabase);
+            let use_case =
+                use_cases::evaluate::EvaluateDailyContentUseCase::new(Box::new(gemini), supabase);
             use_case.execute(&date).await?;
         }
         Some(Commands::Sync) => {
@@ -151,9 +169,9 @@ async fn main() -> Result<()> {
             use_case.execute().await?;
         }
         Some(Commands::Setup) => {
-            let use_case = use_cases::setup::SetupUseCase::new(
-                Box::new(infrastructure::fs_utils::LocalEnvironment)
-            );
+            let use_case = use_cases::setup::SetupUseCase::new(Box::new(
+                infrastructure::fs_utils::LocalEnvironment,
+            ));
             use_case.execute()?;
         }
         Some(Commands::Doctor) => {

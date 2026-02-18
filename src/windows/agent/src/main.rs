@@ -1,11 +1,13 @@
+use anyhow::{Context, Result};
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::time::sleep;
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
+use tracing::info;
+use windows::Win32::Foundation::{HANDLE, HWND};
 use windows::Win32::System::ProcessStatus::GetModuleFileNameExW;
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
-use windows::Win32::Foundation::{HWND, HANDLE};
-use serde::{Serialize, Deserialize};
-use chrono::Utc;
+use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 struct Activity {
@@ -20,10 +22,12 @@ struct Agent {
 
 impl Agent {
     fn new() -> Self {
-        Self { last_activity: None }
+        Self {
+            last_activity: None,
+        }
     }
 
-    async fn run(&mut self) -> anyhow::Result<()> {
+    async fn run(&mut self) -> Result<()> {
         loop {
             if let Some(activity) = self.get_current_activity() {
                 if Some(&activity) != self.last_activity.as_ref() {
@@ -38,7 +42,9 @@ impl Agent {
     fn get_current_activity(&self) -> Option<Activity> {
         unsafe {
             let hwnd = GetForegroundWindow();
-            if hwnd.0 == 0 { return None; }
+            if hwnd.0 == 0 {
+                return None;
+            }
 
             let mut title_buf = [0u16; 512];
             let len = GetWindowTextW(hwnd, &mut title_buf);
@@ -46,8 +52,10 @@ impl Agent {
 
             let mut process_id = 0u32;
             windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(hwnd, Some(&mut process_id));
-            
-            let app_name = self.get_app_name(process_id).unwrap_or_else(|_| "Unknown".to_string());
+
+            let app_name = self
+                .get_app_name(process_id)
+                .unwrap_or_else(|_| "Unknown".to_string());
 
             Some(Activity {
                 timestamp: Utc::now().to_rfc3339(),
@@ -57,7 +65,7 @@ impl Agent {
         }
     }
 
-    fn get_app_name(&self, pid: u32) -> anyhow::Result<String> {
+    fn get_app_name(&self, pid: u32) -> Result<String> {
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid)?;
             let mut buf = [0u16; 512];
@@ -72,15 +80,16 @@ impl Agent {
         }
     }
 
-    fn log_activity(&self, activity: &Activity) -> anyhow::Result<()> {
+    fn log_activity(&self, activity: &Activity) -> Result<()> {
         let json = serde_json::to_string(activity)?;
-        println!("{}", json); // Forward to parent process or log to file
+        info!("{}", json);
         Ok(())
     }
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
     let mut agent = Agent::new();
     agent.run().await
 }
