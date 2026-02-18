@@ -14,7 +14,7 @@ dotenvy = "0.15"
 log = "0.4"
 env_logger = "0.10"
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.6", features = ["serde", "v4"] }
+uuid = { version = "1.6", features = ["serde", "v4", "v7"] }
 postgrest = "1.6" # Supabase client
 # whisper-rs = "0.11" # Whisper.cpp bindings (requires libclang)
 cpal = "0.15" # Audio recording
