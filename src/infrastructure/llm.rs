@@ -1,7 +1,9 @@
 use crate::domain::{Curator, Evaluation, Novelizer};
 use base64::{engine::general_purpose, Engine as _};
+use log::warn;
 use reqwest::Client;
 use serde_json::{json, Value};
+use tokio::time::{sleep, Duration};
 
 #[derive(Clone)]
 pub struct GeminiClient {
@@ -64,23 +66,37 @@ impl GeminiClient {
     }
 
     async fn post_and_parse(&self, url: &str, body: Value) -> String {
-        let response: String = self
-            .client
-            .post(url)
-            .json(&body)
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        let max_retries: u32 = 5;
+        let base_delay_ms: u64 = 500;
+        let cap_delay_ms: u64 = 8000;
 
-        let json: Value = serde_json::from_str(&response).unwrap();
+        for attempt in 0..=max_retries {
+            let res = self.client.post(url).json(&body).send().await;
+            if let Ok(resp) = res {
+                if let Ok(text) = resp.text().await {
+                    if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
+                        if let Some(content) =
+                            parsed["candidates"][0]["content"]["parts"][0]["text"].as_str()
+                        {
+                            return content.to_string();
+                        }
+                    }
+                }
+            }
 
-        json["candidates"][0]["content"]["parts"][0]["text"]
-            .as_str()
-            .unwrap()
-            .to_string()
+            if attempt == max_retries {
+                break;
+            }
+
+            let exp = base_delay_ms.saturating_mul(2u64.saturating_pow(attempt));
+            let backoff = exp.min(cap_delay_ms);
+            let jitter = (chrono::Utc::now().timestamp_subsec_millis() % 250) as u64;
+            let wait = backoff + jitter;
+            warn!("LLM request failed. retry={} wait={}ms", attempt + 1, wait);
+            sleep(Duration::from_millis(wait)).await;
+        }
+
+        String::new()
     }
 }
 

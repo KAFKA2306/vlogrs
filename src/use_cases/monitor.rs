@@ -4,8 +4,9 @@ use crate::infrastructure::process::ProcessMonitor;
 use crate::infrastructure::settings::Settings;
 use crate::infrastructure::tasks::TaskRepository;
 use crate::use_cases::process::ProcessUseCase;
-use log::info;
+use log::{info, warn};
 use std::time::Duration;
+use sysinfo::System;
 use tokio::time::sleep;
 
 pub struct MonitorUseCase {
@@ -40,6 +41,34 @@ impl MonitorUseCase {
                         info!("Task completed");
                     }
                 }
+                sleep(Duration::from_secs(30)).await;
+            }
+        });
+
+        tokio::spawn(async move {
+            let mut sys = System::new_all();
+            loop {
+                sys.refresh_cpu();
+                sys.refresh_memory();
+
+                let cpu = sys.global_cpu_info().cpu_usage();
+                let total_mem = sys.total_memory();
+                let used_mem = sys.used_memory();
+                let mem_pct = if total_mem > 0 {
+                    (used_mem as f64 / total_mem as f64) * 100.0
+                } else {
+                    0.0
+                };
+
+                if cpu >= 90.0 || mem_pct >= 90.0 {
+                    warn!(
+                        "health-check high usage cpu={:.1}% memory={:.1}%",
+                        cpu, mem_pct
+                    );
+                } else {
+                    info!("health-check cpu={:.1}% memory={:.1}%", cpu, mem_pct);
+                }
+
                 sleep(Duration::from_secs(30)).await;
             }
         });
