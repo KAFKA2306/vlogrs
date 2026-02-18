@@ -1,5 +1,6 @@
-use log::info;
+use crate::domain::ProcessMonitor as ProcessMonitorTrait;
 use sysinfo::System;
+use tracing::info;
 
 pub struct ProcessMonitor {
     targets: Vec<String>,
@@ -16,7 +17,23 @@ impl ProcessMonitor {
         }
     }
 
-    pub fn is_running(&mut self) -> bool {
+    fn check_processes(&self) -> bool {
+        self.system.processes().values().any(|process| {
+            let name = process.name().to_lowercase();
+            if self.targets.iter().any(|target| name.contains(target)) {
+                return true;
+            }
+
+            process.exe().is_some_and(|exe_path| {
+                let exe = exe_path.to_string_lossy().to_lowercase();
+                self.targets.iter().any(|target| exe.contains(target))
+            })
+        })
+    }
+}
+
+impl ProcessMonitorTrait for ProcessMonitor {
+    fn is_running(&mut self) -> bool {
         self.system.refresh_processes();
         let current_status = self.check_processes();
 
@@ -29,19 +46,5 @@ impl ProcessMonitor {
             }
         }
         current_status
-    }
-
-    fn check_processes(&self) -> bool {
-        self.system.processes().values().any(|process| {
-            let name = process.name().to_lowercase();
-            if self.targets.iter().any(|target| name.contains(target)) {
-                return true;
-            }
-
-            process.exe().map_or(false, |exe_path| {
-                let exe = exe_path.to_string_lossy().to_lowercase();
-                self.targets.iter().any(|target| exe.contains(target))
-            })
-        })
     }
 }

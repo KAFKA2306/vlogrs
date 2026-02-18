@@ -55,19 +55,11 @@ impl Settings {
 
         let google_api_key = env::var("GOOGLE_API_KEY")
             .map_err(|_| anyhow::anyhow!("GOOGLE_API_KEY must be set"))?;
-        
-        let gemini_model = env::var("GEMINI_MODEL")
-            .unwrap_or_else(|_| {
-                tracing::warn!("GEMINI_MODEL not set, falling back to gemini-3-flash");
-                "gemini-3-flash".to_string()
-            });
+
+        let gemini_model = env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-3-flash".to_string());
 
         let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
         let supabase_service_role_key = env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap_or_default();
-
-        if supabase_url.is_empty() {
-            tracing::warn!("SUPABASE_URL is not set. Supabase integration will be disabled.");
-        }
 
         Ok(Self {
             google_api_key,
@@ -75,7 +67,12 @@ impl Settings {
             supabase_url,
             supabase_service_role_key,
             check_interval: raw.process.check_interval,
-            process_names: raw.process.names.split(',').map(|s| s.trim().to_string()).collect(),
+            process_names: raw
+                .process
+                .names
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect(),
             recording_dir: PathBuf::from(raw.paths.recording_dir),
             audio_device: raw.audio.device_name,
             silence_threshold: raw.audio.silence_threshold,

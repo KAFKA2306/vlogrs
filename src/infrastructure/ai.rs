@@ -1,6 +1,6 @@
 use crate::domain::ImageGenerator;
-use std::process::Command;
 use anyhow::Context;
+use std::process::Command;
 
 pub struct PythonImageGenerator;
 
@@ -20,7 +20,14 @@ impl PythonImageGenerator {
 impl ImageGenerator for PythonImageGenerator {
     async fn generate(&self, prompt: &str, output_path: &str) -> anyhow::Result<()> {
         let status = Command::new("uv")
-            .args(["run", "src/scripts/image_gen.py", "--prompt", prompt, "--output", output_path])
+            .args([
+                "run",
+                "src/scripts/image_gen.py",
+                "--prompt",
+                prompt,
+                "--output",
+                output_path,
+            ])
             .status()
             .context("Failed to execute image generation command")?;
 

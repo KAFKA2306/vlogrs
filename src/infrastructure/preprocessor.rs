@@ -1,5 +1,5 @@
+use anyhow::{Context, Result};
 use regex::Regex;
-use anyhow::{Result, Context};
 
 pub struct TranscriptPreprocessor;
 
@@ -23,7 +23,7 @@ impl TranscriptPreprocessor {
     }
 
     fn normalize_text(&self, txt: &str) -> Result<String> {
-        let txt = txt.replace("…", " ");
+        let txt = txt.replace('…', " ");
         let re = Regex::new(r"\.{2,}").context("Invalid regex in normalize_text")?;
         Ok(re.replace_all(&txt, " ").to_string())
     }
@@ -32,14 +32,14 @@ impl TranscriptPreprocessor {
         let mut result = String::new();
         let chars: Vec<char> = txt.chars().collect();
         let mut i = 0;
-        
+
         while i < chars.len() {
             let mut found = false;
             for len in 1..=4 {
                 if i + len * 5 > chars.len() {
                     continue;
                 }
-                
+
                 let chunk = &chars[i..i + len];
                 let mut count = 1;
                 while i + (count + 1) * len <= chars.len()
@@ -47,7 +47,7 @@ impl TranscriptPreprocessor {
                 {
                     count += 1;
                 }
-                
+
                 if count >= 5 {
                     result.extend(chunk);
                     i += count * len;
@@ -55,7 +55,7 @@ impl TranscriptPreprocessor {
                     break;
                 }
             }
-            
+
             if !found {
                 result.push(chars[i]);
                 i += 1;
@@ -66,12 +66,43 @@ impl TranscriptPreprocessor {
 
     fn remove_fillers(&self, txt: &str) -> Result<String> {
         let fillers = [
-            "えー", "あのー", "うーん", "えっと", "なんて", "まあ", "そうですね",
-            "あー", "んー", "うん", "ふん", "あ", "はは", "ははは", "なんか",
-            "え", "お", "ふんふん", "ふんふんふん", "うんうん", "うんうんうん",
-            "はいはい", "はいはいはい", "はいはいはいはい", "おー", "ああ",
-            "んふん", "そっか", "そっかぁ", "そうか", "そうなんだ", "えへへ",
-            "あの", "あのね", "あのさ", "ん", "えっと",
+            "えー",
+            "あのー",
+            "うーん",
+            "えっと",
+            "なんて",
+            "まあ",
+            "そうですね",
+            "あー",
+            "んー",
+            "うん",
+            "ふん",
+            "あ",
+            "はは",
+            "ははは",
+            "なんか",
+            "え",
+            "お",
+            "ふんふん",
+            "ふんふんふん",
+            "うんうん",
+            "うんうんうん",
+            "はいはい",
+            "はいはいはい",
+            "はいはいはいはい",
+            "おー",
+            "ああ",
+            "んふん",
+            "そっか",
+            "そっかぁ",
+            "そうか",
+            "そうなんだ",
+            "えへへ",
+            "あの",
+            "あのね",
+            "あのさ",
+            "ん",
+            "えっと",
         ];
 
         let mut sorted_fillers = fillers.to_vec();
@@ -84,10 +115,12 @@ impl TranscriptPreprocessor {
         let mut current_txt = txt.to_string();
         for _ in 0..20 {
             let prev_txt = current_txt.clone();
-            current_txt = re.replace_all(&current_txt, |caps: &regex::Captures| {
+            current_txt = re
+                .replace_all(&current_txt, |caps: &regex::Captures| {
                     let leading = caps.get(1).map_or("", |m| m.as_str());
                     format!("{} ", leading)
-                }).to_string();
+                })
+                .to_string();
 
             if current_txt == prev_txt {
                 break;
@@ -105,12 +138,14 @@ impl TranscriptPreprocessor {
             }
             prev_char = Some(c);
         }
-        
+
         let txt = next_txt;
-        let re_start_punct = Regex::new(r"^[、。]+").context("Invalid regex in remove_fillers start_punct")?;
+        let re_start_punct =
+            Regex::new(r"^[、。]+").context("Invalid regex in remove_fillers start_punct")?;
         let txt = re_start_punct.replace_all(&txt, "").trim().to_string();
 
-        let re_space_punct = Regex::new(r"\s+[、。]+").context("Invalid regex in remove_fillers space_punct")?;
+        let re_space_punct =
+            Regex::new(r"\s+[、。]+").context("Invalid regex in remove_fillers space_punct")?;
         let txt = re_space_punct.replace_all(&txt, "").to_string();
 
         Ok(re_space.replace_all(&txt, " ").trim().to_string())

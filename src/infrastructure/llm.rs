@@ -1,11 +1,11 @@
 use crate::domain::{Curator, Evaluation, Novelizer};
 use crate::infrastructure::prompts::Prompts;
+use anyhow::{Context, Result};
 use base64::{engine::general_purpose, Engine as _};
-use tracing::warn;
 use reqwest::Client;
 use serde_json::{json, Value};
 use tokio::time::{sleep, Duration};
-use anyhow::{Result, Context};
+use tracing::warn;
 
 #[derive(Clone)]
 pub struct GeminiClient {
@@ -79,7 +79,7 @@ impl GeminiClient {
                 Ok(r) => r,
                 Err(e) => {
                     if attempt == max_retries {
-                         anyhow::bail!("LLM request failed after {} retries: {}", max_retries, e);
+                        anyhow::bail!("LLM request failed after {} retries: {}", max_retries, e);
                     }
                     self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
                     continue;
@@ -87,12 +87,16 @@ impl GeminiClient {
             };
 
             let text = resp.text().await.context("Failed to read response text")?;
-            
+
             let parsed: Value = match serde_json::from_str(&text) {
                 Ok(p) => p,
                 Err(e) => {
-                     if attempt == max_retries {
-                         anyhow::bail!("Failed to parse LLM response after {} retries: {}", max_retries, e);
+                    if attempt == max_retries {
+                        anyhow::bail!(
+                            "Failed to parse LLM response after {} retries: {}",
+                            max_retries,
+                            e
+                        );
                     }
                     self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
                     continue;
@@ -102,14 +106,17 @@ impl GeminiClient {
             if let Some(content) = parsed["candidates"][0]["content"]["parts"][0]["text"].as_str() {
                 return Ok(content.to_string());
             }
-            
+
             if attempt == max_retries {
                 anyhow::bail!("LLM response bad format: {:?}", parsed);
             }
-             self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
+            self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
         }
 
-        anyhow::bail!("LLM request failed to return content after {} retries", max_retries)
+        anyhow::bail!(
+            "LLM request failed to return content after {} retries",
+            max_retries
+        )
     }
 
     async fn backoff(&self, attempt: u32, base: u64, cap: u64) {
@@ -143,7 +150,7 @@ impl Curator for GeminiClient {
         let prompt = template
             .replace("{summary}", summary)
             .replace("{novel}", novel);
-            
+
         let content = self.generate_content(&prompt).await.unwrap_or_default();
 
         let cleaned = content

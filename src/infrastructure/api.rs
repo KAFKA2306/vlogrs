@@ -19,7 +19,8 @@ impl SupabaseClient {
     pub async fn upsert(&self, table: &str, data: &Value) -> anyhow::Result<()> {
         let url = format!("{}/rest/v1/{}", self.url, table);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("apikey", &self.key)
             .header("Authorization", format!("Bearer {}", self.key))
@@ -32,7 +33,10 @@ impl SupabaseClient {
 
         if !response.status().is_success() {
             let status = response.status();
-            let error = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             anyhow::bail!("Supabase upsert failed with status {}: {}", status, error);
         }
 

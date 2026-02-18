@@ -11,11 +11,10 @@ impl EventRepository {
     pub async fn new(db_url: &str) -> Result<Self> {
         let options = SqliteConnectOptions::from_str(db_url)?
             .create_if_missing(true)
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal); // Milestone 54: WAL mode
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
 
         let pool = SqlitePool::connect_with(options).await?;
         
-        // Milestone 53: Compile-time check (sqlx doesn't do it easily for raw SQL here, but we can use macro later)
         sqlx::query(include_str!("schema.sql"))
             .execute(&pool)
             .await

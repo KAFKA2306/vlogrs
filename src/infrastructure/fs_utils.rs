@@ -1,8 +1,8 @@
 use crate::domain::{self, Environment};
+use anyhow::{Context, Result};
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
-use anyhow::{Result, Context};
 use tracing::info;
 
 pub struct LocalEnvironment;
