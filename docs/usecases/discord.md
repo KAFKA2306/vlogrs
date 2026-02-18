@@ -1,42 +1,86 @@
-# ユースケース：Discord コミュニティの空気感を残す
+# Use Case: Immediate Connection (Discord)
 
-Discordでの会話を、単なる文字の羅列ではなく、その場の熱量や空気感まで含めた「生きた物語」として保存するためのガイドラインです。
+**「私は、息をするように他者と繋がり、その鼓動をシステムの一部として感じたい」**
 
-## 1. 何もしなくても記録が始まる（完全自動運用）
+Discordは、VLogシステムにおける「社会的な脳（Social Brain）」として機能します。
+CLIダッシュボード上のステータスとして、あるいはタイムライン上の重要なイベントとして、会話という「行為」を物理的に記録・統合します。
 
-ユーザーが操作することなく、システムが状況を判断して録音を開始・終了します。
+## 1. Input Source: The Social Layer (社会層)
 
-- **活動の自動検知**:
-    - 通話の開始を常に監視し、会話が始まれば即座に自律的な記録体制に入ります。
-- **声に反応する起動トリガー**:
-    - 無音の時間は記録せず、誰かが話し始めた時だけ動的に録音を開始します。
-- **終話の自動判定**:
-    - 会話が一定時間途切れたら、セッションを自動で締めくくり、次の処理（小説化・要約）へ回します。
+### 1-1. Process Architecture
+Linuxにおける音声キャプチャは、Pulseaudio/PipeWireのモニターソースを利用します。
 
-## 2. AIが最も「聞き取りやすい」品質
+- **Monitor Target**:
+  - `Discord` プロセスの音声出力を特定し、`pactl` または `pw-link` でキャプチャストリームに接続します。
+  - **No-Ops**: 「録画ボタンを押す」という概念は存在しません。VAD (Voice Activity Detection) が音声エネルギー（-40dB thresholds）を検知した瞬間、`ffmpeg` プロセスがバックグラウンドで起動します。
 
-記録される素材は、AIによる高度な解析を前提とした最適な形式で保存されます。
+### 1-2. Audio Format Specification
+- **Codec**: Opus (128kbps) または FLAC (Level 5)
+  - 聴き返すための「音楽」ではなく、解析するための「データ」として最適なフォーマットを選択。
+- **Channels**:
+  - **Environment (CH1)**: DiscordのSystem Audio（相手の声）。
+  - **Self (CH2)**: マイク入力（自分の声）。
+  - 自動ミキシングにより、会話の被りを明確に分離した状態で保存します。
 
-- **Gemini最適化スペック**:
-    - AIが最も正確に言葉を理解できる `16kHz / モノラル` 形式で保存し、処理効率と正解率を最大化します。
+```rust
+// pseudo-code for VAD trigger
+if current_volume > -40.0 && last_active < 300.0 {
+    start_recording();
+} else if silence_duration > 10.0 {
+    stop_recording();
+}
+```
 
-## 3. 「Show, Don't Tell」に基づく物語生成
+## 2. Integration with User Stories (物語への統合)
 
-AIは単なる議事録ではなく、会話の行間にある感情やドラマを抽出します。
+### Story 1: Immediate Connection (Dashboard)
+- **「今、この瞬間の繋がり」**
+  - ダッシュボードの "Status" ウィジェット (`src/tui/components/dashboard.rs`)：
+    ```text
+    [Status]
+    Discord: ■ Connected (VC: "General")
+    Audio  :  ▂▃▅▆▇ (Level Meter)
+    Rec    : ● [00:15:32]
+    ```
+  - `Green Lamp` は、単にプロセスがあるだけでなく、音声パケットが流れていることを示します。
 
-- **キャラクターの「演技」描写**:
-    - 「楽しそうだった」と説明するのではなく、笑い声、言葉の弾み、絶妙な間などでその場の雰囲気を表現します。
-- **Cinematic Aesthetic（映像的な美しさ）**:
-    - 会話の内容から「もしこれが映画のワンシーンなら」という視点に基づき、光の当たり方や色彩のコントラストを意識した情景描写を加えます。
-- **高品質な挿絵生成**:
-    - `Z-Image-Turbo` を用い、会話の核心を突く「映える」イメージを生成します。
+### Story 2: Time Travel (Timeline)
+- **「あの夜、何を話したか？」**
+  - **Event Indexing**:
+    - 会話終了後、`whisper-large-v3` が文字起こしを実行。
+    - 生成された JSONL には `speakers: ["User", "FriendA"]` といったメタデータが付与されます。
+  - **Visual Search**:
+    - タイムライン上では、会話ブロックが波形（Audiowaveform）としてレンダリングされます。
+    - `/search "project delta"` とタイプすると、その単語が発せられた瞬間の波形位置へジャンプします。
+
+### Story 3: Deep Immersion (Reader)
+- **「脚本（Script）としての会話」**
+  - 小説モード（Reader）では、会話ログが以下のように整形されます：
+    > **[23:15]** ジンの氷が鳴る音がした。
+    >
+    > 「それで、新しいアーキテクチャはどうなったの？」彼が尋ねる。
+    >
+    > 「悪くないよ」私は答えた。「ただ、少し美学に欠ける」
+  - **Contextual Imagery**:
+    - `Z-Image-Turbo` は会話の感情分析（Sentiment Analysis）を行い、"Chill", "Heated", "Melancholic" といったトーンに合わせて背景色の濃度や照明効果を変化させます。
+
+## 3. System Configuration (config.yaml)
+
+```yaml
+discord:
+  monitor_device: "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor"
+  mic_device: "alsa_input.usb-Blue_Microphones_Yeti_Stereo_Microphone-00.analog-stereo"
+  vad_threshold: -40.0 # dB
+  silence_timeout: 10 # seconds
+  output_format: "flac"
+  mix_strategy: "stereo_split" # Left: Remote, Right: Mic
+```
+
+## 4. Reference Milestone
+
+- **Implementation**: [Milestone 2026-02-19](../milestones/2026-02-19.md) - Phase 2 (Core Features)
+  - `Log Integration` でイベント検知を実装。
+  - `Search Engine` で会話内容の検索を実装。
 
 ---
-
-## 達成基準（Definition of Done）
-
-- [ ] **高精度な文字起こし**: 静かな環境下でWER（文字起こし誤り率）が5%以下であること。
-- [ ] **物理的な没入感**: 小説内に、会話の内容に基づいた「グラスが鳴る音」「椅子のきしみ」といった環境音が、想像力で補完されていること。
-- [ ] **迅速な起動**: 活動検知から30秒以内に、人間の介入なく記録が開始されていること。
-- [ ] **正常分布による評価**: 生成された物語が「Curator」による評価において、平均してスコア3（標準）以上を維持していること。
-
+**Goal**: 会話を「データ」としてではなく、「人生のサウンドトラック」としてアーカイブする。

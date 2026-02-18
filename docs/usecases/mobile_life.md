@@ -1,41 +1,56 @@
-# ユースケース：日常の断片を物語に紡ぐ（Real-Life Integration）
+# Use Case: Omniscience (Mobile Life)
 
-外出先や、日常の中で録りためた「現実世界」の断片を、VLogの物語へと自律的に統合するためのガイドラインです。
+**「世界は繋がっている。街の音も、散歩の記憶も、すべてがこの CLI に帰結する」**
 
-## 1. 意識させないデータ同期（Autonomous Sync）
+Mobile Lifeは、VLogシステムにおける「拡張された感覚（Extended Sensor）」です。
+「Absolute Physical Reality」の一環として、PCを離れた時間すらもシームレスに記録し、VLogの中心へ統合します。
 
-PCの前での作業をゼロにし、日常の記録を生命維持装置のように自動で取り込みます。
+## 1. Input Source: The Extended Layer (拡張層)
 
-- **配置即処理（Drop & Flow）**:
-    - スマホからクラウド経由でファイルが届くと、システムが即座にそれを検知し、自律的な処理パイプラインに乗せます。
-- **完全性の保証**:
-    - データの転送完了を賢く待ち、不完全なファイルで処理を開始しない「安全第一」の設計。
+### 1-1. Integration Architecture (File-Based Sync)
+本システムは専用のスマートフォンアプリを持ちません。
+既存のクラウドストレージと、Linux側の `File Watcher` のみを接点とします。
 
-## 2. 静寂と明瞭さの追求（Audio Pre-processing）
+- **iOS/Android Setup**:
+  - `Voice Memos` (iOS) や `Recorder` (Android) の保存先をクラウド同期フォルダに設定。
+  - **Photos**: 写真は `OneDrive` / `Google Photos` / `iCloud` のPC同期機能を利用。
 
-屋外のノイズを排し、AIが理解しやすい「純粋な声」へと磨き上げます。
+- **Linux Ingest Path (`data/inbox/mobile`)**:
+  ```bash
+  # rclone mount example
+  rclone mount onedrive:VLog/Inbox /home/kafka/vlog/data/inbox/mobile --vfs-cache-mode writes
+  ```
+  - `vlog` デーモンは `inotify` でこのディレクトリを監視し、`CREATE` イベントが発生した瞬間に取り込みを開始します。
 
-- **ノイズ・クリーニング**:
-    - 風の音や環境音を自動で取り除き、埋もれていた言葉を救い出します。
-- **無音と停滞の除去**:
-    - 内容のない空白時間をスマートにカットし、密度の高い、読み応えのある物語の素材を抽出します。
+### 1-2. Automatic Normalization
+- **Audio**:
+  - `m4a`, `mp3`, `aac` など多様なフォーマットを `ffmpeg` で `16kHz Mono WAV` に統一します。
+  - **Loudness Normalization**: 屋外録音のレベル差を補正するため、`-23 LUFS` への正規化を適用します。
+- **Image**:
+  - `HEIC` を `JPG/WebP` に変換し、EXIFデータ（撮影日時、GPS）をメタデータとして抽出します。
 
-## 3. 内省を彩るナラティブ（Narrative Enhancement）
+## 2. Integration with User Stories (物語への統合)
 
-単なる事実の記録ではなく、その瞬間の「心の動き」をドラマチックに再現します。
+### Story 1: Immediate Connection (Dashboard)
+- **「帰宅した瞬間の同期」**
+  - **Ingest Widget**:
+    - ダッシュボード右下の "External" セクションがアクティブになり、同期の進捗バーが表示されます。
+    - `[Syncing] 20260219_Walk.m4a (45%)`
+  - **Notification**:
+    - 処理完了後、システム通知（`notify-send` equivalent on TUI）が "Theory of Everything Updated" と告げます。
 
-- **Show, Don't Tell による内面描写**:
-    - 気づきや感情を直接的に述べるのではなく、歩調の変化や周囲の変化への反応を通じて、情緒的に表現します。
-- **風景の再構築**:
-    - ファイルの日時データから「夕暮れの淡い光」や「朝の静謐な空気」を割り出し、物理的な情景として豊かに描写します。
-- **ノスタルジックな情景生成**:
-    - `Z-Image-Turbo` を活用し、記憶の柔らかさを表現した「美しき日常の一枚」を挿絵として添えます。
+### Story 4: Omniscience (All-Encompassing)
+- **「あらゆる場所からの集約」**
+  - **Unified Timeline**:
+    - モバイルからのログには `source: mobile` タグが付与されますが、表示上はPCのログと完全に統合されます。
+    - 「14:00 PCで作業」→「15:00 散歩（モバイルログ）」→「16:00 再び作業」という一連の流れが、断絶なく描かれます。
+  - **Context Linking**:
+    - 散歩中に思いついたアイデア（音声メモ）が、帰宅後の作業（PCログ）と「トピック検索」で繋がる体験を提供します。
+
+## 3. Reference Milestone
+
+- **Implementation**: [Milestone 2026-02-19](../milestones/2026-02-19.md) - Phase 2 (File Scanner / Watcher)
+- **Dependencies**: `rclone`, `ffmpeg`, `exiftool`
 
 ---
-
-## 達成基準（Definition of Done）
-
-- [ ] **処理の即時性**: ファイル共有から5秒以内に自動検知され、バックグラウンドで処理が開始されること。
-- [ ] **無音カットの精度**: 音声内の不要な空白が95%以上の精度で除去され、物語のテンポが損なわれていないこと。
-- [ ] **物理的な一貫性**: 小説内の「時刻」や「天気」が、実際の記録データと完全に一致し、背景描写として機能していること。
-- [ ] **Normal Distribution による品質管理**: 生成された小説が「Curator」の評価で、一貫してスコア3（標準品質）以上を達成していること。
+**Goal**: PCを離れても、VLogシステムはあなたの人生を記録し続けているという安心感を保証する。
