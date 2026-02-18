@@ -1,15 +1,15 @@
 <div align="center">
 
-# 🎮 VRChat Auto-Diary
+# 🎮 VLog - Autonomous Life Logger
 
-**Transform your VRChat experiences into beautifully crafted diaries, novels, and artwork — all automatically.**
+**Transform your digital experiences into beautifully crafted diaries, novels, and artwork — all automatically.**
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-000000?style=flat-square&logo=rust&logoColor=white)](https://rust-lang.org)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?style=flat-square&logo=supabase)](https://supabase.com)
 [![License](https://img.shields.io/badge/License-Private-gray?style=flat-square)]()
 
-[Live Demo](https://kaflog.vercel.app) · [Documentation](docs/overview.md) · [Development Guide](AGENTS.md)
+[Live Demo](https://kaflog.vercel.app) · [Documentation](docs/specs/overview.md) · [Development Guide](AGENTS.md)
 
 </div>
 
@@ -19,7 +19,7 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🎤 **Auto Recording** | Detects VRChat launch/exit and records audio automatically |
+| 🎤 **Auto Recording** | Detects application launch/exit and records audio automatically |
 | 📝 **AI Transcription** | Gemini 3 Flash for high-accuracy speech-to-text |
 | 📖 **Smart Summaries** | Gemini 3 Flash transforms conversations into diary entries |
 | 📚 **Novel Generation** | Long-form narrative chapters from your daily experiences |
