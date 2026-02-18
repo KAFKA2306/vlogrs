@@ -1,6 +1,7 @@
 pub mod ai;
 pub mod api;
 pub mod audio;
+pub mod db;
 pub mod fs_utils;
 pub mod llm;
 pub mod preprocessor;
