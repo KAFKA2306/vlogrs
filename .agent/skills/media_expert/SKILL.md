@@ -5,65 +5,40 @@ description: 音声処理と画像生成に関する技術的ガイドライン�
 
 # Media Expert Skill
 
-## 1. オーディオパイプライン (厳格遵守)
+## 1. オーディオパイプライン (物理現実の捕捉)
 - **フォーマット標準化**:
-  - 入力音声は処理前に以下のフォーマットへ**必ず**変換すること:
-    - **サンプリングレート**: `48000 Hz`
+  - 処理および認識向けの標準フォーマットを以下に固定する:
+    - **サンプリングレート**: `16000 Hz` (認識精度と容量の均衡)
     - **チャンネル**: `1 (Mono)`
-    - **コーデック**: `pcm_s16le` (16-bit PCM)
-  - **実行コマンド**:
-    ```bash
-    ffmpeg -i input.wav -ar 48000 -ac 1 -c:a pcm_s16le output.wav
-    ```
-- **文字起こし (Whisper)**:
-  - **モデル**: `large-v3-turbo` **のみ**使用可能。
-  - **VAD (発話区間検出)**: **必ず**有効化すること。
-    - `min_silence_duration_ms`: `500`
-    - `speech_pad_ms`: `400`
-  - **出力**: 正確なタイムスタンプ (`start` と `end` 秒) を含むJSON形式。
+    - **コーデック**: `pcm_s16le`
+  - **Opus 圧縮**: 文字起こし完了後の最終保存は `24kbps VBR` の Opus 形式とし、WAV は即座に削除せよ。
+- **発話検知 (VAD)**:
+  - `webrtcvad` を使用。500ms のプレ録音バッファを保持し、会話の頭欠けを 100% 阻止せよ。
 
-- **保存規則**:
-  - **ディレクトリ**: `data/recordings/` (絶対パス: `/home/kafka/vlog/data/recordings/`)
-  - **ファイル名**: `YYYYMMDD_HHMMSS`<`.wav`|`.json`>
-    - 例: `20231027_143000.wav`
-  - **バックアップ**: 破壊的な処理を行う前に、生の録音データを `data/backup/` へ**必ず**バックアップすること。
+## 2. 永続化と整合性 (SQLite-First)
+- **Primary Storage**: 
+  - すべてのイベント、メタデータ、資産パスは `SQLite 3` (WALモード) に一元管理される。Supabase は「二次的な同期先」であり、ファイルシステムと SQLite が唯一の真実となる。
+- **ディレクトリ規則**:
+  - `data/recordings/`: 生音声 (WAV) および圧縮音声 (Opus)
+  - `data/transcripts/`: Whisper 出力 (JSON)
+  - `data/summaries/`: 日次・個別の要約 (JSON/Markdown)
+- **Self-Consistency Engine**:
+  - 生成された要約/物語が元のログデータと 99% 以上の整合性を持つか、LLM を用いて自動検証せよ。
 
-## 2. 画像生成 (高忠実度)
-- **プロンプトエンジニアリング**:
-  - **Positive**: `masterpiece, best quality, ultra-detailed, 8k, cinematic lighting`
-  - **Negative**: `worst quality, low quality, bad anatomy, bad hands, text, signature, watermark, username, blurry, artist name`
+## 3. Atmospheric Synthesis (情緒的補完)
+- **沈黙の解釈**:
+  - 録音や活動ログの空白時間は「欠落」ではなく、その場の「空気感」（平穏、孤独、集中）として解析対象に含めよ。
+- **環境音統合**:
+  - 特定のアプリ（YouTube等）の視聴履歴を「生活の背景音」として物語の文脈に織り交ぜる。
+
+## 4. 画像生成と視覚的証跡
 - **出力仕様**:
-  - **アスペクト比**: `9:16` (縦型ストーリーフォーマット)
-  - **解像度**: `1024x1792` (または最も効率的な潜在空間サイズ)
-  - **フォーマット**: `.webp` (品質: `90`)
-- **一貫性チェック**:
-  - 生成された画像は、VLogで定義された視覚スタイル（例：「温かみのある、哀愁漂う、VRChat特有のシェーダー感」）と一致しているか検証すること。
+  - アスペクト比 `9:16`, `1024x1792`, `.webp` (品質 90)。
+  - スタイル: 「温かみのある、哀愁漂う、デジタルと物理の境界が曖昧な質感」。
+- **メタデータ紐付け**: 
+  - 生成画像は必ず `novels` テーブルの特定の日付/イベントに関連付けられ、物理的証拠として機能しなければならない。
 
-## 3. メタデータ管理 (ゼロ許容度)
-- **スキーマ検証**:
-  - すべてのメタデータは厳密に定義されたJSONスキーマに対して**必ず**検証すること。
-  - **必須フィールド**:
-    - `id`: UUID v4
-    - `timestamp`: ISO 8601 (`YYYY-MM-DDTHH:MM:SSZ`)
-    - `tags`: 文字列の配列 (例: `["#VRChat", "#Memory"]`)
-    - `assets`: `audio_path` と `image_path` をリンクするオブジェクト
-- **同期処理**:
-  - Supabaseへの更新は原子的 (Atomic) でなければならない。
-  - **リトライポリシー**: ネットワーク障害時は、指数バックオフ (初期値2秒) で最大3回リトライすること。
-  - **アセット同期**:
-    - **正本 (Source of Truth)**: ファイルシステム (`frontend/reader/public/`) -> データベース (`Supabase`)。
-    - **Photos (写真)**:
-      - パス: `frontend/reader/public/photos/*.png`
-      - テーブル: `novels`
-      - マッピング: `filename` (" copy"を除く) -> `date` カラム。
-    - **Infographics (インフォグラフィック)**:
-      - パス: `frontend/reader/public/infographics/*_summary.png`
-      - テーブル: `daily_entries`
-      - マッピング: `filename` ("_summary"を除く) -> `date` カラム。
-    - **トリガー**: 同期処理は一括画像生成の後、または `task sync:images` 経由で手動実行された際に**必ず**実行すること。
+## 5. エラー耐性 (Zero-Fallback)
+- **即時停止**: ffmpeg の未検出、モデルロード失敗、DB ロック等の異常時は、代替処理を行わず即座にパニック終了し、クリーンな再起動を待て。
+- **ログの絶対性**: 処理の各ステップ（変換、認識、保存）は `tracing` を通じて 1ミリ秒 精度で記録されなければならない。
 
-## 4. エラー耐性と回復
-- **クラッシュオンリー**:
-  - クリティカルなエラー (ffmpeg未検出、モデル読み込み失敗など) が発生した場合、汚染された状態を防ぐためプロセスは即座にパニック/終了 (**MUST panic/exit**) しなければならない。
-- **サーキットブレーカー**:
-  - 外部API呼び出し (OpenAI, Stable Diffusion) は `30秒` でタイムアウトすること。

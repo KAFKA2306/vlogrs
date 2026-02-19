@@ -6,6 +6,9 @@ edition = "2021"
 [workspace]
 members = ["src/windows/agent"]
 
+[lints.clippy]
+unwrap_used = "deny"
+
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", features = ["json"] }
