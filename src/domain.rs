@@ -1,10 +1,42 @@
-pub mod event;
-pub mod task;
-
-pub use event::{LifeEvent, SourceType};
-pub use task::Task;
-
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Task {
+    pub id: String,
+    pub created_at: DateTime<Utc>,
+    pub status: String,
+    pub task_type: String,
+    pub file_paths: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum SourceType {
+    WindowsAudio,
+    WindowsActivity,
+    UbuntuMonitor,
+    System,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LifeEvent {
+    pub id: Uuid,
+    pub timestamp: DateTime<Utc>,
+    pub source: SourceType,
+    pub payload: serde_json::Value,
+}
+
+impl LifeEvent {
+    pub fn new(source: SourceType, payload: serde_json::Value) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            timestamp: Utc::now(),
+            source,
+            payload,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Evaluation {
@@ -23,20 +55,19 @@ pub trait Curator: Send + Sync {
     async fn evaluate(&self, summary: &str, novel: &str) -> Evaluation;
     async fn verify_summary(&self, summary: &str, transcript: &str, activities: &str)
         -> Evaluation;
-    async fn summarize_session(&self, transcript: &str, activities: &str)
-        -> anyhow::Result<String>;
+    async fn summarize_session(&self, transcript: &str, activities: &str) -> String;
 }
 
 #[async_trait::async_trait]
 pub trait ImageGenerator: Send + Sync {
-    async fn generate(&self, prompt: &str, output_path: &str) -> anyhow::Result<()>;
+    async fn generate(&self, prompt: &str, output_path: &str);
 }
 
 pub mod constants;
 
 pub trait Environment: Send + Sync {
-    fn ensure_directories(&self) -> anyhow::Result<()>;
-    fn ensure_config(&self) -> anyhow::Result<()>;
+    fn ensure_directories(&self);
+    fn ensure_config(&self);
 }
 
 pub trait AudioRecorder: Send + Sync {
@@ -47,8 +78,8 @@ pub trait AudioRecorder: Send + Sync {
         channels: u16,
         device_name: Option<String>,
         silence_threshold: f32,
-    ) -> anyhow::Result<()>;
-    fn stop(&self) -> anyhow::Result<Option<std::path::PathBuf>>;
+    );
+    fn stop(&self) -> Option<std::path::PathBuf>;
 }
 
 pub trait ProcessMonitor: Send + Sync {
@@ -56,27 +87,27 @@ pub trait ProcessMonitor: Send + Sync {
 }
 
 pub trait TaskRepository: Send + Sync {
-    fn add(&self, task_type: &str, file_paths: Vec<String>) -> anyhow::Result<Task>;
-    fn load(&self) -> anyhow::Result<Vec<Task>>;
-    fn update_status(&self, id: &str, status: &str) -> anyhow::Result<()>;
+    fn add(&self, task_type: &str, file_paths: Vec<String>) -> Task;
+    fn load(&self) -> Vec<Task>;
+    fn update_status(&self, id: &str, status: &str);
 }
 
 #[async_trait::async_trait]
 pub trait ContentGenerator: Send + Sync {
-    async fn generate_content(&self, prompt: &str) -> anyhow::Result<String>;
-    async fn transcribe(&self, file_path: &str) -> anyhow::Result<String>;
+    async fn generate_content(&self, prompt: &str) -> String;
+    async fn transcribe(&self, file_path: &str) -> String;
 }
 
 pub trait FileWatcher: Send + Sync {
-    fn start(&self) -> anyhow::Result<()>;
+    fn start(&self);
 }
 
 #[async_trait::async_trait]
 pub trait EventRepository: Send + Sync {
-    async fn save(&self, event: &LifeEvent) -> anyhow::Result<()>;
+    async fn save(&self, event: &LifeEvent);
     async fn find_by_timerange(
         &self,
         start: chrono::DateTime<chrono::Utc>,
         end: chrono::DateTime<chrono::Utc>,
-    ) -> anyhow::Result<Vec<LifeEvent>>;
+    ) -> Vec<LifeEvent>;
 }

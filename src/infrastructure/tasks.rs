@@ -1,6 +1,5 @@
-use crate::domain::task::Task;
+use crate::domain::Task;
 use crate::domain::TaskRepository as TaskRepositoryTrait;
-use anyhow::{Context, Result};
 use chrono::Utc;
 use std::fs;
 use std::path::PathBuf;
@@ -15,25 +14,23 @@ impl TaskRepository {
         Self { path: path.into() }
     }
 
-    pub fn ensure_file(&self) -> Result<()> {
+    pub fn ensure_file(&self) {
         if !self.path.exists() {
-            fs::write(&self.path, "[]").context("Failed to create initial tasks file")?;
+            fs::write(&self.path, "[]").unwrap();
         }
-        Ok(())
     }
 
-    fn save(&self, tasks: &[Task]) -> Result<()> {
-        let content = serde_json::to_string_pretty(tasks).context("Failed to serialize tasks")?;
+    fn save(&self, tasks: &[Task]) {
+        let content = serde_json::to_string_pretty(tasks).unwrap();
         let tmp_path = self.path.with_extension("tmp");
-        fs::write(&tmp_path, content).context("Failed to write temporary tasks file")?;
-        fs::rename(&tmp_path, &self.path).context("Failed to rename tasks file")?;
-        Ok(())
+        fs::write(&tmp_path, content).unwrap();
+        fs::rename(&tmp_path, &self.path).unwrap();
     }
 }
 
 impl TaskRepositoryTrait for TaskRepository {
-    fn add(&self, task_type: &str, file_paths: Vec<String>) -> Result<Task> {
-        let mut tasks = self.load()?;
+    fn add(&self, task_type: &str, file_paths: Vec<String>) -> Task {
+        let mut tasks = self.load();
         let task = Task {
             id: Uuid::now_v7().to_string(),
             created_at: Utc::now(),
@@ -42,23 +39,23 @@ impl TaskRepositoryTrait for TaskRepository {
             file_paths,
         };
         tasks.push(task.clone());
-        self.save(&tasks)?;
-        Ok(task)
+        self.save(&tasks);
+        task
     }
 
-    fn load(&self) -> Result<Vec<Task>> {
-        self.ensure_file()?;
-        let content = fs::read_to_string(&self.path).context("Failed to read tasks file")?;
-        serde_json::from_str(&content).context("Failed to parse tasks file")
+    fn load(&self) -> Vec<Task> {
+        self.ensure_file();
+        let content = fs::read_to_string(&self.path).unwrap();
+        serde_json::from_str(&content).unwrap()
     }
 
-    fn update_status(&self, id: &str, status: &str) -> Result<()> {
-        let mut tasks = self.load()?;
+    fn update_status(&self, id: &str, status: &str) {
+        let mut tasks = self.load();
         if let Some(task) = tasks.iter_mut().find(|t| t.id == id) {
             task.status = status.to_string();
-            self.save(&tasks)
+            self.save(&tasks);
         } else {
-            anyhow::bail!("Task with id {} not found", id)
+            panic!("Task with id {} not found", id);
         }
     }
 }

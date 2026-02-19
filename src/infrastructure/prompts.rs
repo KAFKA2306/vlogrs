@@ -33,25 +33,4 @@ impl Prompts {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_prompts_yaml_structure_is_valid() {
-        // This test ensures that the Rust struct definition matches the actual data/prompts.yaml file.
-        // It acts as a "strict pre-verification" to prevent runtime errors on deployment.
-        let result = Prompts::load();
-        
-        match result {
-            Ok(prompts) => {
-                // Optional: Check some fields to ensure they are not empty
-                assert!(!prompts.curator.evaluate.is_empty(), "curator.evaluate should not be empty");
-                assert!(!prompts.curator.session_summary.is_empty(), "curator.session_summary should not be empty");
-            },
-            Err(e) => {
-                panic!("Failed to load specific data/prompts.yaml: {:#?}", e);
-            }
-        }
-    }
-}

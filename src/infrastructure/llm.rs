@@ -1,6 +1,5 @@
 use crate::domain::{Curator, Evaluation, Novelizer};
 use crate::infrastructure::prompts::Prompts;
-use anyhow::{Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use reqwest::Client;
 use serde_json::{json, Value};
@@ -23,7 +22,7 @@ impl GeminiClient {
         }
     }
 
-    pub async fn generate_content(&self, prompt: &str) -> Result<String> {
+    pub async fn generate_content(&self, prompt: &str) -> String {
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             self.model, self.api_key
@@ -40,7 +39,7 @@ impl GeminiClient {
         self.post_and_parse(&url, body).await
     }
 
-    pub async fn transcribe_audio(&self, audio_data: &[u8], mime_type: &str) -> Result<String> {
+    pub async fn transcribe_audio(&self, audio_data: &[u8], mime_type: &str) -> String {
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             self.model, self.api_key
@@ -67,16 +66,16 @@ impl GeminiClient {
         self.post_and_parse(&url, body).await
     }
 
-    async fn post_and_parse(&self, url: &str, body: Value) -> Result<String> {
-        let resp = self.client.post(url).json(&body).send().await?;
-        let text = resp.text().await.context("Failed to read response text")?;
-        let parsed: Value = serde_json::from_str(&text)?;
+    async fn post_and_parse(&self, url: &str, body: Value) -> String {
+        let resp = self.client.post(url).json(&body).send().await.unwrap();
+        let text = resp.text().await.unwrap();
+        let parsed: Value = serde_json::from_str(&text).unwrap();
 
         if let Some(content) = parsed["candidates"][0]["content"]["parts"][0]["text"].as_str() {
-            return Ok(content.to_string());
+            return content.to_string();
         }
 
-        anyhow::bail!("LLM response bad format: {:?}", parsed)
+        panic!("LLM response bad format: {:?}", parsed)
     }
 }
 
@@ -89,18 +88,17 @@ impl Novelizer for GeminiClient {
             .replace("{today_summary}", summary);
         self.generate_content(&prompt)
             .await
-            .expect("Failed to generate chapter content")
     }
 }
 
 #[async_trait::async_trait]
 impl crate::domain::ContentGenerator for GeminiClient {
-    async fn generate_content(&self, prompt: &str) -> Result<String> {
+    async fn generate_content(&self, prompt: &str) -> String {
         self.generate_content(prompt).await
     }
 
-    async fn transcribe(&self, file_path: &str) -> Result<String> {
-        let audio_data = std::fs::read(file_path)?;
+    async fn transcribe(&self, file_path: &str) -> String {
+        let audio_data = std::fs::read(file_path).unwrap();
         let ext = std::path::Path::new(file_path)
             .extension()
             .and_then(|e| e.to_str())
@@ -125,8 +123,7 @@ impl Curator for GeminiClient {
 
         let content = self
             .generate_content(&prompt)
-            .await
-            .expect("Failed to generate evaluation content");
+            .await;
 
         let cleaned = content
             .trim_start_matches("```json")
@@ -153,7 +150,7 @@ impl Curator for GeminiClient {
             .replace("{transcript}", transcript)
             .replace("{activities}", activities);
 
-        let content = self.generate_content(&prompt).await.unwrap_or_default();
+        let content = self.generate_content(&prompt).await;
 
         let cleaned = content
             .trim_start_matches("```json")
@@ -171,7 +168,7 @@ impl Curator for GeminiClient {
         &self,
         transcript: &str,
         activities: &str,
-    ) -> anyhow::Result<String> {
+    ) -> String {
         let prompt = self
             .prompts
             .curator

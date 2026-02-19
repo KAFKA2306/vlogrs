@@ -1,5 +1,5 @@
 use crate::domain::AudioRecorder as AudioRecorderTrait;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 pub struct AudioRecorder {
     is_recording: Arc<AtomicBool>,
@@ -43,19 +43,14 @@ impl AudioRecorder {
         let device = match device_name {
             Some(name) => host
                 .input_devices()
-                .context("Failed to list input devices")?
+                .unwrap()
                 .find(|d| d.name().map(|n| n.contains(&name)).unwrap_or(false))
-                .ok_or_else(|| {
-                    warn!("Device '{}' not found, falling back to default.", name);
-                    anyhow::anyhow!("Device '{}' not found", name)
-                })
-                .or_else(|_| {
-                    host.default_input_device()
-                        .context("No default input device found")
-                })?,
+                .unwrap_or_else(|| {
+                     host.default_input_device().unwrap()
+                }),
             None => host
                 .default_input_device()
-                .context("No default input device found")?,
+                .unwrap(),
         };
 
         info!("Using audio device: {}", device.name().unwrap_or_default());
@@ -66,25 +61,18 @@ impl AudioRecorder {
             buffer_size: cpal::BufferSize::Default,
         };
 
-        // Strict Check: Ensure the device supports the exact configuration
-        let supported = device.supported_input_configs()?.any(|c| {
+
+        let supported = device.supported_input_configs().unwrap().any(|c| {
             c.channels() == channels
                 && c.min_sample_rate().0 <= sample_rate
                 && c.max_sample_rate().0 >= sample_rate
                 && c.sample_format() == cpal::SampleFormat::F32
         });
 
+
+
         if !supported {
-            error!(
-                "CRITICAL: Hardware does not natively support {}Hz {}ch F32.",
-                sample_rate, channels
-            );
-            Self::list_devices()?;
-            anyhow::bail!(
-                "Hardware incompatibility: {}Hz {}ch unsupported",
-                sample_rate,
-                channels
-            );
+            panic!("Hardware incompatibility: {}Hz {}ch unsupported", sample_rate, channels);
         }
 
         info!("Selected audio config: {:?}", config);
@@ -97,7 +85,7 @@ impl AudioRecorder {
         };
 
         let writer = Arc::new(Mutex::new(Some(
-            hound::WavWriter::create(&path, spec).context("Failed to create wav writer")?,
+            hound::WavWriter::create(&path, spec).unwrap(),
         )));
         let writer_cb = writer.clone();
 
@@ -125,14 +113,14 @@ impl AudioRecorder {
                         }
                     }
 
-                    // Update global peak
+
                     if let Ok(mut p) = peak_amplitude.lock() {
                         if local_peak > *p {
                             *p = local_peak;
                         }
                     }
 
-                    // Log peak level every interval
+
                     if let Ok(mut last) = last_log.lock() {
                         if last.elapsed()
                             >= Duration::from_secs(
@@ -155,9 +143,9 @@ impl AudioRecorder {
                 },
                 None,
             )
-            .context("Failed to build input stream")?;
+            .unwrap();
 
-        stream.play().context("Failed to start audio stream")?;
+        stream.play().unwrap();
 
         while is_recording.load(Ordering::SeqCst) {
             thread::sleep(Duration::from_millis(
@@ -168,7 +156,7 @@ impl AudioRecorder {
         drop(stream);
         if let Ok(mut guard) = writer.lock() {
             if let Some(w) = guard.take() {
-                w.finalize().context("Failed to finalize wav file")?;
+                w.finalize().unwrap();
             }
         }
         Ok(())
@@ -194,11 +182,11 @@ impl AudioRecorder {
         Ok(())
     }
 
-    pub fn list_devices() -> Result<()> {
+    pub fn list_devices() {
         let host = cpal::default_host();
         let devices = host
             .input_devices()
-            .context("Failed to list input devices")?;
+            .expect("Failed to list input devices");
 
         info!("=== Available Audio Input Devices ===");
         for (i, device) in devices.enumerate() {
@@ -218,7 +206,6 @@ impl AudioRecorder {
                 }
             }
         }
-        Ok(())
     }
 }
 
@@ -230,16 +217,16 @@ impl AudioRecorderTrait for AudioRecorder {
         channels: u16,
         device_name: Option<String>,
         silence_threshold: f32,
-    ) -> Result<()> {
+    ) {
         if self.is_recording.load(Ordering::SeqCst) {
-            return Ok(());
+            return;
         }
 
         self.is_recording.store(true, Ordering::SeqCst);
         let mut current_file = self
             .current_file
             .lock()
-            .map_err(|_| anyhow::anyhow!("Failed to lock current_file"))?;
+            .expect("Failed to lock current_file");
         *current_file = Some(output_path.clone());
 
         let is_recording = self.is_recording.clone();
@@ -261,20 +248,19 @@ impl AudioRecorderTrait for AudioRecorder {
         let mut recording_thread = self
             .recording_thread
             .lock()
-            .map_err(|_| anyhow::anyhow!("Failed to lock recording_thread"))?;
+            .unwrap();
         *recording_thread = Some(handle);
 
         info!("Started recording...");
-        Ok(())
     }
 
-    fn stop(&self) -> Result<Option<PathBuf>> {
+    fn stop(&self) -> Option<PathBuf> {
         self.is_recording.store(false, Ordering::SeqCst);
         let join_handle = {
             let mut recording_thread = self
                 .recording_thread
                 .lock()
-                .map_err(|_| anyhow::anyhow!("Failed to lock recording_thread"))?;
+                .unwrap();
             recording_thread.take()
         };
 
@@ -285,12 +271,12 @@ impl AudioRecorderTrait for AudioRecorder {
         let mut current_file = self
             .current_file
             .lock()
-            .map_err(|_| anyhow::anyhow!("Failed to lock current_file"))?;
+            .expect("Failed to lock current_file");
         let path = current_file.take();
         if let Some(ref p) = path {
             let part_path = p.with_extension(crate::domain::constants::WAV_PART_EXTENSION);
             if part_path.exists() {
-                std::fs::rename(&part_path, p).context("Failed to rename part file")?;
+                std::fs::rename(&part_path, p).unwrap();
                 if let Some(parent) = p.parent() {
                     if let Ok(dir) = std::fs::File::open(parent) {
                         let _ = dir.sync_all();
@@ -299,6 +285,6 @@ impl AudioRecorderTrait for AudioRecorder {
             }
             info!("Stopped recording: {:?}", p);
         }
-        Ok(path)
+        path
     }
 }

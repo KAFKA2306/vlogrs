@@ -1,5 +1,4 @@
 use crate::domain::{EventRepository as EventRepositoryTrait, LifeEvent};
-use anyhow::{Context, Result};
 use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use std::str::FromStr;
 
@@ -8,27 +7,27 @@ pub struct EventRepository {
 }
 
 impl EventRepository {
-    pub async fn new(db_url: &str) -> Result<Self> {
-        let options = SqliteConnectOptions::from_str(db_url)?
+    pub async fn new(db_url: &str) -> Self {
+        let options = SqliteConnectOptions::from_str(db_url).unwrap()
             .create_if_missing(true)
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .busy_timeout(std::time::Duration::from_secs(10));
 
-        let pool = SqlitePool::connect_with(options).await?;
+        let pool = SqlitePool::connect_with(options).await.unwrap();
 
         sqlx::query(include_str!("schema.sql"))
             .execute(&pool)
             .await
-            .context("Failed to run migrations")?;
+            .unwrap();
 
-        Ok(Self { pool })
+        Self { pool }
     }
 }
 
 #[async_trait::async_trait]
 impl EventRepositoryTrait for EventRepository {
-    async fn save(&self, event: &LifeEvent) -> Result<()> {
-        let payload = serde_json::to_string(&event.payload)?;
+    async fn save(&self, event: &LifeEvent) {
+        let payload = serde_json::to_string(&event.payload).unwrap();
 
         sqlx::query(crate::domain::constants::SQL_INSERT_EVENT)
             .bind(event.id.to_string())
@@ -37,22 +36,20 @@ impl EventRepositoryTrait for EventRepository {
             .bind(payload)
             .execute(&self.pool)
             .await
-            .context("Failed to insert life event")?;
-
-        Ok(())
+            .unwrap();
     }
 
     async fn find_by_timerange(
         &self,
         start: chrono::DateTime<chrono::Utc>,
         end: chrono::DateTime<chrono::Utc>,
-    ) -> Result<Vec<LifeEvent>> {
+    ) -> Vec<LifeEvent> {
         let rows = sqlx::query(crate::domain::constants::SQL_QUERY_EVENTS)
             .bind(start)
             .bind(end)
             .fetch_all(&self.pool)
             .await
-            .context("Failed to fetch life events")?;
+            .unwrap();
 
         let mut events = Vec::new();
         for row in rows {
@@ -68,16 +65,16 @@ impl EventRepositoryTrait for EventRepository {
                 _ => crate::domain::SourceType::System,
             };
 
-            let payload: serde_json::Value = serde_json::from_str(&metadata_str)?;
+            let payload: serde_json::Value = serde_json::from_str(&metadata_str).unwrap();
 
             events.push(LifeEvent {
-                id: uuid::Uuid::parse_str(&id)?,
+                id: uuid::Uuid::parse_str(&id).unwrap(),
                 timestamp,
                 source,
                 payload,
             });
         }
 
-        Ok(events)
+        events
     }
 }

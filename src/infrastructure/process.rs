@@ -98,25 +98,18 @@ impl ProcessMonitor {
             ])
             .output();
 
-        match output {
-            Ok(out) => {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                let first = stdout
-                    .lines()
-                    .map(str::trim)
-                    .find(|line| !line.is_empty())
-                    .map(ToOwned::to_owned);
-                if let Some(proc_name) = &first {
-                    debug!("Windows process detected via powershell.exe: {}", proc_name);
-                    Some(format!("windows:{}", proc_name))
-                } else {
-                    None
-                }
-            }
-            Err(e) => {
-                debug!("Failed to query Windows processes: {}", e);
-                None
-            }
+        let out = output.unwrap();
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let first = stdout
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty())
+            .map(ToOwned::to_owned);
+        if let Some(proc_name) = &first {
+            debug!("Windows process detected via powershell.exe: {}", proc_name);
+            Some(format!("windows:{}", proc_name))
+        } else {
+            None
         }
     }
 
