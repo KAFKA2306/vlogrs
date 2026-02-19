@@ -56,15 +56,33 @@ pub struct Settings {
 impl Settings {
     pub fn new() -> Result<Self, anyhow::Error> {
         let s = Config::builder()
-            .set_default("process.check_interval", 5)?
-            .set_default("process.names", "VRChat")?
-            .set_default("paths.recording_dir", "data/recordings")?
-            .set_default("paths.db_path", "vlog.db")?
-            .set_default("audio.silence_threshold", 0.02)?
-            .set_default("trigger.start_debounce_secs", 2)?
-            .set_default("trigger.stop_grace_secs", 10)?
-            .set_default("trigger.min_recording_secs", 60)?
-            .add_source(File::with_name("data/config").required(false))
+            .set_default(
+                "process.check_interval",
+                crate::domain::constants::MONITOR_CHECK_INTERVAL_DEFAULT,
+            )?
+            .set_default(
+                "process.names",
+                crate::domain::constants::DEFAULT_PROCESS_NAMES,
+            )?
+            .set_default("paths.recording_dir", crate::domain::constants::APP_DIRS[0])?
+            .set_default("paths.db_path", crate::domain::constants::DEFAULT_DB_PATH)?
+            .set_default(
+                "audio.silence_threshold",
+                crate::domain::constants::DEFAULT_SILENCE_THRESHOLD,
+            )?
+            .set_default(
+                "trigger.start_debounce_secs",
+                crate::domain::constants::START_DEBOUNCE_SECS_DEFAULT,
+            )?
+            .set_default(
+                "trigger.stop_grace_secs",
+                crate::domain::constants::STOP_GRACE_SECS_DEFAULT,
+            )?
+            .set_default(
+                "trigger.min_recording_secs",
+                crate::domain::constants::MIN_RECORDING_SECS_DEFAULT,
+            )?
+            .add_source(File::with_name(crate::domain::constants::CONFIG_PATH).required(false))
             .add_source(Environment::default().separator("__"))
             .build()?;
 
@@ -99,6 +117,10 @@ impl Settings {
             stop_grace_secs: raw.trigger.stop_grace_secs,
             min_recording_secs: raw.trigger.min_recording_secs,
         })
+    }
+
+    pub fn default_tasks_path() -> PathBuf {
+        PathBuf::from(crate::domain::constants::TASKS_PATH)
     }
 
     fn translate_path(path: String) -> PathBuf {

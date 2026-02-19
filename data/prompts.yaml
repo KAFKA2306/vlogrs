@@ -197,9 +197,34 @@ summarizer:
     {transcript}
 
 curator:
+  session_summary: |
+    以下の会話ログと、その間のアクティビティログを元に、このセッションの要約を作成してください。
+
+    ### アクティビティログ
+    {activity_context}
+
+    ### 会話ログ
+    {transcript}
+
+    要約は箇条書きで、重要なトピックを抽出してください。
   evaluate: |
     You are "The Curator," an expert literary editor and fact-checker.
     Your task is to evaluate a novel chapter based on a source summary.
+transcription: "Using the audio, write strict dictation. Output only the transcript text."
+summary_verification: |
+  以下の要約が、元の会話ログとアクティビティログの内容を正確に反映しているか検証してください。
+
+  ### 要約
+  {summary}
+
+  ### 会話ログ
+  {transcript}
+
+  ### アクティビティログ
+  {activities}
+
+  出力は以下のJSON形式のみで行ってください：
+  {"faithfulness_score": 1-5, "quality_score": 1-5, "reasoning": "理由"}
 
     [Source Summary (Facts)]:
     {summary}

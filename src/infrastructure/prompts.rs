@@ -17,6 +17,9 @@ pub struct NovelizerPrompts {
 pub struct Prompts {
     pub curator: CuratorPrompts,
     pub novelizer: NovelizerPrompts,
+    pub session_summary: String,
+    pub transcription: String,
+    pub summary_verification: String,
 }
 
 impl Prompts {

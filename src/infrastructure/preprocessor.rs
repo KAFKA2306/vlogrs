@@ -65,47 +65,7 @@ impl TranscriptPreprocessor {
     }
 
     fn remove_fillers(&self, txt: &str) -> Result<String> {
-        let fillers = [
-            "えー",
-            "あのー",
-            "うーん",
-            "えっと",
-            "なんて",
-            "まあ",
-            "そうですね",
-            "あー",
-            "んー",
-            "うん",
-            "ふん",
-            "あ",
-            "はは",
-            "ははは",
-            "なんか",
-            "え",
-            "お",
-            "ふんふん",
-            "ふんふんふん",
-            "うんうん",
-            "うんうんうん",
-            "はいはい",
-            "はいはいはい",
-            "はいはいはいはい",
-            "おー",
-            "ああ",
-            "んふん",
-            "そっか",
-            "そっかぁ",
-            "そうか",
-            "そうなんだ",
-            "えへへ",
-            "あの",
-            "あのね",
-            "あのさ",
-            "ん",
-            "えっと",
-        ];
-
-        let mut sorted_fillers = fillers.to_vec();
+        let mut sorted_fillers = crate::domain::constants::TRANSCRIPT_FILLERS.to_vec();
         sorted_fillers.sort_by_key(|a| std::cmp::Reverse(a.len()));
 
         let pattern_str = sorted_fillers.join("|");
