@@ -541,10 +541,7 @@ task web:deploy
 ### Windows実行
 
 ```batch
-REM 初回（管理者権限）
-windows\bootstrap.bat
-
-REM 通常実行
+REM Windows実行（単一エントリポイント）
 windows\run.bat
 ```
 
