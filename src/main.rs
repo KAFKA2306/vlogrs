@@ -129,7 +129,7 @@ async fn main() -> Result<()> {
                 prompts,
             ));
             let repo = Arc::new(infrastructure::tasks::TaskRepository::new(
-                "data/tasks.json",
+                Settings::default_tasks_path(),
             ));
             let event_repo = Arc::new(
                 infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy())
@@ -141,8 +141,8 @@ async fn main() -> Result<()> {
                 .execute_session(&domain::task::Task {
                     id: "manual".to_string(),
                     created_at: chrono::Utc::now(),
-                    status: "processing".to_string(),
-                    task_type: "process_session".to_string(),
+                    status: crate::domain::constants::STATUS_PROCESSING.to_string(),
+                    task_type: crate::domain::constants::TASK_TYPE_PROCESS_SESSION.to_string(),
                     file_paths: vec![file],
                 })
                 .await?;

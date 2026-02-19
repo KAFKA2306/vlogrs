@@ -198,7 +198,11 @@ impl Agent {
             .kill_on_drop(true)
             .spawn()
             .context(format!("Failed to spawn {}", Constants::RECORDER_SCRIPT))?;
-        info!("Started {} with PID: {:?}", Constants::RECORDER_SCRIPT, child.id());
+        info!(
+            "Started {} with PID: {:?}",
+            Constants::RECORDER_SCRIPT,
+            child.id()
+        );
         Ok(child)
     }
 

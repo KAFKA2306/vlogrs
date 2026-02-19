@@ -204,6 +204,14 @@ tasks:
     desc: Git commit
     cmds: ["git add . && git commit -am '{{.MESSAGE}}'"]
 
+  test:
+    desc: Rustユニットテスト
+    cmd: cargo test
+
+  windows:build:
+    desc: Windowsエージェントビルド
+    cmd: cd src/windows/agent && cargo build --release --target x86_64-pc-windows-msvc
+
   # ────────────────────────────────────────
   # デバッグ用
   # ────────────────────────────────────────

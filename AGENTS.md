@@ -5,15 +5,15 @@ See [Global Configuration](file:///home/kafka/projects/.agent/AGENTS.md)
 ## Domain Overrides
 
 ### VRChat Process Monitoring
-- Process names: `VRChat.exe`, `vrchat`
-- Check interval: 5 seconds
-- Auto-start recording on process detection
+- Source of Truth: [constants.rs](file:///home/kafka/vlog/src/domain/constants.rs)
+- Process names: `VRChat.exe`, `vrchat` (See `DEFAULT_PROCESS_NAMES`)
+- Check interval: 5 seconds (See `MONITOR_CHECK_INTERVAL_DEFAULT`)
 
 ### Audio Pipeline
-- Sample rate: 16000 Hz
-- Channels: 1 (mono)
-- Silence threshold: -40 dB
-- Minimum recording: 60 seconds
+- Source of Truth: [constants.rs](file:///home/kafka/vlog/src/domain/constants.rs)
+- Sample rate: 16000 Hz (See `DEFAULT_SAMPLE_RATE`)
+- Channels: 1 (See `DEFAULT_CHANNELS`)
+- Minimum recording: 60 seconds (See `MIN_RECORDING_SECS_DEFAULT`)
 - Priority: Transcription accuracy first (record directly in ASR target format)
 
 ### Supabase Schema
