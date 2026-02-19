@@ -2,19 +2,20 @@ process:
   names: "VRChat.exe,VRChat,VRChatClient.exe,Discord.exe,discord"
   check_interval: 5
 paths:
-  recording_dir: "data/recordings"
-  transcript_dir: "data/transcripts"
-  summary_dir: "data/summaries"
-  archive_dir: "data/archives"
-  photo_dir: "data/photos"
-  photo_prompt_dir: "data/photos_prompts"
+  recording_dir: "/mnt/m/Data/vlog/data/recordings"
+  transcript_dir: "/mnt/m/Data/vlog/data/transcripts"
+  summary_dir: "/mnt/m/Data/vlog/data/summaries"
+  archive_dir: "/mnt/m/Data/vlog/data/archives"
+  photo_dir: "/mnt/m/Data/vlog/data/photos"
+  photo_prompt_dir: "/mnt/m/Data/vlog/data/photos_prompts"
+  db_path: "/mnt/m/Data/vlog/vlog.db"
 audio:
   sample_rate: 16000
   channels: 1
   block_size: 1024
   # device_index: 1  # Use 'task devices' to find the index for your loopback device (e.g., CABLE Output)
   # device_name: "CABLE Output"
-  silence_threshold: 0.02
+  silence_threshold: 0.0
   max_duration_minutes: 30
 trigger:
   start_debounce_secs: 2
@@ -39,13 +40,13 @@ whisper:
   repetition_penalty: 1.08
   word_timestamps: true
 gemini:
-  model: "gemini-3-flash"
+  model: "gemini-2.5-flash"
 
 novel:
   enabled: true
   title: "VRChat Long Diary 2025"
   out_dir: "data/novels"
-  model: "gemini-3-flash"
+  model: "gemini-2.5-flash"
   max_output_tokens: 4096
 
 image:

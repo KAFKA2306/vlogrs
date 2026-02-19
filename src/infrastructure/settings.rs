@@ -12,6 +12,7 @@ pub struct ProcessSettings {
 #[derive(Debug, Deserialize, Clone)]
 pub struct PathSettings {
     pub recording_dir: String,
+    pub db_path: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -44,6 +45,7 @@ pub struct Settings {
     pub check_interval: u64,
     pub process_names: Vec<String>,
     pub recording_dir: PathBuf,
+    pub db_path: PathBuf,
     pub audio_device: Option<String>,
     pub silence_threshold: f32,
     pub start_debounce_secs: u64,
@@ -57,6 +59,7 @@ impl Settings {
             .set_default("process.check_interval", 5)?
             .set_default("process.names", "VRChat")?
             .set_default("paths.recording_dir", "data/recordings")?
+            .set_default("paths.db_path", "vlog.db")?
             .set_default("audio.silence_threshold", 0.02)?
             .set_default("trigger.start_debounce_secs", 2)?
             .set_default("trigger.stop_grace_secs", 10)?
@@ -71,7 +74,7 @@ impl Settings {
             .map_err(|_| anyhow::anyhow!("GOOGLE_API_KEY must be set"))?;
 
         let gemini_model =
-            env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-3-flash".to_string());
+            env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-2.5-flash".to_string());
 
         let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
         let supabase_service_role_key = env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap_or_default();
@@ -88,12 +91,26 @@ impl Settings {
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .collect(),
-            recording_dir: PathBuf::from(raw.paths.recording_dir),
+            recording_dir: Self::translate_path(raw.paths.recording_dir),
+            db_path: Self::translate_path(raw.paths.db_path),
             audio_device: raw.audio.device_name,
             silence_threshold: raw.audio.silence_threshold,
             start_debounce_secs: raw.trigger.start_debounce_secs,
             stop_grace_secs: raw.trigger.stop_grace_secs,
             min_recording_secs: raw.trigger.min_recording_secs,
         })
+    }
+
+    fn translate_path(path: String) -> PathBuf {
+        if cfg!(windows) && path.starts_with("/mnt/") {
+            let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+            // parts will be ["mnt", "m", "Data", "vlog", ...]
+            if parts.len() >= 2 && parts[0] == "mnt" {
+                let drive = parts[1].to_uppercase();
+                let rest = parts[2..].join("\\");
+                return PathBuf::from(format!("{}:\\{}", drive, rest));
+            }
+        }
+        PathBuf::from(path)
     }
 }

@@ -1,4 +1,4 @@
-use crate::domain::LifeEvent;
+use crate::domain::{EventRepository as EventRepositoryTrait, LifeEvent};
 use anyhow::{Context, Result};
 use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use std::str::FromStr;
@@ -22,8 +22,11 @@ impl EventRepository {
 
         Ok(Self { pool })
     }
+}
 
-    pub async fn save(&self, event: &LifeEvent) -> Result<()> {
+#[async_trait::async_trait]
+impl EventRepositoryTrait for EventRepository {
+    async fn save(&self, event: &LifeEvent) -> Result<()> {
         let payload = serde_json::to_string(&event.payload)?;
 
         sqlx::query(
@@ -38,5 +41,46 @@ impl EventRepository {
         .context("Failed to insert life event")?;
 
         Ok(())
+    }
+
+    async fn find_by_timerange(
+        &self,
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<LifeEvent>> {
+        let rows = sqlx::query(
+            "SELECT id, timestamp, source_type, metadata FROM life_events WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC",
+        )
+        .bind(start)
+        .bind(end)
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to fetch life events")?;
+
+        let mut events = Vec::new();
+        for row in rows {
+            let id: String = sqlx::Row::get(&row, "id");
+            let timestamp: chrono::DateTime<chrono::Utc> = sqlx::Row::get(&row, "timestamp");
+            let source_type_str: String = sqlx::Row::get(&row, "source_type");
+            let metadata_str: String = sqlx::Row::get(&row, "metadata");
+
+            let source = match source_type_str.as_str() {
+                "WindowsAudio" => crate::domain::SourceType::WindowsAudio,
+                "WindowsActivity" => crate::domain::SourceType::WindowsActivity,
+                "UbuntuMonitor" => crate::domain::SourceType::UbuntuMonitor,
+                _ => crate::domain::SourceType::System,
+            };
+
+            let payload: serde_json::Value = serde_json::from_str(&metadata_str)?;
+
+            events.push(LifeEvent {
+                id: uuid::Uuid::parse_str(&id)?,
+                timestamp,
+                source,
+                payload,
+            });
+        }
+
+        Ok(events)
     }
 }
