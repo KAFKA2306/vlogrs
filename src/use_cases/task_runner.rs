@@ -1,3 +1,7 @@
+use crate::domain::constants::{
+    STATUS_COMPLETED, STATUS_FAILED, STATUS_PENDING, STATUS_PROCESSING, TASK_LOOP_INTERVAL_SECS,
+    TASK_TYPE_PROCESS_SESSION, TASK_TYPE_SYNC_ACTIVITY,
+};
 use crate::domain::{ContentGenerator, Curator, TaskRepository};
 use crate::use_cases::process::ProcessUseCase;
 use crate::use_cases::sync_activity::ActivitySyncUseCase;
@@ -6,10 +10,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
-use crate::domain::constants::{
-    STATUS_PENDING, STATUS_PROCESSING, STATUS_COMPLETED, STATUS_FAILED,
-    TASK_TYPE_PROCESS_SESSION, TASK_TYPE_SYNC_ACTIVITY, TASK_LOOP_INTERVAL_SECS,
-};
 
 pub struct TaskRunner {
     repository: Arc<dyn TaskRepository>,

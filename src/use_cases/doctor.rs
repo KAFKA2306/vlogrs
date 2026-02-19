@@ -63,6 +63,10 @@ impl DoctorUseCase {
             Err(e) => error!("[FAIL] Prompts error: {}", e),
         }
 
+        if let Err(e) = crate::infrastructure::audio::AudioRecorder::list_devices() {
+            warn!("[WARN] Could not list audio devices: {}", e);
+        }
+
         info!("Checkup complete.");
         Ok(())
     }

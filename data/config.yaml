@@ -10,8 +10,8 @@ paths:
   photo_prompt_dir: "/mnt/m/Data/vlog/data/photos_prompts"
   db_path: "/mnt/m/Data/vlog/vlog.db"
 audio:
-  sample_rate: 16000
-  channels: 1
+  sample_rate: 48000
+  channels: 2
   block_size: 1024
   # device_index: 1  # Use 'task devices' to find the index for your loopback device (e.g., CABLE Output)
   # device_name: "CABLE Output"
@@ -40,13 +40,13 @@ whisper:
   repetition_penalty: 1.08
   word_timestamps: true
 gemini:
-  model: "gemini-2.5-flash"
+  model: "gemini-3-flash"
 
 novel:
   enabled: true
   title: "VRChat Long Diary 2025"
   out_dir: "data/novels"
-  model: "gemini-2.5-flash"
+  model: "gemini-3-flash"
   max_output_tokens: 4096
 
 image:

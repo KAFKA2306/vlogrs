@@ -78,7 +78,10 @@ impl ProcessUseCase {
             }
 
             info!("Summarizing transcript with activity overlay...");
-            let summary = self.curator.summarize_session(&cleaned, &activity_context).await?;
+            let summary = self
+                .curator
+                .summarize_session(&cleaned, &activity_context)
+                .await?;
 
             info!("Verifying summary accuracy (Self-Consistency)...");
             let verify_result = self

@@ -1,5 +1,5 @@
 use crate::domain::{
-    AudioRecorder, ContentGenerator, Environment, EventRepository, FileWatcher, ProcessMonitor,
+    AudioRecorder, ContentGenerator, Environment, FileWatcher, ProcessMonitor,
     TaskRepository as TaskRepositoryTrait,
 };
 use anyhow::Result;
@@ -124,8 +124,8 @@ impl MonitorUseCase {
                             let path = self.recording_dir.join(format!("{}.wav", timestamp));
                             if let Err(e) = self.audio_recorder.start(
                                 path,
-                                16000,
-                                1,
+                                crate::domain::constants::DEFAULT_SAMPLE_RATE,
+                                crate::domain::constants::DEFAULT_CHANNELS,
                                 self.audio_device.clone(),
                                 self.silence_threshold,
                             ) {

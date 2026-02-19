@@ -66,9 +66,32 @@ impl AudioRecorder {
             buffer_size: cpal::BufferSize::Default,
         };
 
+        // Strict Check: Ensure the device supports the exact configuration
+        let supported = device.supported_input_configs()?.any(|c| {
+            c.channels() == channels
+                && c.min_sample_rate().0 <= sample_rate
+                && c.max_sample_rate().0 >= sample_rate
+                && c.sample_format() == cpal::SampleFormat::F32
+        });
+
+        if !supported {
+            error!(
+                "CRITICAL: Hardware does not natively support {}Hz {}ch F32.",
+                sample_rate, channels
+            );
+            Self::list_devices()?;
+            anyhow::bail!(
+                "Hardware incompatibility: {}Hz {}ch unsupported",
+                sample_rate,
+                channels
+            );
+        }
+
+        info!("Selected audio config: {:?}", config);
+
         let spec = hound::WavSpec {
-            channels,
-            sample_rate,
+            channels: config.channels,
+            sample_rate: config.sample_rate.0,
             bits_per_sample: crate::domain::constants::DEFAULT_BITS_PER_SAMPLE,
             sample_format: hound::SampleFormat::Int,
         };
@@ -157,9 +180,9 @@ impl AudioRecorder {
             .arg("-i")
             .arg(input)
             .arg("-ar")
-            .arg(crate::domain::constants::DEFAULT_SAMPLE_RATE.to_string())
+            .arg(crate::domain::constants::TARGET_SAMPLE_RATE.to_string())
             .arg("-ac")
-            .arg(crate::domain::constants::DEFAULT_CHANNELS.to_string())
+            .arg(crate::domain::constants::TARGET_CHANNELS.to_string())
             .arg(output)
             .output()?;
 
@@ -180,7 +203,20 @@ impl AudioRecorder {
         info!("=== Available Audio Input Devices ===");
         for (i, device) in devices.enumerate() {
             let name = device.name().unwrap_or_else(|_| "Unknown".to_string());
-            info!("{}: {}", i, name);
+            info!("Device {}: {}", i, name);
+
+            if let Ok(mut configs) = device.supported_input_configs() {
+                for config in configs.by_ref() {
+                    info!(
+                        "  - Supported: channels={}, min_sample_rate={}, max_sample_rate={}, buffer_size={:?}, sample_format={:?}",
+                        config.channels(),
+                        config.min_sample_rate().0,
+                        config.max_sample_rate().0,
+                        config.buffer_size(),
+                        config.sample_format()
+                    );
+                }
+            }
         }
         Ok(())
     }

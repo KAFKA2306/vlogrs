@@ -146,15 +146,14 @@ impl Curator for GeminiClient {
         transcript: &str,
         activities: &str,
     ) -> Evaluation {
-        let prompt = self.prompts.summary_verification
+        let prompt = self
+            .prompts
+            .summary_verification
             .replace("{summary}", summary)
             .replace("{transcript}", transcript)
             .replace("{activities}", activities);
 
-        let content = self
-            .generate_content(&prompt)
-            .await
-            .unwrap_or_default();
+        let content = self.generate_content(&prompt).await.unwrap_or_default();
 
         let cleaned = content
             .trim_start_matches("```json")
@@ -168,8 +167,15 @@ impl Curator for GeminiClient {
         })
     }
 
-    async fn summarize_session(&self, transcript: &str, activities: &str) -> anyhow::Result<String> {
-        let prompt = self.prompts.session_summary
+    async fn summarize_session(
+        &self,
+        transcript: &str,
+        activities: &str,
+    ) -> anyhow::Result<String> {
+        let prompt = self
+            .prompts
+            .curator
+            .session_summary
             .replace("{transcript}", transcript)
             .replace("{activity_context}", activities);
         self.generate_content(&prompt).await

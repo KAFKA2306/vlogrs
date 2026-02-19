@@ -3,7 +3,6 @@ use crate::infrastructure::tasks::TaskRepository;
 use anyhow::{Context, Result};
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
-use std::sync::mpsc::channel;
 use tracing::{error, info};
 
 pub struct FileWatcher {
@@ -49,7 +48,6 @@ impl FileWatcher {
                         continue;
                     }
                 };
-
                 if !matches!(event.kind, EventKind::Create(_)) {
                     continue;
                 }

@@ -92,7 +92,7 @@ impl Settings {
             .map_err(|_| anyhow::anyhow!("GOOGLE_API_KEY must be set"))?;
 
         let gemini_model =
-            env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-2.5-flash".to_string());
+            env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-3-flash".to_string());
 
         let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
         let supabase_service_role_key = env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap_or_default();
