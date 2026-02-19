@@ -25,13 +25,13 @@ impl Environment for LocalEnvironment {
 
         let process_names = self.prompt_with_default(
             "Process names (comma separated)",
-            "VRChat.exe,vrchat,VRChatClient.exe",
+            "VRChat.exe,vrchat,VRChatClient.exe,Discord.exe,discord",
         )?;
         let check_interval = self.prompt_with_default("Check interval seconds", "5")?;
         let device_name = self.prompt_with_default("Audio device name (blank = default)", "")?;
 
         let config = format!(
-            "process:\n  names: \"{}\"\n  check_interval: {}\npaths:\n  recording_dir: \"data/recordings\"\naudio:\n  device_name: {}\n",
+            "process:\n  names: \"{}\"\n  check_interval: {}\npaths:\n  recording_dir: \"data/recordings\"\naudio:\n  device_name: {}\n  silence_threshold: 0.02\ntrigger:\n  start_debounce_secs: 2\n  stop_grace_secs: 10\n  min_recording_secs: 60\n",
             process_names,
             check_interval,
             if device_name.is_empty() {

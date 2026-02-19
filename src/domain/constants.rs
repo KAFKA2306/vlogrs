@@ -31,6 +31,9 @@ pub const APP_DIRS: &[&str] = &[
     "data/archives",
     "data/recordings/partial",
     "data/cloud_sync",
+    "logs",
+    "journals",
+    "data/tasks",
 ];
 
 pub const CONFIG_PATH: &str = "data/config.yaml";

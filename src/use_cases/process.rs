@@ -3,9 +3,10 @@ use crate::infrastructure::llm::GeminiClient;
 use crate::infrastructure::preprocessor::TranscriptPreprocessor;
 use crate::infrastructure::tasks::TaskRepository;
 use crate::infrastructure::transcription::Transcriber;
+use crate::use_cases::transcode::TranscodeUseCase;
 use anyhow::Result;
 use std::path::Path;
-use tracing::info;
+use tracing::{info, warn};
 
 pub struct ProcessUseCase {
     gemini: GeminiClient,
@@ -19,6 +20,7 @@ impl ProcessUseCase {
     pub async fn execute_session(&self, task: Task) -> Result<()> {
         let transcriber = Transcriber::new(self.gemini.clone());
         let preprocessor = TranscriptPreprocessor::new();
+        let transcoder = TranscodeUseCase::new();
 
         for file_path in task.file_paths {
             info!("Transcribing {} (via Gemini)...", file_path);
@@ -46,6 +48,22 @@ impl ProcessUseCase {
             let summary_out_path = format!("data/summaries/{}_summary.txt", date_str);
             crate::infrastructure::fs_utils::atomic_write(&summary_out_path, summary)?;
             info!("Summary saved to {}", summary_out_path);
+
+            let is_lossless_or_raw = Path::new(&file_path)
+                .extension()
+                .and_then(|s| s.to_str())
+                .map(|ext| matches!(ext.to_ascii_lowercase().as_str(), "wav" | "flac"))
+                .unwrap_or(false);
+
+            if is_lossless_or_raw {
+                match transcoder.execute(&file_path).await {
+                    Ok(opus_path) => info!("Archived recording as {}", opus_path),
+                    Err(e) => warn!(
+                        "Transcoding failed for {} (keeping original file): {}",
+                        file_path, e
+                    ),
+                }
+            }
         }
 
         let repo = TaskRepository::new("data/tasks.json");

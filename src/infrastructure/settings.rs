@@ -21,10 +21,18 @@ pub struct AudioSettings {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct TriggerSettings {
+    pub start_debounce_secs: u64,
+    pub stop_grace_secs: u64,
+    pub min_recording_secs: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct RawSettings {
     pub process: ProcessSettings,
     pub paths: PathSettings,
     pub audio: AudioSettings,
+    pub trigger: TriggerSettings,
 }
 
 #[derive(Clone, Debug)]
@@ -38,6 +46,9 @@ pub struct Settings {
     pub recording_dir: PathBuf,
     pub audio_device: Option<String>,
     pub silence_threshold: f32,
+    pub start_debounce_secs: u64,
+    pub stop_grace_secs: u64,
+    pub min_recording_secs: u64,
 }
 
 impl Settings {
@@ -47,6 +58,9 @@ impl Settings {
             .set_default("process.names", "VRChat")?
             .set_default("paths.recording_dir", "data/recordings")?
             .set_default("audio.silence_threshold", 0.02)?
+            .set_default("trigger.start_debounce_secs", 2)?
+            .set_default("trigger.stop_grace_secs", 10)?
+            .set_default("trigger.min_recording_secs", 60)?
             .add_source(File::with_name("data/config").required(false))
             .add_source(Environment::default().separator("__"))
             .build()?;
@@ -77,6 +91,9 @@ impl Settings {
             recording_dir: PathBuf::from(raw.paths.recording_dir),
             audio_device: raw.audio.device_name,
             silence_threshold: raw.audio.silence_threshold,
+            start_debounce_secs: raw.trigger.start_debounce_secs,
+            stop_grace_secs: raw.trigger.stop_grace_secs,
+            min_recording_secs: raw.trigger.min_recording_secs,
         })
     }
 }

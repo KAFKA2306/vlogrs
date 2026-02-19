@@ -88,8 +88,12 @@ async fn main() -> Result<()> {
                 env,
                 gemini,
                 settings.check_interval,
+                settings.recording_dir,
                 settings.audio_device,
                 settings.silence_threshold,
+                settings.start_debounce_secs,
+                settings.stop_grace_secs,
+                settings.min_recording_secs,
             );
             use_case.execute().await?;
         }
@@ -182,5 +186,6 @@ async fn main() -> Result<()> {
         }
     }
 
+    drop(_guard);
     Ok(())
 }

@@ -26,12 +26,20 @@ impl DoctorUseCase {
             Err(_) => error!("[FAIL] FFmpeg not found in PATH"),
         }
 
+        let sqlite3 = Command::new("sqlite3").arg("--version").output();
+        match sqlite3 {
+            Ok(_) => info!("[OK] sqlite3 is installed"),
+            Err(_) => error!("[FAIL] sqlite3 not found in PATH"),
+        }
+
         let dirs = [
             "data/recordings",
             "data/tasks",
             "data/summaries",
             "data/novels",
             "data/photos",
+            "logs",
+            "journals",
         ];
         for dir in dirs {
             if Path::new(dir).exists() {

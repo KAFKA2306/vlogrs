@@ -5,12 +5,14 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::thread::JoinHandle;
 use std::time::Duration;
 use tracing::{error, info, warn};
 
 pub struct AudioRecorder {
     is_recording: Arc<AtomicBool>,
     current_file: Arc<Mutex<Option<PathBuf>>>,
+    recording_thread: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
 impl Default for AudioRecorder {
@@ -24,6 +26,7 @@ impl AudioRecorder {
         Self {
             is_recording: Arc::new(AtomicBool::new(false)),
             current_file: Arc::new(Mutex::new(None)),
+            recording_thread: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -152,7 +155,7 @@ impl AudioRecorderTrait for AudioRecorder {
 
         let is_recording = self.is_recording.clone();
 
-        thread::spawn(move || {
+        let handle = thread::spawn(move || {
             let part_path = output_path.with_extension("wav.part");
             if let Err(e) = Self::record_loop(
                 part_path,
@@ -165,6 +168,11 @@ impl AudioRecorderTrait for AudioRecorder {
                 error!("Audio recording loop failed: {}", e);
             }
         });
+        let mut recording_thread = self
+            .recording_thread
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Failed to lock recording_thread"))?;
+        *recording_thread = Some(handle);
 
         info!("Started recording...");
         Ok(())
@@ -172,6 +180,18 @@ impl AudioRecorderTrait for AudioRecorder {
 
     fn stop(&self) -> Result<Option<PathBuf>> {
         self.is_recording.store(false, Ordering::SeqCst);
+        let join_handle = {
+            let mut recording_thread = self
+                .recording_thread
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Failed to lock recording_thread"))?;
+            recording_thread.take()
+        };
+
+        if let Some(handle) = join_handle {
+            let _ = handle.join();
+        }
+
         let mut current_file = self
             .current_file
             .lock()
