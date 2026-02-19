@@ -279,7 +279,7 @@ System must possess self-repair capabilities.
 
 1.  **Verification**:
     - `AGENTS.md` に記載されている `VRChat Monitoring` の仕様（例: 5秒間隔チェック）が、`src/process/monitor.rs` 等の実装と一致しているか確認する。
-    - 使用するGeminiモデル (`gemini-2.5-flash`) が、コード内の定数定義と一致しているか確認する。
+    - 使用するGeminiモデル (`gemini-3-flash`) が、コード内の定数定義と一致しているか確認する。
 
 ### 6.2 Visual Precision (最新かつ簡潔な図解)
 図解はコードの鏡である。曇りや歪みがあってはならない。

@@ -6,11 +6,9 @@ description: 音声処理と画像生成に関する技術的ガイドライン�
 # Media Expert Skill
 
 ## 1. オーディオパイプライン (物理現実の捕捉)
-- **フォーマット標準化**:
-  - 処理および認識向けの標準フォーマットを以下に固定する:
-    - **サンプリングレート**: `16000 Hz` (認識精度と容量の均衡)
-    - **チャンネル**: `1 (Mono)`
-    - **コーデック**: `pcm_s16le`
+- **フォーマット標準化**: [src/domain/constants.rs](file:///home/kafka/vlog/src/domain/constants.rs) を参照。
+  - **Capture**: ハードウェア・ネイティブ (48kHz/Stereo 推奨)
+  - **Processing**: 認識用正規化 (16kHz/Mono)
   - **Opus 圧縮**: 文字起こし完了後の最終保存は `24kbps VBR` の Opus 形式とし、WAV は即座に削除せよ。
 - **発話検知 (VAD)**:
   - `webrtcvad` を使用。500ms のプレ録音バッファを保持し、会話の頭欠けを 100% 阻止せよ。
