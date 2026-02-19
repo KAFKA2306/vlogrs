@@ -1,12 +1,13 @@
-use anyhow::{Context, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::info;
-use windows::Win32::Foundation::{HANDLE, HWND};
-use windows::Win32::System::ProcessStatus::GetModuleFileNameExW;
-use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
+use windows::core::PWSTR;
+
+use windows::Win32::System::Threading::{
+    OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+};
 use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -27,11 +28,11 @@ impl Agent {
         }
     }
 
-    async fn run(&mut self) -> Result<()> {
+    async fn run(&mut self) {
         loop {
             if let Some(activity) = self.get_current_activity() {
                 if Some(&activity) != self.last_activity.as_ref() {
-                    self.log_activity(&activity)?;
+                    self.log_activity(&activity);
                     self.last_activity = Some(activity);
                 }
             }
@@ -51,11 +52,12 @@ impl Agent {
             let window_title = String::from_utf16_lossy(&title_buf[..len as usize]);
 
             let mut process_id = 0u32;
-            windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(hwnd, Some(&mut process_id));
+            windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(
+                hwnd,
+                Some(&mut process_id),
+            );
 
-            let app_name = self
-                .get_app_name(process_id)
-                .unwrap_or_else(|_| "Unknown".to_string());
+            let app_name = self.get_app_name(process_id);
 
             Some(Activity {
                 timestamp: Utc::now().to_rfc3339(),
@@ -65,31 +67,36 @@ impl Agent {
         }
     }
 
-    fn get_app_name(&self, pid: u32) -> Result<String> {
+    fn get_app_name(&self, pid: u32) -> String {
         unsafe {
-            let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid)?;
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).unwrap();
             let mut buf = [0u16; 512];
-            let len = GetModuleFileNameExW(handle, None, &mut buf);
+            let mut len = buf.len() as u32;
+            QueryFullProcessImageNameW(
+                handle,
+                PROCESS_NAME_WIN32,
+                PWSTR(buf.as_mut_ptr()),
+                &mut len,
+            )
+            .unwrap();
             let path = String::from_utf16_lossy(&buf[..len as usize]);
-            let name = std::path::Path::new(&path)
+            std::path::Path::new(&path)
                 .file_name()
                 .and_then(|n| n.to_str())
-                .unwrap_or("Unknown")
-                .to_string();
-            Ok(name)
+                .unwrap()
+                .to_string()
         }
     }
 
-    fn log_activity(&self, activity: &Activity) -> Result<()> {
-        let json = serde_json::to_string(activity)?;
+    fn log_activity(&self, activity: &Activity) {
+        let json = serde_json::to_string(activity).unwrap();
         info!("{}", json);
-        Ok(())
     }
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     tracing_subscriber::fmt::init();
     let mut agent = Agent::new();
-    agent.run().await
+    agent.run().await;
 }
