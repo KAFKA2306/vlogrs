@@ -1,5 +1,5 @@
 process:
-  names: "VRChat.exe,VRChat,VRChatClient.exe"
+  names: "VRChat.exe,VRChat,VRChatClient.exe,Discord.exe,discord"
   check_interval: 5
 paths:
   recording_dir: "data/recordings"
@@ -16,6 +16,10 @@ audio:
   # device_name: "CABLE Output"
   silence_threshold: 0.02
   max_duration_minutes: 30
+trigger:
+  start_debounce_secs: 2
+  stop_grace_secs: 10
+  min_recording_secs: 60
 processing:
   min_file_size_bytes: 102400
   min_duration_seconds: 10

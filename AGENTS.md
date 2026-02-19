@@ -10,10 +10,11 @@ See [Global Configuration](file:///home/kafka/projects/.agent/AGENTS.md)
 - Auto-start recording on process detection
 
 ### Audio Pipeline
-- Sample rate: 48000 Hz
-- Channels: 2 (stereo)
+- Sample rate: 16000 Hz
+- Channels: 1 (mono)
 - Silence threshold: -40 dB
 - Minimum recording: 60 seconds
+- Priority: Transcription accuracy first (record directly in ASR target format)
 
 ### Supabase Schema
 - `recordings`: session metadata
@@ -31,7 +32,7 @@ See [Global Configuration](file:///home/kafka/projects/.agent/AGENTS.md)
 
 ## Commands
 
-See `Taskfile.yml` for all commands.
+See `Taskfile.yaml` for all commands.
 
 Key tasks:
 - `task dev` - Auto-monitoring mode
@@ -49,8 +50,6 @@ Agents should perform a weekly health check and audit processed recordings.
 
 - `supabase-mcp-server` - Database operations
 - `netlify` - Frontend deployment
-
-
 
 
 

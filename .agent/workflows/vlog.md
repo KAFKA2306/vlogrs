@@ -1,9 +1,24 @@
 ---
 description: VLog システム統合管理プロトコル — 診断、整合性確認、ビルド、および運用手順
 ---
-# /vlog — VLog システム統合管理手順 v7.0 (Master Manual)
+
+# /vlog — VLog システム統合管理手順 v7.2 (Master Manual)
 
 このドキュメントは、VLog システム（Ubuntu/Cortex および Windows/Senses）の全ライフサイクルを管理するための最上位標準運用手順書（SOP）です。抽象的な表現や比喩を完全に排除し、エンジニアリング仕様に基づいた具体的なコマンド、データ構造、および検証手順を網羅します。
+
+## この文書の守備範囲 (Coverage)
+
+本手順書 `vlog.md` は、以下を守備範囲として扱う。
+
+- 企画・設計: 要件、KPI、アーキテクチャ、データ契約
+- 実装・構成: Windows/WSL の実行構成、依存、起動手順
+- 運用: 監視、自動復旧、定期点検、容量・性能管理
+- 品質保証: 検証手順、受け入れ基準、回帰観点
+- 障害対応: 切り分け、暫定対応、恒久対策、再発防止
+- データ統治: 品質指標、保持/削除、監査SQL、整合性確認
+- 進化管理: バージョン更新、スキーマ変更、運用手順の更新規約
+
+守備範囲外の事項（例: UIデザイン細部、個別日記コンテンツ本文）は、関連ドキュメントを参照し、本書にはリンクとインターフェース条件のみを記載する。
 
 ---
 
@@ -23,6 +38,13 @@ description: VLog システム統合管理プロトコル — 診断、整合性
 -   [ ] **復旧性能の証明**: プロセス異常終了から 10秒以内に `systemd` または監視スクリプトが自動復旧させること。
 -   [ ] **同期性能の指標**: Windows 側でファイルが生成されてから、Ubuntu 側の DB に反映されるまでの遅延が通常 30秒以内であること。
 -   [ ] **リソースの最適化**: 168時間（7日間）の連続稼働においてメモリリークが 0B であることを実証。
+
+### 0.4 運用優先度プロファイル (Priority Profile)
+本番既定は以下とする（変更時は 12.1 に従い更新）。
+
+- **最優先**: 文字起こし精度（Whisper `large-v3` / `language=ja` / `vad_filter=true`）
+- **次点**: 保存容量最小（文字起こし完了後の音声を Opus に圧縮、WAV を削除）
+- **非優先**: リアルタイム性の極小遅延（精度低下を招く設定は採用しない）
 
 ---
 
@@ -68,11 +90,12 @@ graph TD
 ### 3.1 音声データ仕様
 | 項目 | 値 | 備考 |
 | :--- | :--- | :--- |
-| サンプリングレート | 16,000 Hz | 音声認識の標準モデルに準拠 |
-| ビット深度 | 16-bit PCM | 符号付き 16ビット符号化 |
-| チャンネル数 | 1 (Mono) | 指向性マイクによる単一ソース |
+| 録音サンプリングレート | 48,000 Hz | 実デバイス収録の既定。前処理で最適化後に認識へ投入 |
+| 録音ビット深度 | 16-bit PCM | 符号付き 16ビット符号化 |
+| 録音チャンネル数 | 2 (Stereo) | 収録時に情報損失を避ける。認識前に mono 化可 |
 | 保存形式 (一時) | WAV | パディングなしの生データ |
-| 保存形式 (最終) | Opus | ビットレート: 64kbps (VBR) |
+| 保存形式 (最終) | Opus | ビットレート: 24kbps (VBR), 文字起こし完了後に生成 |
+| 文字起こし入力 | Whisper 前処理音声 | `large-v3`, `language=ja`, `vad_filter=true` |
 
 ### 3.2 データベーススキーマ詳細
 `sqlite3 data/vlog.db` 経由でのテーブル定義：
@@ -97,6 +120,47 @@ graph TD
 -   ** status**: `vlog-rs status`
     -   動作: 現在のメモリ、CPU、蓄積イベント数、処理待ちタスク数等の統計情報を表示。
 
+### 4.3 実運用スタート手順（必須順序）
+1. 監視起動（Ubuntu）
+   - フォアグラウンド: `task dev`
+   - バックグラウンド: `setsid -f bash -lc 'cd /home/kafka/vlog && task dev >> logs/dev.out 2>&1'`
+2. 起動時刻の確認
+   - `ps -eo pid,lstart,cmd | rg "target/debug/vlog-rs monitor|vlog-rs monitor"`
+3. 保存先の確認（録音受け口）
+   - Linux 側: `ls -la data/recordings`
+   - 設定値: `rg -n "recording_dir|transcript_dir|summary_dir" data/config.yaml`
+4. 新規ファイル到達の監視
+   - `watch -n 2 'ls -lt data/recordings | head'`
+   - `tail -f logs/dev.out`
+5. 文字起こし成果物の確認
+   - `ls -la data/transcripts`
+   - `sqlite3 data/vlog.db "SELECT id,start_time,duration,file_path,processed FROM recordings ORDER BY id DESC LIMIT 10;"`
+
+### 4.5 Windows 側プロセス検知（必須）
+`process.names` は OR 条件で評価する。以下のいずれかが起動中なら録音継続。
+
+- `VRChat.exe`
+- `VRChat`
+- `VRChatClient.exe`
+- `Discord.exe`
+- `discord`
+
+確認コマンド（Windows 実機判定）:
+- `/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -Command "Get-Process -Name Discord,VRChat,VRChatClient -ErrorAction SilentlyContinue | Select-Object ProcessName,Id,Path | Format-Table -AutoSize"`
+
+期待結果:
+- Discord 起動時に `ProcessName = Discord` が 1 件以上表示される。
+
+### 4.4 すぐ使う問い合わせ対応テンプレート（運用者向け）
+- 「can you hear me?」
+  - 回答規約: チャット自身は音声入力を直接受信しない。`data/recordings` に新規音声が作成されているかで判定する。
+- 「when started?」
+  - 回答規約: `ps -eo pid,lstart,cmd ...` の `lstart` を返す。
+- 「where recorded?」
+  - 回答規約: `data/config.yaml` の `paths.recording_dir` と実ディレクトリ `data/recordings` を返す。
+- 「see data / find files」
+  - 回答規約: `find data -maxdepth 3 -type f | sort` を返す。
+
 ---
 
 ## 5. 高度なトラブルシューティング (Advanced Troubleshooting)
@@ -111,41 +175,66 @@ graph TD
 -   **症状**: `SQLITE_BUSY` エラー。
 -   **対応**: `PRAGMA busy_timeout = 5000;` を適用し、待機時間を延長してください。WAL モードが必須です。
 
+### 5.3 Windows Rust Monitor 起動失敗 (`cargo run --release -- monitor`)
+-   **発生日**: 2026-02-19
+-   **症状**:
+    -   `windows\run.bat` 実行後に monitor が起動しない
+    -   `logs\windows-rust-monitor.log` に `could not find Cargo.toml` などが出る
+    -   `cargo` 未導入環境で `Monitor crashed` 後に停止したように見える
+    -   UNC パス (`\\wsl.localhost\...`) 起点で CMD が `UNC パスはサポートされません` を表示する
+-   **根本原因**:
+    -   実行ディレクトリ不整合、または Rust toolchain / cargo 未導入
+    -   UNC 起点での CMD 実行コンテキスト不整合（`\\wsl.localhost\...`）
+-   **恒久対策（実装済み）**:
+    1. エントリポイントを `windows\run.bat` の 1 本に統一
+    2. `run.bat` 内で repo root を自己解決し、`target\release\vlog-rs.exe monitor` を起動
+    3. monitor バイナリ欠如時は `cargo build --release` を自動実行
+    4. `cargo.exe` 未検出時は 10 秒間隔で再探索（待機リトライ）
+    5. monitor 異常終了時は 5 秒間隔で無限再試行（Crash-Only）
+    6. ログを `logs/windows-rust-bootstrap.log` / `logs/windows-rust-monitor.log` に集約
+-   **検証結果**:
+    -   `cargo 1.93.1` を Windows 側で確認
+    -   `windows\run.bat` 起動時に `Cargo: C:\Users\<user>\.cargo\bin\cargo.exe` を表示
+-   **運用ルール**:
+    -   Windows 音声キャプチャ起動のエントリポイントは `windows\run.bat` の 1 本に統一
+    -   `src/windows/rust/bootstrap.ps1` は使用しない
+
+### 5.4 Windows で Rust 録音デバイス未検出
+-   **症状**: `Failed to start recording` / `No default input device found`
+-   **対応**:
+    1. Windows の入力デバイスを OS 設定で有効化
+    2. `data/config.yaml` の `audio.device_name` を実デバイス名に設定
+    3. `windows\\run.bat` を再起動して再確認
+
+### 5.5 「録音されない」一次切り分け（実運用）
+- **症状**: `data/recordings` が空、`logs/dev.out` に新規処理ログなし
+- **確認順序**:
+  1. `vlog-rs monitor` プロセス生存確認
+  2. VRChat プロセス検出（`VRChat.exe` / `vrchat`）有無
+  3. `logs/windows-rust-monitor.log` に `Target process detected.` と `Recording started.` が出るか
+  4. WSL 共有パスの到達性（`ls`, `touch`, `rm` で疎通）
+- **判定**:
+  - monitor 稼働中かつ VRChat 未起動: 異常ではない（仕様通り未録音）
+  - monitor 稼働中かつ VRChat 起動済みで未録音: 設定または共有経路の障害
+
+### 5.6 Windows プロセス検知が失敗する場合
+- **症状**:
+  - Discord が Windows で起動済みでも `Target process detected.` が出ない
+  - `data/recordings` に新規 WAV が生成されない
+- **原因**:
+  - WSL 側監視プロセスが Windows `powershell.exe` を実行できない実行コンテキストで動作している
+- **確認**:
+  1. `/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe ... Get-Process ...` が実行可能か
+  2. `logs/vlog.log.YYYY-MM-DD` に `Target process detected.` が出るか
+  3. `logs/vlog.log.YYYY-MM-DD` に `Recording started.` が出るか
+- **対応**:
+  1. monitor を再起動
+  2. 再起動後 10 秒以内にログで検知イベントを確認
+  3. 未検知なら OS 境界（WSL/Windows）権限・実行可否を優先切り分け
+
+
 ---
 
-## 6. セキュリティとハードニング (Security Hardening)
-
-### 6.1 リソース制限の設定例 (systemd)
-`/etc/systemd/system/vlog.service` に以下を追加します。
--   `CPUQuota=20%`: Cortex プロセスの CPU 使用率を固定。
--   `MemoryMax=512M`: 物理メモリ消費量の上限。
-
-### 6.2 プロセスレベルのサンドボックス
--   `ProtectSystem=full`: システムディレクトリへの書き込み禁止。
--   `NoNewPrivileges=yes`: 実行中の権限昇格を無効化。
--   `PrivateTmp=yes`: システム全体の一時ディレクトリから隔離。
-
----
-
-## 7. バックアップとデータ保持 (Data Retention & Backup)
-
-### 7.1 保持ポリシー
--   **生音声 (WAV)**: 圧縮完了後に即座に物理削除し、ストレージを解放。
--   **ジャーナル (Markdown)**: 永続保存。Git 等のバージョン管理システムへの自動プッシュを推奨。
-
-### 7.2 バックアップ手順
-1.  **日次**: `vlog.db` のスナップショットを作成：`cp data/vlog.db data/vlog_$(date +%F).db`
-2.  **週次**: 過去 7日分の Opus ファイルをアーカイブ：`tar -czf music_$(date +%F).tar.gz data/recordings/*.opus`
-
----
-
-## 8. 保守（メンテナンス） (Weekly Maintenance)
-
-1.  **DB最適化**: `sqlite3 data/vlog.db "VACUUM;"`
-2.  **一時ファイルの削除**: `just clean`
-3.  **依存関係の更新**: `cargo update` による脆弱性の解消。
-
----
 
 ## 9. 開発・コントリビューター規定 (Developer Contribution)
 
@@ -155,14 +244,6 @@ graph TD
 
 ---
 
-## 10. ハードウェア要件 (System Spec Requirements)
-
--   **CPU**: 4コア以上 (AVX2 命令セット対応必須)。
--   **RAM**: 8GB 以上 (WSL2 分割分 4GB を含む)。
--   **Network**: 安定した内部 SMB / WSL ブリッジ通信。
--   **Storage**: NVMe SSD 推奨（SQLite I/O 削減のため）。
-
----
 
 ## 11. 高度なステータス検証 SQL (Audit SQL Library)
 
@@ -178,14 +259,65 @@ SELECT id, start_time, file_path FROM recordings WHERE duration = 0;
 
 ---
 
-## 付録：用語定義 (Glossary)
+## 12. 戦略視点の拡張 (Scope Expansion Baseline)
 
--   **Cortex**: 中央処理・解析基盤（Ubuntu）。
--   **Senses**: 入力・捕捉エージェント（Windows）。
--   **Iron Rules**: 品質維持のための絶対的開発規約（unwrap 禁止等）。
--   **Zero-Ops**: 自律稼働状態（手動介入なし）の呼称。
--   **Crash-Only**: 異常発生時の即座な再起動を前提とした設計思想。
+本手順書は「個別障害の対処」だけでなく、以下の4層を常に同時に扱う。
+
+1. **Runtime Layer（今動くか）**  
+   プロセス起動、録音、同期、再起動の成否。
+2. **Reliability Layer（継続稼働できるか）**  
+   MTTR、自動復旧率、再発防止、監視カバレッジ。
+3. **Data Governance Layer（記録品質を保証できるか）**  
+   欠損率、重複率、時系列整合性、保存・削除ポリシー。
+4. **Evolution Layer（将来変更に耐えるか）**  
+   OS差分、依存更新、モデル変更、スキーマ拡張への追従性。
+
+### 12.1 変更時の必須更新点（Definition of Update）
+機能・運用変更時は、コード変更に加えて最低限次を更新すること。
+- `仕様`: サンプルレート、モデル、保存形式、実行条件
+- `運用`: 起動手順、復旧手順、定期点検項目
+- `検証`: 再現手順、期待結果、失敗時ログ例
+- `監視`: アラート条件、閾値、確認コマンド
+
+### 12.2 クロスOS運用ポリシー（Windows/WSL）
+- Windows は **実デバイスI/Oの基準環境**、WSL は **処理・検証環境** として明確に役割分離する。
+- WSL で成功した結果を本番成功とみなさない（録音デバイス、実行ポリシー、パス解決が異なるため）。
+- Windows 実行手順は毎回「絶対/自己基準パス」「実行ポリシー」「共有フォルダ到達性」を確認する。
+- Windows プロセス検知（Discord/VRChat）は必ず Windows 側 `Get-Process` 結果と突き合わせる。
+- Linux `ps` のみで判定しない（Windows GUI プロセスを拾えない場合がある）。
+
+### 12.3 週次ヘルスチェック（必須）
+毎週、以下を記録してトレンド監視する。
+1. 録音開始失敗率（%）
+2. 平均復旧時間（秒）
+3. 未処理キュー件数
+4. 24時間内のゼロ秒/欠損録音件数
+5. Windows->Ubuntu 反映遅延（P50/P95）
 
 ---
 
-*VLog 統合管理プロトコル Ver 7.0.0 — 標準技術運用手順書*
+## 13. 実運用チェックリスト（Runbook）
+
+### 13.1 起動直後チェック（5分以内）
+1. `task dev` またはバックグラウンド起動を実施
+2. `ps -eo pid,lstart,cmd | rg "vlog-rs monitor"` で起動時刻を記録
+3. `ls -la data/recordings data/transcripts data/summaries` で書き込み先を確認
+4. `tail -n 100 logs/dev.out` に致命エラーがないことを確認
+5. `tail -n 200 logs/vlog.log.$(date +%F) | rg "Starting monitor mode|Target process detected|Recording started"` を確認
+
+### 13.2 最初の録音が来ないとき（10分以内）
+1. VRChat または Discord プロセスが実際に起動しているか確認
+2. Windows 側で `windows\\run.bat` を起動し `logs\\windows-rust-monitor.log` を確認
+3. `find data -maxdepth 3 -type f | sort` で新規ファイル有無を確認
+4. 新規ゼロなら WSL/Windows 共有経路を復旧（5.1 を適用）
+5. `vlog-rs status` 失敗時は `data/tasks.json` 破損を疑い、`jq . data/tasks.json` で JSON 整合性を確認
+
+### 13.3 容量最小化の遵守確認（日次）
+1. `find data/recordings -type f -name "*.wav"` が 0 件であること
+2. `find data/recordings -type f -name "*.opus" | wc -l` を記録
+3. `sqlite3 data/vlog.db "SELECT COUNT(*) FROM recordings WHERE processed=1;"` を記録
+
+
+
+
+windowsでvrchat or discordを検知したら、windowsの音声の録音を開始する。これらlogにも残す。 

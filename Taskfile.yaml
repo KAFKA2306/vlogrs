@@ -58,6 +58,10 @@ tasks:
     desc: 監視モード (Rust)
     cmd: cargo run --release -- monitor
 
+  windows:run:
+    desc: Windows Rust monitor起動 (WSL経由)
+    cmd: /mnt/c/Windows/System32/cmd.exe /c windows\\run.bat
+
   # ────────────────────────────────────────
   # Systemd Control
   # ────────────────────────────────────────
