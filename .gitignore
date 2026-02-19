@@ -84,3 +84,6 @@ yarn.lock
 # Added by cargo
 
 /target
+**/target/
+*.db
+
