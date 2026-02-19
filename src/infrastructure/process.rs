@@ -182,7 +182,6 @@ impl ProcessMonitorTrait for ProcessMonitor {
                 self.last_match = None;
             }
         } else if current_status && self.last_match != match_info {
-            // Surface target switches (e.g. VRChat -> Discord) while recording.
             if let Some(matched) = match_info.clone() {
                 info!("Target process updated: {}", matched);
                 self.last_match = Some(matched);

@@ -4,8 +4,6 @@ use anyhow::{Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use reqwest::Client;
 use serde_json::{json, Value};
-use tokio::time::{sleep, Duration};
-use tracing::warn;
 
 #[derive(Clone)]
 pub struct GeminiClient {
@@ -70,62 +68,15 @@ impl GeminiClient {
     }
 
     async fn post_and_parse(&self, url: &str, body: Value) -> Result<String> {
-        let max_retries = 5;
-        let base_delay_ms = 500;
-        let cap_delay_ms = 8000;
+        let resp = self.client.post(url).json(&body).send().await?;
+        let text = resp.text().await.context("Failed to read response text")?;
+        let parsed: Value = serde_json::from_str(&text)?;
 
-        for attempt in 0..=max_retries {
-            let resp = match self.client.post(url).json(&body).send().await {
-                Ok(r) => r,
-                Err(e) => {
-                    if attempt == max_retries {
-                        anyhow::bail!("LLM request failed after {} retries: {}", max_retries, e);
-                    }
-                    self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
-                    continue;
-                }
-            };
-
-            let text = resp.text().await.context("Failed to read response text")?;
-
-            let parsed: Value = match serde_json::from_str(&text) {
-                Ok(p) => p,
-                Err(e) => {
-                    if attempt == max_retries {
-                        anyhow::bail!(
-                            "Failed to parse LLM response after {} retries: {}",
-                            max_retries,
-                            e
-                        );
-                    }
-                    self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
-                    continue;
-                }
-            };
-
-            if let Some(content) = parsed["candidates"][0]["content"]["parts"][0]["text"].as_str() {
-                return Ok(content.to_string());
-            }
-
-            if attempt == max_retries {
-                anyhow::bail!("LLM response bad format: {:?}", parsed);
-            }
-            self.backoff(attempt, base_delay_ms, cap_delay_ms).await;
+        if let Some(content) = parsed["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+            return Ok(content.to_string());
         }
 
-        anyhow::bail!(
-            "LLM request failed to return content after {} retries",
-            max_retries
-        )
-    }
-
-    async fn backoff(&self, attempt: u32, base: u64, cap: u64) {
-        let exp = base.saturating_mul(2u64.saturating_pow(attempt));
-        let backoff = exp.min(cap);
-        let jitter = (chrono::Utc::now().timestamp_subsec_millis() % 250) as u64;
-        let wait = backoff + jitter;
-        warn!("LLM request retry={} wait={}ms", attempt + 1, wait);
-        sleep(Duration::from_millis(wait)).await;
+        anyhow::bail!("LLM response bad format: {:?}", parsed)
     }
 }
 
@@ -136,10 +87,9 @@ impl Novelizer for GeminiClient {
         let prompt = template
             .replace("{novel_so_far}", context)
             .replace("{today_summary}", summary);
-        self.generate_content(&prompt).await.unwrap_or_else(|e| {
-            warn!("Novel generation failed: {}", e);
-            "Generation failed.".to_string()
-        })
+        self.generate_content(&prompt)
+            .await
+            .expect("Failed to generate chapter content")
     }
 }
 
@@ -151,7 +101,10 @@ impl Curator for GeminiClient {
             .replace("{summary}", summary)
             .replace("{novel}", novel);
 
-        let content = self.generate_content(&prompt).await.unwrap_or_default();
+        let content = self
+            .generate_content(&prompt)
+            .await
+            .expect("Failed to generate evaluation content");
 
         let cleaned = content
             .trim_start_matches("```json")
