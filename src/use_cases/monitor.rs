@@ -2,12 +2,11 @@ use crate::domain::{
     AudioRecorder, ContentGenerator, Environment, FileWatcher, ProcessMonitor,
     TaskRepository as TaskRepositoryTrait,
 };
-use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 pub struct MonitorUseCase {
     audio_recorder: Arc<dyn AudioRecorder>,
@@ -29,7 +28,7 @@ pub struct MonitorUseCase {
 }
 
 impl MonitorUseCase {
-    #[allow(clippy::too_many_arguments)]
+
     pub fn new(
         audio_recorder: Arc<dyn AudioRecorder>,
         process_monitor: Arc<tokio::sync::Mutex<dyn ProcessMonitor>>,
@@ -68,12 +67,12 @@ impl MonitorUseCase {
         }
     }
 
-    pub async fn execute(&self) -> Result<()> {
-        self.environment.ensure_directories()?;
+    pub async fn execute(&self) {
+        self.environment.ensure_directories();
 
-        self.watcher.start()?;
+        self.watcher.start();
 
-        // Initialize generalized background services
+
         let task_runner = Arc::new(crate::use_cases::task_runner::TaskRunner::new(
             self.gemini_client.clone(),
             self.task_repository.clone(),
@@ -82,18 +81,14 @@ impl MonitorUseCase {
             self.activity_sync.clone(),
         ));
 
-        // Spawn Generalized Task Runner
+
         tokio::spawn(async move {
-            if let Err(e) = task_runner.run().await {
-                error!("Task runner encountered a fatal error: {}", e);
-            }
+            task_runner.run().await
         });
 
-        // Spawn Generalized Health Monitor
+
         tokio::spawn(async move {
-            if let Err(e) = crate::use_cases::health::HealthMonitor::run().await {
-                error!("Health monitor encountered a fatal error: {}", e);
-            }
+            crate::use_cases::HealthMonitor::run().await
         });
 
         let mut is_recording = false;
@@ -122,15 +117,14 @@ impl MonitorUseCase {
                             let timestamp =
                                 chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
                             let path = self.recording_dir.join(format!("{}.wav", timestamp));
-                            if let Err(e) = self.audio_recorder.start(
-                                path,
-                                crate::domain::constants::DEFAULT_SAMPLE_RATE,
-                                crate::domain::constants::DEFAULT_CHANNELS,
-                                self.audio_device.clone(),
-                                self.silence_threshold,
-                            ) {
-                                error!("Failed to start recording: {}", e);
-                            } else {
+                            if true {
+                                self.audio_recorder.start(
+                                    path,
+                                    crate::domain::constants::DEFAULT_SAMPLE_RATE,
+                                    crate::domain::constants::DEFAULT_CHANNELS,
+                                    self.audio_device.clone(),
+                                    self.silence_threshold,
+                                );
                                 is_recording = true;
                                 recording_started_at = Some(now);
                                 running_since = None;
@@ -160,17 +154,14 @@ impl MonitorUseCase {
 
                     if grace_elapsed && min_elapsed {
                         match self.audio_recorder.stop() {
-                            Ok(Some(path)) => {
+                            Some(path) => {
                                 info!("Session recording saved to: {:?}", path);
-                                if let Err(e) = self.task_repository.add(
-                                    "process_session",
-                                    vec![path.to_string_lossy().to_string()],
-                                ) {
-                                    error!("Failed to add task: {}", e);
-                                }
+                                    self.task_repository.add(
+                                        "process_session",
+                                        vec![path.to_string_lossy().to_string()],
+                                    );
                             }
-                            Ok(None) => warn!("Recorder stopped, but no output path returned"),
-                            Err(e) => error!("Failed to stop recording: {}", e),
+                            None => warn!("Recorder stopped, but no output path returned"),
                         }
 
                         is_recording = false;

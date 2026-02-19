@@ -1,5 +1,4 @@
 use crate::domain::{EventRepository, LifeEvent, SourceType};
-use anyhow::Result;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::Arc;
@@ -14,13 +13,13 @@ impl ActivitySyncUseCase {
         Self { repo }
     }
 
-    pub async fn execute(&self, file_path: &str) -> Result<()> {
+    pub async fn execute(&self, file_path: &str) {
         info!("Syncing activity log: {}", file_path);
-        let file = File::open(file_path)?;
+        let file = File::open(file_path).unwrap();
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
-            let line = line?;
+            let line = line.unwrap();
             if line.trim().is_empty() {
                 continue;
             }
@@ -59,16 +58,14 @@ impl ActivitySyncUseCase {
                 payload,
             };
 
-            if let Err(e) = self.repo.save(&event).await {
-                error!("Failed to save event: {}", e);
-            }
+            self.repo.save(&event).await;
         }
 
         info!("Sync completed for {}", file_path);
         // Optional: archive file after processing
         let archive_path = format!("{}.processed", file_path);
-        std::fs::rename(file_path, archive_path)?;
-
-        Ok(())
+        // Optional: archive file after processing
+        let _archive_path = format!("{}.processed", file_path);
+        std::fs::rename(file_path, _archive_path).unwrap();
     }
 }

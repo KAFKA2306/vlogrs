@@ -1,15 +1,14 @@
 use crate::domain::constants::{
-    STATUS_COMPLETED, STATUS_FAILED, STATUS_PENDING, STATUS_PROCESSING, TASK_LOOP_INTERVAL_SECS,
+    STATUS_COMPLETED, STATUS_PENDING, STATUS_PROCESSING, TASK_LOOP_INTERVAL_SECS,
     TASK_TYPE_PROCESS_SESSION, TASK_TYPE_SYNC_ACTIVITY,
 };
 use crate::domain::{ContentGenerator, Curator, TaskRepository};
 use crate::use_cases::process::ProcessUseCase;
 use crate::use_cases::sync_activity::ActivitySyncUseCase;
-use anyhow::Result;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 pub struct TaskRunner {
     repository: Arc<dyn TaskRepository>,
@@ -33,55 +32,31 @@ impl TaskRunner {
         }
     }
 
-    pub async fn run(&self) -> Result<()> {
+    pub async fn run(&self) {
         loop {
-            let tasks = match self.repository.load() {
-                Ok(t) => t,
-                Err(e) => {
-                    error!("Failed to load tasks: {}", e);
-                    sleep(Duration::from_secs(TASK_LOOP_INTERVAL_SECS)).await;
-                    continue;
-                }
-            };
+            let tasks = self.repository.load();
 
             for task in tasks {
                 if task.status == STATUS_PENDING {
-                    if let Err(e) = self.repository.update_status(&task.id, STATUS_PROCESSING) {
-                        error!("Failed to update task status: {}", e);
-                        continue;
-                    }
+                    self.repository.update_status(&task.id, STATUS_PROCESSING);
 
                     info!("Processing task: {} ({})", task.id, task.task_type);
 
-                    let result = match task.task_type.as_str() {
+                    match task.task_type.as_str() {
                         TASK_TYPE_PROCESS_SESSION => {
-                            self.process_use_case.execute_session(&task).await
+                            self.process_use_case.execute_session(&task).await;
+                            self.repository.update_status(&task.id, STATUS_COMPLETED);
+                            info!("Task completed: {}", task.id);
                         }
                         TASK_TYPE_SYNC_ACTIVITY => {
-                            let mut res = Ok(());
                             for file in &task.file_paths {
-                                if let Err(e) = self.activity_sync.execute(file).await {
-                                    error!("Activity sync failed for {}: {}", file, e);
-                                    res = Err(e);
-                                    break;
-                                }
+                                self.activity_sync.execute(file).await;
                             }
-                            res
+                            self.repository.update_status(&task.id, STATUS_COMPLETED);
+                            info!("Task completed: {}", task.id);
                         }
                         _ => {
                             warn!("Unknown task type: {}", task.task_type);
-                            Ok(())
-                        }
-                    };
-
-                    match result {
-                        Ok(_) => {
-                            let _ = self.repository.update_status(&task.id, STATUS_COMPLETED);
-                            info!("Task completed: {}", task.id);
-                        }
-                        Err(e) => {
-                            error!("Task failed: {}: {}", task.id, e);
-                            let _ = self.repository.update_status(&task.id, STATUS_FAILED);
                         }
                     }
                 }

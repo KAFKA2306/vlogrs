@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::fs;
 use std::path::Path;
 use tracing::info;
@@ -16,14 +15,14 @@ impl PendingUseCase {
         Self
     }
 
-    pub async fn execute(&self) -> Result<()> {
+    pub async fn execute(&self) {
         let summary_dir = Path::new("data/summaries");
         if !summary_dir.exists() {
-            return Ok(());
+            return;
         }
 
-        for entry in fs::read_dir(summary_dir)? {
-            let entry = entry?;
+        for entry in fs::read_dir(summary_dir).unwrap() {
+            let entry = entry.unwrap();
             let path = entry.path();
             if path.extension().unwrap_or_default() != "txt" {
                 continue;
@@ -31,20 +30,20 @@ impl PendingUseCase {
 
             let file_stem = path
                 .file_stem()
-                .ok_or_else(|| anyhow::anyhow!("Invalid file stem"))?
+                .ok_or_else(|| anyhow::anyhow!("Invalid file stem")).unwrap()
                 .to_str()
-                .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename"))?;
+                .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename")).unwrap();
 
             let date = file_stem
                 .split('_')
                 .next()
-                .ok_or_else(|| anyhow::anyhow!("Invalid filename format"))?;
+                .ok_or_else(|| anyhow::anyhow!("Invalid filename format")).unwrap();
 
             let novel_path = format!("data/novels/{}.md", date);
             if !Path::new(&novel_path).exists() {
                 info!("Found pending novel for date: {}", date);
             }
         }
-        Ok(())
+
     }
 }

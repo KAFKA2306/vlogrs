@@ -1,6 +1,5 @@
 use crate::domain::{Curator, ImageGenerator, Novelizer};
 use crate::infrastructure::fs_utils;
-use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use tracing::{info, warn};
@@ -24,17 +23,17 @@ impl BuildNovelUseCase {
         }
     }
 
-    pub async fn execute(&self, date: &str) -> Result<String> {
+    pub async fn execute(&self, date: &str) {
         let summary_path = crate::domain::constants::SUMMARY_FILE_TEMPLATE.replace("{}", date);
         if !Path::new(&summary_path).exists() {
-            anyhow::bail!("Summary not found for {}", date);
+            panic!("Summary not found for {}", date);
         }
 
-        let today_summary = fs::read_to_string(&summary_path).context("Failed to read summary")?;
+        let today_summary = fs::read_to_string(&summary_path).unwrap();
         let novel_path = crate::domain::constants::NOVEL_FILE_TEMPLATE.replace("{}", date);
 
         let novel_so_far = if Path::new(&novel_path).exists() {
-            fs::read_to_string(&novel_path).context("Failed to read existing novel")?
+            fs::read_to_string(&novel_path).unwrap()
         } else {
             String::new()
         };
@@ -86,14 +85,12 @@ impl BuildNovelUseCase {
             format!("{}\n\n{}", novel_so_far, chapter)
         };
 
-        fs_utils::atomic_write(&novel_path, content)?;
+        fs_utils::atomic_write(&novel_path, content);
         info!("Novel saved to {}", novel_path);
 
         let photo_path = crate::domain::constants::PHOTO_FILE_TEMPLATE.replace("{}", date);
-        if let Err(e) = self.image_generator.generate(&chapter, &photo_path).await {
-            warn!("Image generation failed (optional feature): {}", e);
-        }
+        self.image_generator.generate(&chapter, &photo_path).await;
 
-        Ok(novel_path)
+
     }
 }
