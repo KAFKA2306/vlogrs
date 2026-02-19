@@ -355,9 +355,9 @@ paths:
   photo_prompt_dir: "data/photos_prompts"
 
 audio:
-  sample_rate: 16000
-  channels: 1
-  block_size: 1024
+  # NOTE: Defaults defined in src/domain/constants.rs
+  sample_rate: 48000
+  channels: 2
   silence_threshold: 0.02
   max_duration_minutes: 30
 

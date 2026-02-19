@@ -7,8 +7,7 @@
 システムは `cpal` および `hound` クレートを組み合わせた、低レイテンシかつ堅牢な録音パイプラインを構築しています。
 
 ### 1.1 ハードウェア・パラメータ
-- **サンプリングレート**: `16,000 Hz` (固定)
-- **チャンネル数**: `1` (モノラル固定)
+- **パラメータ既定値**: [src/domain/constants.rs](file:///home/kafka/vlog/src/domain/constants.rs) を参照 (`DEFAULT_SAMPLE_RATE`, `DEFAULT_CHANNELS`)。
 - **ビット深度**: `16-bit` (Signed Integer / i16)
 - **オーディオドライバ**: OS標準のデフォルト・インプットデバイスを使用。
     - **デバイス選択ロジック**: `Settings` でデバイス名が指定されている場合、`cpal::Host` から `name().contains(&name)` で部分一致検索を実行。見つからない場合は `default_input_device()` へフォールバックします。
@@ -33,15 +32,14 @@
 システムは、録音された WAV を直接 Whisper/Gemini に送るのではなく、FFmpeg を介した正規化工法を適用します。
 
 ### 2.1 転送用正規化 (Normalization for AI)
-- **コマンド**: `ffmpeg -y -i {input} -ar 16000 -ac 1 {output_wav}`
 - **目的**: 
-    - 入力デバイスの設定（ステレオ/モノラル、サンプレート）に関わらず、Gemini / Whisper が最も効率的に処理できる `16kHz / Mono` 形式へ強制変換。
-    - `/tmp` 領域などの一時ファイルとして生成し、API 送信後に自動破棄。
+    - 物理実体（48kHz Stereo 等）を、AIが最も効率的に処理できる `TARGET_SAMPLE_RATE` / `TARGET_CHANNELS` (16kHz / Mono) 形式へ正規化。
+    - パラメータ詳細は `constants.rs` を参照。
 
 ### 2.2 長期アーカイブ仕様 (Towards FLAC/Opus)
 将来的なストレージ消費の最適化として、以下の archival パイプラインを定義します：
 - **FLAC エンコード**: `ffmpeg -i {input.wav} -af aformat=s16:16000 -sample_fmt s16 {output.flac}`
-    - 非可逆圧縮を避け、物理的現実の「原音」を lossless で保持。
+- **目的**: 物理的現実の「原音」を lossless で保持。
 - **Opus エンコード (超軽量モード)**: `ffmpeg -i {input.wav} -c:a libopus -b:a 12k {output.opus}`
     - ナラティブ記録として十分な音質（12kbps）を維持しつつ、WAV 比で約 90% 以上の容量削減を実現。
 - **実装状況**: `use_cases/transcode.rs` にて `libopus` への変換・元ファイル削除ロジックが統合済み。

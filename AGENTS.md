@@ -10,11 +10,9 @@ See [Global Configuration](file:///home/kafka/projects/.agent/AGENTS.md)
 - Check interval: 5 seconds (See `MONITOR_CHECK_INTERVAL_DEFAULT`)
 
 ### Audio Pipeline
-- Source of Truth: [constants.rs](file:///home/kafka/vlog/src/domain/constants.rs)
-- Sample rate: 16000 Hz (See `DEFAULT_SAMPLE_RATE`)
-- Channels: 1 (See `DEFAULT_CHANNELS`)
-- Minimum recording: 60 seconds (See `MIN_RECORDING_SECS_DEFAULT`)
-- Priority: Transcription accuracy first (record directly in ASR target format)
+- **Source of Truth**: [constants.rs](file:///home/kafka/vlog/src/domain/constants.rs)
+- All parameters (Sample Rate, Channels, Min Duration) MUST be retrieved from `constants.rs`.
+- Standard: Capture at Hardware-Native (48kHz/Stereo) -> Process at AI-Target (16kHz/Mono).
 
 ### Supabase Schema
 - `recordings`: session metadata
@@ -23,12 +21,13 @@ See [Global Configuration](file:///home/kafka/projects/.agent/AGENTS.md)
 
 ### Whisper Config
 - Model: `large-v3`
-- Device: `cuda` (fallback: `cpu`)
-- VAD filter: enabled
-- Language: `ja`
+- Device: See `WHISPER_DEVICE` in [constants.rs](file:///home/kafka/vlog/src/domain/constants.rs)
+- VAD filter: See `WHISPER_VAD_FILTER` in [constants.rs](file:///home/kafka/vlog/src/domain/constants.rs)
+- Language: See `WHISPER_LANGUAGE` in [constants.rs](file:///home/kafka/vlog/src/domain/constants.rs)
 
 ### Gemini Config
-- Model: `gemini-3-flash`
+- **Model**: See `GEMINI_MODEL` in [constants.rs](file:///home/kafka/vlog/src/domain/constants.rs) (Primary)
+- Refer to `docs/gemini.md` for the full model selection policy.
 
 ## Commands
 
