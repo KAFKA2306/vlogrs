@@ -1,6 +1,7 @@
 pub mod build_novel;
 pub mod doctor;
 pub mod evaluate;
+pub mod health;
 pub mod monitor;
 pub mod pending;
 pub mod process;
@@ -9,4 +10,5 @@ pub mod status;
 pub mod sync;
 pub mod sync_activity;
 pub mod synthesis;
+pub mod task_runner;
 pub mod transcode;

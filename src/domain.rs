@@ -23,6 +23,7 @@ pub trait Curator: Send + Sync {
     async fn evaluate(&self, summary: &str, novel: &str) -> Evaluation;
     async fn verify_summary(&self, summary: &str, transcript: &str, activities: &str)
         -> Evaluation;
+    async fn summarize_session(&self, transcript: &str, activities: &str) -> anyhow::Result<String>;
 }
 
 #[async_trait::async_trait]

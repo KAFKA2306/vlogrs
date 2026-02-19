@@ -58,7 +58,7 @@ impl GeminiClient {
                         }
                     },
                     {
-                        "text": "Using the audio, write strict dictation. Output only the transcript text."
+                        "text": &self.prompts.transcription
                     }
                 ]
             }]
@@ -146,25 +146,32 @@ impl Curator for GeminiClient {
         transcript: &str,
         activities: &str,
     ) -> Evaluation {
-        let prompt = format!(
-            "以下の要約が、元の会話ログとアクティビティログの内容を正確に反映しているか検証してください。\n\n### 要約\n{}\n\n### 会話ログ\n{}\n\n### アクティビティログ\n{}\n\n出力は以下のJSON形式のみで行ってください：\n{{\"faithfulness_score\": 1-5, \"quality_score\": 1-5, \"reasoning\": \"理由\"}}",
-            summary, transcript, activities
-        );
+        let prompt = self.prompts.summary_verification
+            .replace("{summary}", summary)
+            .replace("{transcript}", transcript)
+            .replace("{activities}", activities);
 
         let content = self
             .generate_content(&prompt)
             .await
-            .expect("Failed to generate verification content");
+            .unwrap_or_default();
 
         let cleaned = content
             .trim_start_matches("```json")
             .trim_end_matches("```")
             .trim();
 
-        serde_json::from_str(cleaned).unwrap_or_else(|_| Evaluation {
-            faithfulness_score: 0,
-            quality_score: 0,
-            reasoning: "Verification failed".to_string(),
+        serde_json::from_str(cleaned).unwrap_or(Evaluation {
+            faithfulness_score: 1,
+            quality_score: 1,
+            reasoning: format!("Failed to parse: {}", content),
         })
+    }
+
+    async fn summarize_session(&self, transcript: &str, activities: &str) -> anyhow::Result<String> {
+        let prompt = self.prompts.session_summary
+            .replace("{transcript}", transcript)
+            .replace("{activity_context}", activities);
+        self.generate_content(&prompt).await
     }
 }
