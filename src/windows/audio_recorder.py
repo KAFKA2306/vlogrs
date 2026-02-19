@@ -1,15 +1,16 @@
+import datetime
+import os
+import signal
 import sys
 import time
-import os
-import datetime
-import traceback
-import signal
+import wave
 
-# --- Configuration ---
+import pyaudio
+
 SAMPLE_RATE = 16000
 CHANNELS = 1
 CHUNK_DURATION_MS = 30
-RECORD_SECONDS = 300 # New file every 5 minutes
+RECORD_SECONDS = 300
 OUTPUT_DIR = "inbox/audio"
 
 def log(msg):
@@ -20,7 +21,6 @@ def ensure_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
-# Graceful exit handler
 def signal_handler(sig, frame):
     log("Received exit signal. Shutting down...")
     sys.exit(0)
@@ -32,75 +32,40 @@ def main():
     ensure_dir(OUTPUT_DIR)
     log("Starting Audio Recorder...")
     
-    # Check for PyAudio
-    has_pyaudio = False
-    try:
-        import pyaudio
-        import wave
-        has_pyaudio = True
-    except ImportError:
-        log("[WARN] PyAudio not installed. Entering DUMMY MODE (Sleeping). Install: pip install pyaudio")
-        # Do not exit. Just sleep to keep the process alive so Agent doesn't crash-loop.
-        has_pyaudio = False
+    p = pyaudio.PyAudio()
+    info = p.get_host_api_info_by_index(0)
+    numdevices = info.get('deviceCount')
+    log(f"Found {numdevices} audio devices.")
 
-    if has_pyaudio:
-        p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paInt16,
+                    channels=CHANNELS,
+                    rate=SAMPLE_RATE,
+                    input=True,
+                    frames_per_buffer=int(SAMPLE_RATE * CHUNK_DURATION_MS / 1000))
 
-        try:
-            # List devices (optional debug)
-            info = p.get_host_api_info_by_index(0)
-            numdevices = info.get('deviceCount')
-            log(f"Found {numdevices} audio devices.")
+    log("Audio stream opened. Recording...")
 
-            stream = p.open(format=pyaudio.paInt16,
-                            channels=CHANNELS,
-                            rate=SAMPLE_RATE,
-                            input=True,
-                            frames_per_buffer=int(SAMPLE_RATE * CHUNK_DURATION_MS / 1000))
+    while True:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join(OUTPUT_DIR, f"vlog_audio_{timestamp}.wav")
+        
+        log(f"Recording to {filename} for {RECORD_SECONDS} seconds...")
+        
+        wf = wave.open(filename, 'wb')
+        wf.setnchannels(CHANNELS)
+        wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+        wf.setframerate(SAMPLE_RATE)
 
-            log("Audio stream opened. Recording...")
-
-            while True:
-                # Generate filename
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = os.path.join(OUTPUT_DIR, f"vlog_audio_{timestamp}.wav")
-                
-                log(f"Recording to {filename} for {RECORD_SECONDS} seconds...")
-                
-                wf = wave.open(filename, 'wb')
-                wf.setnchannels(CHANNELS)
-                wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
-                wf.setframerate(SAMPLE_RATE)
-
-                start_time = time.time()
-                try:
-                    while time.time() - start_time < RECORD_SECONDS:
-                        data = stream.read(int(SAMPLE_RATE * CHUNK_DURATION_MS / 1000), exception_on_overflow=False)
-                        wf.writeframes(data)
-                except Exception as e:
-                    log(f"Error during recording loop: {e}")
-                    traceback.print_exc()
-                    break # Exit loop to restart process
-                finally:
-                    wf.close()
-                    log(f"Finished {filename}")
-
-        except Exception as e:
-            log(f"[FATAL] Audio recorder crashed: {e}")
-            traceback.print_exc()
-            sys.exit(1)
-        finally:
-            try:
-                stream.stop_stream()
-                stream.close()
-                p.terminate()
-            except:
-                pass
-    else:
-        # Dummy Mode Loop
-        while True:
-            time.sleep(60)
-            log("[DUMMY] Audio recorder active but idle (no pydeps).")
+        start_time = time.time()
+        while time.time() - start_time < RECORD_SECONDS:
+            data = stream.read(
+                int(SAMPLE_RATE * CHUNK_DURATION_MS / 1000),
+                exception_on_overflow=False,
+            )
+            wf.writeframes(data)
+        
+        wf.close()
+        log(f"Finished {filename}")
 
 if __name__ == "__main__":
     main()
