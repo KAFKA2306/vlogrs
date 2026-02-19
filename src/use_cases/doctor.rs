@@ -1,5 +1,4 @@
 use crate::infrastructure::settings::Settings;
-use anyhow::Result;
 use std::path::Path;
 use std::process::Command;
 use tracing::{error, info, warn};
@@ -17,7 +16,7 @@ impl DoctorUseCase {
         Self
     }
 
-    pub fn execute(&self) -> Result<()> {
+    pub fn execute(&self) {
         info!("=== VLog Doctor Checkup ===");
 
         let ffmpeg = Command::new(crate::domain::constants::FFMPEG_CMD)
@@ -58,16 +57,15 @@ impl DoctorUseCase {
             Err(e) => error!("[FAIL] Configuration error: {}", e),
         }
 
+        // Strict Check: Prompts must be valid.
+        // Iron Rules: "Immediate Panic" for unexpected situations.
         match crate::infrastructure::prompts::Prompts::load() {
             Ok(_) => info!("[OK] Prompts loaded successfully"),
-            Err(e) => error!("[FAIL] Prompts error: {}", e),
+            Err(e) => panic!("[FATAL] Prompts error: {}", e),
         }
 
-        if let Err(e) = crate::infrastructure::audio::AudioRecorder::list_devices() {
-            warn!("[WARN] Could not list audio devices: {}", e);
-        }
+        crate::infrastructure::audio::AudioRecorder::list_devices();
 
         info!("Checkup complete.");
-        Ok(())
     }
 }

@@ -2,7 +2,6 @@ pub mod domain;
 pub mod infrastructure;
 pub mod use_cases;
 
-use anyhow::Result;
 use clap::{Parser, Subcommand};
 use infrastructure::settings::Settings;
 use std::sync::Arc;
@@ -41,8 +40,8 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    dotenvy::dotenv().ok();
+async fn main() {
+    dotenvy::dotenv().unwrap();
 
     let file_appender = tracing_appender::rolling::daily(
         crate::domain::constants::LOGS_DIR,
@@ -68,7 +67,7 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Some(Commands::Monitor) | None => {
-            let settings = Settings::new()?;
+            let settings = Settings::new().unwrap();
             info!("Starting monitor mode...");
 
             let recorder = Arc::new(infrastructure::audio::AudioRecorder::new());
@@ -81,7 +80,7 @@ async fn main() -> Result<()> {
             let watcher = Arc::new(infrastructure::watcher::FileWatcher::new(
                 crate::domain::constants::CLOUD_SYNC_DIR,
             ));
-            let prompts = infrastructure::prompts::Prompts::load()?;
+            let prompts = infrastructure::prompts::Prompts::load().unwrap();
             let gemini = Arc::new(infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
@@ -90,7 +89,7 @@ async fn main() -> Result<()> {
 
             let event_repo = Arc::new(
                 infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy())
-                    .await?,
+                    .await,
             );
             let activity_sync = Arc::new(use_cases::sync_activity::ActivitySyncUseCase::new(
                 event_repo.clone(),
@@ -114,15 +113,15 @@ async fn main() -> Result<()> {
                 settings.stop_grace_secs,
                 settings.min_recording_secs,
             );
-            use_case.execute().await?;
+            use_case.execute().await;
         }
         Some(Commands::Record) => {
             info!("Starting manual record...");
         }
         Some(Commands::Process { file }) => {
-            let settings = Settings::new()?;
+            let settings = Settings::new().unwrap();
             info!("Processing file: {}", file);
-            let prompts = infrastructure::prompts::Prompts::load()?;
+            let prompts = infrastructure::prompts::Prompts::load().unwrap();
             let gemini = Arc::new(infrastructure::llm::GeminiClient::new(
                 settings.google_api_key,
                 settings.gemini_model,
@@ -133,42 +132,42 @@ async fn main() -> Result<()> {
             ));
             let event_repo = Arc::new(
                 infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy())
-                    .await?,
+                    .await,
             );
             let use_case =
                 use_cases::process::ProcessUseCase::new(gemini.clone(), repo, event_repo, gemini);
             use_case
-                .execute_session(&domain::task::Task {
+                .execute_session(&domain::Task {
                     id: "manual".to_string(),
                     created_at: chrono::Utc::now(),
                     status: crate::domain::constants::STATUS_PROCESSING.to_string(),
                     task_type: crate::domain::constants::TASK_TYPE_PROCESS_SESSION.to_string(),
                     file_paths: vec![file],
                 })
-                .await?;
+                .await;
         }
         Some(Commands::Novel { date }) => {
-            let settings = Settings::new()?;
+            let settings = Settings::new().unwrap();
             info!("Building novel for: {}", date);
-            let prompts = infrastructure::prompts::Prompts::load()?;
+            let prompts = infrastructure::prompts::Prompts::load().unwrap();
             let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
                 prompts,
             );
-            let image_generator = infrastructure::ai::PythonImageGenerator::new();
+            let image_generator = infrastructure::PythonImageGenerator::new();
 
             let use_case = use_cases::build_novel::BuildNovelUseCase::new(
                 Box::new(gemini.clone()),
                 Box::new(gemini),
                 Box::new(image_generator),
             );
-            use_case.execute(&date).await?;
+            use_case.execute(&date).await;
         }
         Some(Commands::Evaluate { date }) => {
-            let settings = Settings::new()?;
+            let settings = Settings::new().unwrap();
             info!("Evaluating content for: {}", date);
-            let prompts = infrastructure::prompts::Prompts::load()?;
+            let prompts = infrastructure::prompts::Prompts::load().unwrap();
             let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
@@ -186,36 +185,35 @@ async fn main() -> Result<()> {
 
             let use_case =
                 use_cases::evaluate::EvaluateDailyContentUseCase::new(Box::new(gemini), supabase);
-            use_case.execute(&date).await?;
+            use_case.execute(&date).await;
         }
         Some(Commands::Sync) => {
-            let settings = Settings::new()?;
+            let settings = Settings::new().unwrap();
             let use_case = use_cases::sync::SyncUseCase::new(settings);
-            use_case.execute().await?;
+            use_case.execute().await;
         }
         Some(Commands::Pending) => {
             let use_case = use_cases::pending::PendingUseCase::new();
-            use_case.execute().await?;
+            use_case.execute().await;
         }
         Some(Commands::Status) => {
             let use_case = use_cases::status::StatusUseCase::new();
-            use_case.execute().await?;
+            use_case.execute().await;
         }
         Some(Commands::Setup) => {
-            let use_case = use_cases::setup::SetupUseCase::new(Box::new(
+            let use_case = use_cases::SetupUseCase::new(Box::new(
                 infrastructure::fs_utils::LocalEnvironment,
             ));
-            use_case.execute()?;
+            use_case.execute();
         }
         Some(Commands::Doctor) => {
             let use_case = use_cases::doctor::DoctorUseCase::new();
-            use_case.execute()?;
+            use_case.execute();
         }
         Some(Commands::Devices) => {
-            infrastructure::audio::AudioRecorder::list_devices()?;
+            infrastructure::audio::AudioRecorder::list_devices();
         }
     }
 
     drop(_guard);
-    Ok(())
 }
