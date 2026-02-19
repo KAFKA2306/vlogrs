@@ -86,7 +86,7 @@ impl ProcessMonitor {
         }
 
         let joined = names.join(",");
-        let output = Command::new("/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe")
+        let output = Command::new(crate::domain::constants::POWERSHELL_PATH)
             .args([
                 "-NoLogo",
                 "-NoProfile",

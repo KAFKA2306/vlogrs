@@ -19,10 +19,10 @@ impl PythonImageGenerator {
 #[async_trait::async_trait]
 impl ImageGenerator for PythonImageGenerator {
     async fn generate(&self, prompt: &str, output_path: &str) -> anyhow::Result<()> {
-        let status = Command::new("uv")
+        let status = Command::new(crate::domain::constants::UV_CMD)
             .args([
                 "run",
-                "src/scripts/image_gen.py",
+                crate::domain::constants::IMAGE_GEN_SCRIPT,
                 "--prompt",
                 prompt,
                 "--output",

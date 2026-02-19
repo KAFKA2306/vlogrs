@@ -30,16 +30,14 @@ impl EventRepositoryTrait for EventRepository {
     async fn save(&self, event: &LifeEvent) -> Result<()> {
         let payload = serde_json::to_string(&event.payload)?;
 
-        sqlx::query(
-            "INSERT INTO life_events (id, timestamp, source_type, metadata) VALUES (?, ?, ?, ?)",
-        )
-        .bind(event.id.to_string())
-        .bind(event.timestamp)
-        .bind(format!("{:?}", event.source))
-        .bind(payload)
-        .execute(&self.pool)
-        .await
-        .context("Failed to insert life event")?;
+        sqlx::query(crate::domain::constants::SQL_INSERT_EVENT)
+            .bind(event.id.to_string())
+            .bind(event.timestamp)
+            .bind(format!("{:?}", event.source))
+            .bind(payload)
+            .execute(&self.pool)
+            .await
+            .context("Failed to insert life event")?;
 
         Ok(())
     }
@@ -49,14 +47,12 @@ impl EventRepositoryTrait for EventRepository {
         start: chrono::DateTime<chrono::Utc>,
         end: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<LifeEvent>> {
-        let rows = sqlx::query(
-            "SELECT id, timestamp, source_type, metadata FROM life_events WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC",
-        )
-        .bind(start)
-        .bind(end)
-        .fetch_all(&self.pool)
-        .await
-        .context("Failed to fetch life events")?;
+        let rows = sqlx::query(crate::domain::constants::SQL_QUERY_EVENTS)
+            .bind(start)
+            .bind(end)
+            .fetch_all(&self.pool)
+            .await
+            .context("Failed to fetch life events")?;
 
         let mut events = Vec::new();
         for row in rows {

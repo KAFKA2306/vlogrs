@@ -20,25 +20,29 @@ impl DoctorUseCase {
     pub fn execute(&self) -> Result<()> {
         info!("=== VLog Doctor Checkup ===");
 
-        let ffmpeg = Command::new("ffmpeg").arg("-version").output();
+        let ffmpeg = Command::new(crate::domain::constants::FFMPEG_CMD)
+            .arg("-version")
+            .output();
         match ffmpeg {
             Ok(_) => info!("[OK] FFmpeg is installed"),
             Err(_) => error!("[FAIL] FFmpeg not found in PATH"),
         }
 
-        let sqlite3 = Command::new("sqlite3").arg("--version").output();
+        let sqlite3 = Command::new(crate::domain::constants::SQLITE_CMD)
+            .arg("--version")
+            .output();
         match sqlite3 {
             Ok(_) => info!("[OK] sqlite3 is installed"),
             Err(_) => error!("[FAIL] sqlite3 not found in PATH"),
         }
 
         let dirs = [
-            "data/recordings",
+            crate::domain::constants::RECORDINGS_DIR,
             "data/tasks",
             "data/summaries",
             "data/novels",
             "data/photos",
-            "logs",
+            crate::domain::constants::LOGS_DIR,
             "journals",
         ];
         for dir in dirs {

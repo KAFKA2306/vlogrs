@@ -23,8 +23,11 @@ impl FileWatcher {
 
     pub fn start(&self) -> Result<()> {
         let path = self.path.clone();
-        let (tx, rx) = channel();
-        let config = Config::default().with_poll_interval(std::time::Duration::from_secs(2));
+        let (tx, rx) = std::sync::mpsc::channel();
+        let tx = tx.clone();
+        let config = Config::default().with_poll_interval(std::time::Duration::from_secs(
+            crate::domain::constants::WATCHER_POLL_INTERVAL_SECS,
+        ));
 
         let mut watcher: RecommendedWatcher =
             Watcher::new(tx, config).context("Failed to create file watcher")?;
@@ -59,19 +62,25 @@ impl FileWatcher {
                     match ext.to_lowercase().as_str() {
                         "wav" | "flac" => {
                             info!("New audio file: {:?}", path);
-                            let repo = TaskRepository::new("data/tasks.json");
-                            if let Err(e) = repo
-                                .add("process_session", vec![path.to_string_lossy().to_string()])
-                            {
+                            let repo = TaskRepository::new(
+                                crate::infrastructure::settings::Settings::default_tasks_path(),
+                            );
+                            if let Err(e) = repo.add(
+                                crate::domain::constants::TASK_TYPE_PROCESS_SESSION,
+                                vec![path.to_string_lossy().to_string()],
+                            ) {
                                 error!("Failed to add task for audio: {}", e);
                             }
                         }
                         "jsonl" => {
                             info!("New activity log: {:?}", path);
-                            let repo = TaskRepository::new("data/tasks.json");
-                            if let Err(e) =
-                                repo.add("sync_activity", vec![path.to_string_lossy().to_string()])
-                            {
+                            let repo = TaskRepository::new(
+                                crate::infrastructure::settings::Settings::default_tasks_path(),
+                            );
+                            if let Err(e) = repo.add(
+                                crate::domain::constants::TASK_TYPE_SYNC_ACTIVITY,
+                                vec![path.to_string_lossy().to_string()],
+                            ) {
                                 error!("Failed to add task for activity log: {}", e);
                             }
                         }

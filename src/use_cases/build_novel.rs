@@ -25,13 +25,13 @@ impl BuildNovelUseCase {
     }
 
     pub async fn execute(&self, date: &str) -> Result<String> {
-        let summary_path = format!("data/summaries/{}_summary.txt", date);
+        let summary_path = crate::domain::constants::SUMMARY_FILE_TEMPLATE.replace("{}", date);
         if !Path::new(&summary_path).exists() {
             anyhow::bail!("Summary not found for {}", date);
         }
 
         let today_summary = fs::read_to_string(&summary_path).context("Failed to read summary")?;
-        let novel_path = format!("data/novels/{}.md", date);
+        let novel_path = crate::domain::constants::NOVEL_FILE_TEMPLATE.replace("{}", date);
 
         let novel_so_far = if Path::new(&novel_path).exists() {
             fs::read_to_string(&novel_path).context("Failed to read existing novel")?
@@ -89,7 +89,7 @@ impl BuildNovelUseCase {
         fs_utils::atomic_write(&novel_path, content)?;
         info!("Novel saved to {}", novel_path);
 
-        let photo_path = format!("data/photos/{}.png", date);
+        let photo_path = crate::domain::constants::PHOTO_FILE_TEMPLATE.replace("{}", date);
         if let Err(e) = self.image_generator.generate(&chapter, &photo_path).await {
             warn!("Image generation failed (optional feature): {}", e);
         }

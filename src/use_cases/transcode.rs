@@ -17,7 +17,7 @@ impl TranscodeUseCase {
 
         info!("Transcoding {} to Opus...", input_path);
 
-        let status = Command::new("ffmpeg")
+        let status = Command::new(crate::domain::constants::FFMPEG_CMD)
             .args([
                 "-y",
                 "-i",
@@ -25,9 +25,9 @@ impl TranscodeUseCase {
                 "-c:a",
                 "libopus",
                 "-ar",
-                "16000",
+                &crate::domain::constants::DEFAULT_SAMPLE_RATE.to_string(),
                 "-ac",
-                "1",
+                &crate::domain::constants::DEFAULT_CHANNELS.to_string(),
                 "-application",
                 "voip",
                 "-vbr",

@@ -16,8 +16,8 @@ impl EvaluateDailyContentUseCase {
     }
 
     pub async fn execute(&self, date: &str) -> Result<Evaluation> {
-        let summary_path = format!("data/summaries/{}_summary.txt", date);
-        let novel_path = format!("data/novels/{}.md", date);
+        let summary_path = crate::domain::constants::SUMMARY_FILE_TEMPLATE.replace("{}", date);
+        let novel_path = crate::domain::constants::NOVEL_FILE_TEMPLATE.replace("{}", date);
 
         if !Path::new(&summary_path).exists() || !Path::new(&novel_path).exists() {
             anyhow::bail!("Summary or Novel not found for {}", date);
@@ -29,8 +29,10 @@ impl EvaluateDailyContentUseCase {
         info!("Evaluating content for {}...", date);
         let result = self.curator.evaluate(&summary_text, &novel_text).await;
 
-        let eval_path = format!("data/evaluations/{}.json", date);
-        fs::create_dir_all("data/evaluations").context("Failed to create evaluations directory")?;
+        let eval_path = crate::domain::constants::EVALUATION_FILE_TEMPLATE.replace("{}", date);
+        if let Some(parent) = Path::new(&eval_path).parent() {
+            fs::create_dir_all(parent).context("Failed to create evaluations directory")?;
+        }
         fs::write(
             &eval_path,
             serde_json::to_string_pretty(&result).context("Failed to serialize evaluation")?,

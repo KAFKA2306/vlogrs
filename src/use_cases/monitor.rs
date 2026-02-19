@@ -1,13 +1,11 @@
 use crate::domain::{
-    AudioRecorder, ContentGenerator, Environment, FileWatcher, ProcessMonitor,
+    AudioRecorder, ContentGenerator, Environment, EventRepository, FileWatcher, ProcessMonitor,
     TaskRepository as TaskRepositoryTrait,
 };
-use crate::use_cases::process::ProcessUseCase;
 use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use sysinfo::System;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
 
@@ -75,75 +73,26 @@ impl MonitorUseCase {
 
         self.watcher.start()?;
 
-        let gemini = self.gemini_client.clone();
-        let curator = self.curator.clone();
-        let repo = self.task_repository.clone();
-        let event_repo = self.event_repository.clone();
-        let sync_use_case = self.activity_sync.clone();
+        // Initialize generalized background services
+        let task_runner = Arc::new(crate::use_cases::task_runner::TaskRunner::new(
+            self.gemini_client.clone(),
+            self.task_repository.clone(),
+            self.event_repository.clone(),
+            self.curator.clone(),
+            self.activity_sync.clone(),
+        ));
+
+        // Spawn Generalized Task Runner
         tokio::spawn(async move {
-            let process_use_case = ProcessUseCase::new(gemini, repo.clone(), event_repo, curator);
-            loop {
-                let tasks = match repo.load() {
-                    Ok(t) => t,
-                    Err(e) => {
-                        error!("Failed to load tasks: {}", e);
-                        sleep(Duration::from_secs(30)).await;
-                        continue;
-                    }
-                };
-                for task in tasks {
-                    if task.status == "pending" {
-                        if let Err(e) = repo.update_status(&task.id, "processing") {
-                            error!("Failed to update task status: {}", e);
-                            continue;
-                        }
-                        match task.task_type.as_str() {
-                            "process_session" => {
-                                if let Err(e) = process_use_case.execute_session(&task).await {
-                                    error!("Session processing failed: {}", e);
-                                    let _ = repo.update_status(&task.id, "failed");
-                                }
-                            }
-                            "sync_activity" => {
-                                for file in &task.file_paths {
-                                    if let Err(e) = sync_use_case.execute(file).await {
-                                        error!("Activity sync failed for {}: {}", file, e);
-                                        let _ = repo.update_status(&task.id, "failed");
-                                    }
-                                }
-                                let _ = repo.update_status(&task.id, "completed");
-                            }
-                            _ => warn!("Unknown task type: {}", task.task_type),
-                        }
-                    }
-                }
-                sleep(Duration::from_secs(30)).await;
+            if let Err(e) = task_runner.run().await {
+                error!("Task runner encountered a fatal error: {}", e);
             }
         });
 
+        // Spawn Generalized Health Monitor
         tokio::spawn(async move {
-            let mut sys = System::new_all();
-            loop {
-                sys.refresh_cpu();
-                sys.refresh_memory();
-                let cpu = sys.global_cpu_info().cpu_usage();
-                let total_mem = sys.total_memory();
-                let used_mem = sys.used_memory();
-                let mem_pct = if total_mem > 0 {
-                    (used_mem as f64 / total_mem as f64) * 100.0
-                } else {
-                    0.0
-                };
-                if cpu >= 90.0 || mem_pct >= 90.0 {
-                    warn!(
-                        "health-check high usage cpu={:.1}% memory={:.1}% - Triggering self-restart",
-                        cpu, mem_pct
-                    );
-                    std::process::exit(1);
-                } else {
-                    info!("health-check cpu={:.1}% memory={:.1}%", cpu, mem_pct);
-                }
-                sleep(Duration::from_secs(30)).await;
+            if let Err(e) = crate::use_cases::health::HealthMonitor::run().await {
+                error!("Health monitor encountered a fatal error: {}", e);
             }
         });
 

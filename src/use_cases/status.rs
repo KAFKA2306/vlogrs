@@ -23,14 +23,22 @@ impl StatusUseCase {
         let now = Utc::now();
         let since = now - Duration::hours(24);
 
-        let repo = TaskRepository::new("data/tasks.json");
+        let repo =
+            TaskRepository::new(crate::infrastructure::settings::Settings::default_tasks_path());
         let tasks = repo.load().context("Failed to load tasks")?;
 
-        let pending_count = tasks.iter().filter(|t| t.status == "pending").count();
-        let processing_count = tasks.iter().filter(|t| t.status == "processing").count();
+        let pending_count = tasks
+            .iter()
+            .filter(|t| t.status == crate::domain::constants::STATUS_PENDING)
+            .count();
+        let processing_count = tasks
+            .iter()
+            .filter(|t| t.status == crate::domain::constants::STATUS_PROCESSING)
+            .count();
         let completed_24h = tasks.iter().filter(|t| t.created_at >= since).count();
 
-        let recordings_24h = self.count_recent_files("data/recordings", since.timestamp());
+        let recordings_24h =
+            self.count_recent_files(crate::domain::constants::RECORDINGS_DIR, since.timestamp());
         let runtime_hours = self.estimate_runtime_hours_from_recordings(since.timestamp());
 
         info!("=== VLog Status (Last 24h) ===");
@@ -70,7 +78,7 @@ impl StatusUseCase {
     }
 
     fn estimate_runtime_hours_from_recordings(&self, since_ts: i64) -> f64 {
-        let path = Path::new("data/recordings");
+        let path = Path::new(crate::domain::constants::RECORDINGS_DIR);
         if !path.exists() {
             return 0.0;
         }

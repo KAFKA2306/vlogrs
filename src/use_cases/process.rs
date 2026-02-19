@@ -78,11 +78,7 @@ impl ProcessUseCase {
             }
 
             info!("Summarizing transcript with activity overlay...");
-            let prompt = format!(
-                "以下の会話ログと、その間のアクティビティログを元に、このセッションの要約を作成してください。\n\n### アクティビティログ\n{}\n\n### 会話ログ\n{}\n\n要約は箇条書きで、重要なトピックを抽出してください。",
-                activity_context, cleaned
-            );
-            let summary = self.gemini.generate_content(&prompt).await?;
+            let summary = self.curator.summarize_session(&cleaned, &activity_context).await?;
 
             info!("Verifying summary accuracy (Self-Consistency)...");
             let verify_result = self
@@ -94,7 +90,8 @@ impl ProcessUseCase {
                 verify_result.faithfulness_score, verify_result.reasoning
             );
 
-            let summary_out_path = format!("data/summaries/{}_summary.txt", date_str);
+            let summary_out_path =
+                crate::domain::constants::SUMMARY_FILE_TEMPLATE.replace("{}", date_str);
             crate::infrastructure::fs_utils::atomic_write(&summary_out_path, summary)?;
             info!("Summary saved to {}", summary_out_path);
 
