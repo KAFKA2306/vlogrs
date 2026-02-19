@@ -7,5 +7,6 @@ pub mod process;
 pub mod setup;
 pub mod status;
 pub mod sync;
+pub mod sync_activity;
 pub mod synthesis;
 pub mod transcode;

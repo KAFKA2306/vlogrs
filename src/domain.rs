@@ -21,6 +21,8 @@ pub trait Novelizer: Send + Sync {
 #[async_trait::async_trait]
 pub trait Curator: Send + Sync {
     async fn evaluate(&self, summary: &str, novel: &str) -> Evaluation;
+    async fn verify_summary(&self, summary: &str, transcript: &str, activities: &str)
+        -> Evaluation;
 }
 
 #[async_trait::async_trait]
@@ -55,4 +57,24 @@ pub trait TaskRepository: Send + Sync {
     fn add(&self, task_type: &str, file_paths: Vec<String>) -> anyhow::Result<Task>;
     fn load(&self) -> anyhow::Result<Vec<Task>>;
     fn update_status(&self, id: &str, status: &str) -> anyhow::Result<()>;
+}
+
+#[async_trait::async_trait]
+pub trait ContentGenerator: Send + Sync {
+    async fn generate_content(&self, prompt: &str) -> anyhow::Result<String>;
+    async fn transcribe(&self, file_path: &str) -> anyhow::Result<String>;
+}
+
+pub trait FileWatcher: Send + Sync {
+    fn start(&self) -> anyhow::Result<()>;
+}
+
+#[async_trait::async_trait]
+pub trait EventRepository: Send + Sync {
+    async fn save(&self, event: &LifeEvent) -> anyhow::Result<()>;
+    async fn find_by_timerange(
+        &self,
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<Vec<LifeEvent>>;
 }

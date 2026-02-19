@@ -10,6 +10,12 @@ pub struct FileWatcher {
     path: PathBuf,
 }
 
+impl crate::domain::FileWatcher for FileWatcher {
+    fn start(&self) -> Result<()> {
+        self.start()
+    }
+}
+
 impl FileWatcher {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self { path: path.into() }
@@ -49,12 +55,27 @@ impl FileWatcher {
                     if !path.is_file() {
                         continue;
                     }
-                    info!("New file detected: {:?}", path);
-                    let repo = TaskRepository::new("data/tasks.json");
-                    if let Err(e) =
-                        repo.add("process_session", vec![path.to_string_lossy().to_string()])
-                    {
-                        error!("Failed to add task for new file: {}", e);
+                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    match ext.to_lowercase().as_str() {
+                        "wav" | "flac" => {
+                            info!("New audio file: {:?}", path);
+                            let repo = TaskRepository::new("data/tasks.json");
+                            if let Err(e) = repo
+                                .add("process_session", vec![path.to_string_lossy().to_string()])
+                            {
+                                error!("Failed to add task for audio: {}", e);
+                            }
+                        }
+                        "jsonl" => {
+                            info!("New activity log: {:?}", path);
+                            let repo = TaskRepository::new("data/tasks.json");
+                            if let Err(e) =
+                                repo.add("sync_activity", vec![path.to_string_lossy().to_string()])
+                            {
+                                error!("Failed to add task for activity log: {}", e);
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }

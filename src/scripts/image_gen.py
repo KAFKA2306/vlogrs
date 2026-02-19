@@ -4,6 +4,8 @@ import torch
 from diffusers import DiffusionPipeline, FlowMatchEulerDiscreteScheduler
 from PIL import Image
 
+from typing import Any, cast
+
 def main() -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument("--prompt", required=True)
@@ -13,11 +15,11 @@ def main() -> None:
 
     model_id: str = os.getenv("IMAGE_MODEL", "Tongyi-MAI/Z-Image-Turbo")
     
-    pipe: DiffusionPipeline = DiffusionPipeline.from_pretrained(
+    pipe = cast(Any, DiffusionPipeline.from_pretrained(
         model_id,
         torch_dtype=torch.bfloat16,
         use_safetensors=True
-    )
+    ))
     pipe.scheduler = FlowMatchEulerDiscreteScheduler.from_config(pipe.scheduler.config)
     pipe.to("cuda")
     

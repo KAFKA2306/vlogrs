@@ -5,7 +5,7 @@ import sys
 import time
 import wave
 
-import pyaudio
+import pyaudio  # type: ignore
 
 SAMPLE_RATE = 16000
 CHANNELS = 1

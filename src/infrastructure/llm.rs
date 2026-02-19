@@ -94,6 +94,28 @@ impl Novelizer for GeminiClient {
 }
 
 #[async_trait::async_trait]
+impl crate::domain::ContentGenerator for GeminiClient {
+    async fn generate_content(&self, prompt: &str) -> Result<String> {
+        self.generate_content(prompt).await
+    }
+
+    async fn transcribe(&self, file_path: &str) -> Result<String> {
+        let audio_data = std::fs::read(file_path)?;
+        let ext = std::path::Path::new(file_path)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("wav");
+        let mime_type = match ext {
+            "wav" => "audio/wav",
+            "flac" => "audio/flac",
+            "mp3" => "audio/mp3",
+            _ => "audio/wav",
+        };
+        self.transcribe_audio(&audio_data, mime_type).await
+    }
+}
+
+#[async_trait::async_trait]
 impl Curator for GeminiClient {
     async fn evaluate(&self, summary: &str, novel: &str) -> Evaluation {
         let template = &self.prompts.curator.evaluate;
@@ -115,6 +137,34 @@ impl Curator for GeminiClient {
             faithfulness_score: 0,
             quality_score: 0,
             reasoning: "Evaluation failed".to_string(),
+        })
+    }
+
+    async fn verify_summary(
+        &self,
+        summary: &str,
+        transcript: &str,
+        activities: &str,
+    ) -> Evaluation {
+        let prompt = format!(
+            "以下の要約が、元の会話ログとアクティビティログの内容を正確に反映しているか検証してください。\n\n### 要約\n{}\n\n### 会話ログ\n{}\n\n### アクティビティログ\n{}\n\n出力は以下のJSON形式のみで行ってください：\n{{\"faithfulness_score\": 1-5, \"quality_score\": 1-5, \"reasoning\": \"理由\"}}",
+            summary, transcript, activities
+        );
+
+        let content = self
+            .generate_content(&prompt)
+            .await
+            .expect("Failed to generate verification content");
+
+        let cleaned = content
+            .trim_start_matches("```json")
+            .trim_end_matches("```")
+            .trim();
+
+        serde_json::from_str(cleaned).unwrap_or_else(|_| Evaluation {
+            faithfulness_score: 0,
+            quality_score: 0,
+            reasoning: "Verification failed".to_string(),
         })
     }
 }

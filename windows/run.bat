@@ -34,4 +34,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BOOTSTRAP_PS1%"
 set "PS_EXIT_CODE=%ERRORLEVEL%"
 
 popd
+if %PS_EXIT_CODE% NEQ 0 (
+    echo [FATAL] Bootstrap exited with code %PS_EXIT_CODE%
+    pause
+)
+
 exit /b %PS_EXIT_CODE%

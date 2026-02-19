@@ -37,13 +37,17 @@ enum Commands {
     Status,
     Setup,
     Doctor,
+    Devices,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
 
-    let file_appender = tracing_appender::rolling::daily("logs", "vlog.log");
+    let file_appender = tracing_appender::rolling::daily(
+        crate::domain::constants::LOGS_DIR,
+        crate::domain::constants::LOG_FILE_NAME,
+    );
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::fmt()
@@ -72,21 +76,36 @@ async fn main() -> Result<()> {
                 infrastructure::process::ProcessMonitor::new(settings.process_names.clone()),
             ));
             let repo = Arc::new(infrastructure::tasks::TaskRepository::new(
-                "data/tasks.json",
+                crate::domain::constants::TASKS_PATH,
+            ));
+            let watcher = Arc::new(infrastructure::watcher::FileWatcher::new(
+                crate::domain::constants::CLOUD_SYNC_DIR,
             ));
             let prompts = infrastructure::prompts::Prompts::load()?;
-            let gemini = infrastructure::llm::GeminiClient::new(
+            let gemini = Arc::new(infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
                 prompts,
+            ));
+
+            let event_repo = Arc::new(
+                infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy())
+                    .await?,
             );
+            let activity_sync = Arc::new(use_cases::sync_activity::ActivitySyncUseCase::new(
+                event_repo.clone(),
+            ));
 
             let use_case = use_cases::monitor::MonitorUseCase::new(
                 recorder,
                 monitor,
                 repo,
                 env,
+                gemini.clone(),
                 gemini,
+                watcher,
+                activity_sync,
+                event_repo,
                 settings.check_interval,
                 settings.recording_dir,
                 settings.audio_device,
@@ -104,14 +123,22 @@ async fn main() -> Result<()> {
             let settings = Settings::new()?;
             info!("Processing file: {}", file);
             let prompts = infrastructure::prompts::Prompts::load()?;
-            let gemini = infrastructure::llm::GeminiClient::new(
+            let gemini = Arc::new(infrastructure::llm::GeminiClient::new(
                 settings.google_api_key,
                 settings.gemini_model,
                 prompts,
+            ));
+            let repo = Arc::new(infrastructure::tasks::TaskRepository::new(
+                "data/tasks.json",
+            ));
+            let event_repo = Arc::new(
+                infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy())
+                    .await?,
             );
-            let use_case = use_cases::process::ProcessUseCase::new(gemini);
+            let use_case =
+                use_cases::process::ProcessUseCase::new(gemini.clone(), repo, event_repo, gemini);
             use_case
-                .execute_session(domain::task::Task {
+                .execute_session(&domain::task::Task {
                     id: "manual".to_string(),
                     created_at: chrono::Utc::now(),
                     status: "processing".to_string(),
@@ -183,6 +210,9 @@ async fn main() -> Result<()> {
         Some(Commands::Doctor) => {
             let use_case = use_cases::doctor::DoctorUseCase::new();
             use_case.execute()?;
+        }
+        Some(Commands::Devices) => {
+            infrastructure::audio::AudioRecorder::list_devices()?;
         }
     }
 

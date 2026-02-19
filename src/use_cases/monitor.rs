@@ -1,7 +1,7 @@
 use crate::domain::{
-    AudioRecorder, Environment, ProcessMonitor, TaskRepository as TaskRepositoryTrait,
+    AudioRecorder, ContentGenerator, Environment, FileWatcher, ProcessMonitor,
+    TaskRepository as TaskRepositoryTrait,
 };
-use crate::infrastructure::llm::GeminiClient;
 use crate::use_cases::process::ProcessUseCase;
 use anyhow::Result;
 use std::path::PathBuf;
@@ -16,7 +16,11 @@ pub struct MonitorUseCase {
     process_monitor: Arc<tokio::sync::Mutex<dyn ProcessMonitor>>,
     task_repository: Arc<dyn TaskRepositoryTrait>,
     environment: Arc<dyn Environment>,
-    gemini_client: GeminiClient,
+    gemini_client: Arc<dyn ContentGenerator>,
+    curator: Arc<dyn crate::domain::Curator>,
+    watcher: Arc<dyn FileWatcher>,
+    activity_sync: Arc<crate::use_cases::sync_activity::ActivitySyncUseCase>,
+    event_repository: Arc<dyn crate::domain::EventRepository>,
     check_interval: u64,
     recording_dir: PathBuf,
     audio_device: Option<String>,
@@ -33,7 +37,11 @@ impl MonitorUseCase {
         process_monitor: Arc<tokio::sync::Mutex<dyn ProcessMonitor>>,
         task_repository: Arc<dyn TaskRepositoryTrait>,
         environment: Arc<dyn Environment>,
-        gemini_client: GeminiClient,
+        gemini_client: Arc<dyn ContentGenerator>,
+        curator: Arc<dyn crate::domain::Curator>,
+        watcher: Arc<dyn FileWatcher>,
+        activity_sync: Arc<crate::use_cases::sync_activity::ActivitySyncUseCase>,
+        event_repository: Arc<dyn crate::domain::EventRepository>,
         check_interval: u64,
         recording_dir: PathBuf,
         audio_device: Option<String>,
@@ -48,6 +56,10 @@ impl MonitorUseCase {
             task_repository,
             environment,
             gemini_client,
+            curator,
+            watcher,
+            activity_sync,
+            event_repository,
             check_interval,
             recording_dir,
             audio_device,
@@ -61,13 +73,15 @@ impl MonitorUseCase {
     pub async fn execute(&self) -> Result<()> {
         self.environment.ensure_directories()?;
 
-        let watcher = crate::infrastructure::watcher::FileWatcher::new("data/cloud_sync");
-        watcher.start()?;
+        self.watcher.start()?;
 
         let gemini = self.gemini_client.clone();
+        let curator = self.curator.clone();
         let repo = self.task_repository.clone();
+        let event_repo = self.event_repository.clone();
+        let sync_use_case = self.activity_sync.clone();
         tokio::spawn(async move {
-            let use_case = ProcessUseCase::new(gemini);
+            let process_use_case = ProcessUseCase::new(gemini, repo.clone(), event_repo, curator);
             loop {
                 let tasks = match repo.load() {
                     Ok(t) => t,
@@ -83,10 +97,23 @@ impl MonitorUseCase {
                             error!("Failed to update task status: {}", e);
                             continue;
                         }
-                        if let Err(e) = use_case.execute_session(task).await {
-                            error!("Task execution failed: {}", e);
-                        } else {
-                            info!("Task completed");
+                        match task.task_type.as_str() {
+                            "process_session" => {
+                                if let Err(e) = process_use_case.execute_session(&task).await {
+                                    error!("Session processing failed: {}", e);
+                                    let _ = repo.update_status(&task.id, "failed");
+                                }
+                            }
+                            "sync_activity" => {
+                                for file in &task.file_paths {
+                                    if let Err(e) = sync_use_case.execute(file).await {
+                                        error!("Activity sync failed for {}: {}", file, e);
+                                        let _ = repo.update_status(&task.id, "failed");
+                                    }
+                                }
+                                let _ = repo.update_status(&task.id, "completed");
+                            }
+                            _ => warn!("Unknown task type: {}", task.task_type),
                         }
                     }
                 }
