@@ -11,7 +11,8 @@ impl EventRepository {
     pub async fn new(db_url: &str) -> Result<Self> {
         let options = SqliteConnectOptions::from_str(db_url)?
             .create_if_missing(true)
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .busy_timeout(std::time::Duration::from_secs(10));
 
         let pool = SqlitePool::connect_with(options).await?;
 

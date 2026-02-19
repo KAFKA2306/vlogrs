@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tracing::{error, info, warn};
 
 pub struct AudioRecorder {
@@ -45,11 +45,14 @@ impl AudioRecorder {
                 .input_devices()
                 .context("Failed to list input devices")?
                 .find(|d| d.name().map(|n| n.contains(&name)).unwrap_or(false))
-                .unwrap_or_else(|| {
+                .ok_or_else(|| {
                     warn!("Device '{}' not found, falling back to default.", name);
+                    anyhow::anyhow!("Device '{}' not found", name)
+                })
+                .or_else(|_| {
                     host.default_input_device()
-                        .expect("No default input device found")
-                }),
+                        .context("No default input device found")
+                })?,
             None => host
                 .default_input_device()
                 .context("No default input device found")?,
@@ -66,7 +69,7 @@ impl AudioRecorder {
         let spec = hound::WavSpec {
             channels,
             sample_rate,
-            bits_per_sample: 16,
+            bits_per_sample: crate::domain::constants::DEFAULT_BITS_PER_SAMPLE,
             sample_format: hound::SampleFormat::Int,
         };
 
@@ -75,17 +78,51 @@ impl AudioRecorder {
         )));
         let writer_cb = writer.clone();
 
+        let last_log = Arc::new(Mutex::new(Instant::now()));
+        let peak_amplitude = Arc::new(Mutex::new(0.0f32));
+
         let stream = device
             .build_input_stream(
                 &config,
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                    let mut local_peak = 0.0f32;
                     if let Ok(mut guard) = writer_cb.lock() {
                         if let Some(w) = guard.as_mut() {
                             for &sample in data {
-                                if sample.abs() > silence_threshold {
-                                    let s = (sample * i16::MAX as f32) as i16;
+                                let abs_sample = sample.abs();
+                                if abs_sample > local_peak {
+                                    local_peak = abs_sample;
+                                }
+
+                                if abs_sample >= silence_threshold {
+                                    let s = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
                                     let _ = w.write_sample(s);
                                 }
+                            }
+                        }
+                    }
+
+                    // Update global peak
+                    if let Ok(mut p) = peak_amplitude.lock() {
+                        if local_peak > *p {
+                            *p = local_peak;
+                        }
+                    }
+
+                    // Log peak level every interval
+                    if let Ok(mut last) = last_log.lock() {
+                        if last.elapsed()
+                            >= Duration::from_secs(
+                                crate::domain::constants::AUDIO_LOG_INTERVAL_SECS,
+                            )
+                        {
+                            if let Ok(p) = peak_amplitude.lock() {
+                                info!("Recording status: peak_amplitude={:.4}", *p);
+                            }
+                            *last = Instant::now();
+                            // Reset peak for next interval
+                            if let Ok(mut p) = peak_amplitude.lock() {
+                                *p = 0.0;
                             }
                         }
                     }
@@ -100,7 +137,9 @@ impl AudioRecorder {
         stream.play().context("Failed to start audio stream")?;
 
         while is_recording.load(Ordering::SeqCst) {
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(
+                crate::domain::constants::AUDIO_SLEEP_MS,
+            ));
         }
 
         drop(stream);
@@ -118,9 +157,9 @@ impl AudioRecorder {
             .arg("-i")
             .arg(input)
             .arg("-ar")
-            .arg("16000")
+            .arg(crate::domain::constants::DEFAULT_SAMPLE_RATE.to_string())
             .arg("-ac")
-            .arg("1")
+            .arg(crate::domain::constants::DEFAULT_CHANNELS.to_string())
             .arg(output)
             .output()?;
 
@@ -128,6 +167,20 @@ impl AudioRecorder {
             let err = String::from_utf8_lossy(&status.stderr);
             error!("ffmpeg failed: {}", err);
             return Err(std::io::Error::other("ffmpeg failed"));
+        }
+        Ok(())
+    }
+
+    pub fn list_devices() -> Result<()> {
+        let host = cpal::default_host();
+        let devices = host
+            .input_devices()
+            .context("Failed to list input devices")?;
+
+        info!("=== Available Audio Input Devices ===");
+        for (i, device) in devices.enumerate() {
+            let name = device.name().unwrap_or_else(|_| "Unknown".to_string());
+            info!("{}: {}", i, name);
         }
         Ok(())
     }
@@ -156,7 +209,8 @@ impl AudioRecorderTrait for AudioRecorder {
         let is_recording = self.is_recording.clone();
 
         let handle = thread::spawn(move || {
-            let part_path = output_path.with_extension("wav.part");
+            let part_path =
+                output_path.with_extension(crate::domain::constants::WAV_PART_EXTENSION);
             if let Err(e) = Self::record_loop(
                 part_path,
                 sample_rate,
@@ -198,7 +252,7 @@ impl AudioRecorderTrait for AudioRecorder {
             .map_err(|_| anyhow::anyhow!("Failed to lock current_file"))?;
         let path = current_file.take();
         if let Some(ref p) = path {
-            let part_path = p.with_extension("wav.part");
+            let part_path = p.with_extension(crate::domain::constants::WAV_PART_EXTENSION);
             if part_path.exists() {
                 std::fs::rename(&part_path, p).context("Failed to rename part file")?;
                 if let Some(parent) = p.parent() {

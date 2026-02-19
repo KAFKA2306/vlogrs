@@ -134,11 +134,18 @@ impl ProcessMonitor {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id).ok()?;
             let mut buf = [0u16; 512];
             let mut len = buf.len() as u32;
-            
-            if QueryFullProcessImageNameW(handle, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &mut len).is_err() {
-                 return None;
+
+            if QueryFullProcessImageNameW(
+                handle,
+                PROCESS_NAME_WIN32,
+                PWSTR(buf.as_mut_ptr()),
+                &mut len,
+            )
+            .is_err()
+            {
+                return None;
             }
-            
+
             let path = String::from_utf16_lossy(&buf[..len as usize]);
             let path_obj = std::path::Path::new(&path);
             let exe_name = path_obj
@@ -147,8 +154,8 @@ impl ProcessMonitor {
                 .to_lowercase();
 
             if self.targets.iter().any(|target| exe_name.contains(target)) {
-                 info!("Target process detected (Native Windows): {}", exe_name);
-                 return Some(format!("windows-native:{}", exe_name));
+                info!("Target process detected (Native Windows): {}", exe_name);
+                return Some(format!("windows-native:{}", exe_name));
             }
             None
         }

@@ -1,21 +1,13 @@
-# ---------------------------------------------------------
-# VLog Bootstrap Script (Master Protocol v1.0)
-# ---------------------------------------------------------
-# This script is the single point of execution logic for the Windows VLog agent.
-# It should be invoked via windows/run.bat.
-
 $ErrorActionPreference = "Stop"
 
-# 1. Resolve Paths
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BaseDir = Resolve-Path (Join-Path $ScriptDir "../../../") | Select-Object -ExpandProperty ProviderPath
 $LogDir = Join-Path $BaseDir "logs"
 $BootstrapLog = Join-Path $LogDir "windows-rust-bootstrap.log"
 $MonitorLog = Join-Path $LogDir "windows-rust-monitor.log"
 $BuildLog = Join-Path $LogDir "build.log"
-$AgentExe = Join-Path $BaseDir "target\release\vlog-rs.exe"
+$AgentExe = Join-Path $BaseDir "target\x86_64-pc-windows-msvc\release\vlog-rs.exe"
 
-# Ensure Log Directory
 if (!(Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
 
 function Write-Log {
@@ -29,7 +21,23 @@ function Write-Log {
 Write-Log "--- VLog Bootstrap Started ---"
 Write-Log "Base Directory: $BaseDir"
 
-# 2. Check Environment
+Write-Log "Checking Shared Folder connection..."
+$MaxConnectRetries = 10
+$ConnectDelay = 2
+for ($i = 0; $i -lt $MaxConnectRetries; $i++) {
+    if (Test-Path $BaseDir) {
+        Write-Log "Connection verified: $BaseDir"
+        break
+    }
+    Write-Log "Base directory not found. Retrying in $ConnectDelay seconds... ($($i+1)/$MaxConnectRetries)" "WARN"
+    Start-Sleep -Seconds $ConnectDelay
+    $ConnectDelay *= 2
+    if ($i -eq $MaxConnectRetries - 1) {
+        Write-Log "Could not verify connection to $BaseDir after $MaxConnectRetries attempts." "FATAL"
+        exit 1
+    }
+}
+
 $CargoPath = (Get-Command cargo -ErrorAction SilentlyContinue).Source
 if (!$CargoPath) {
     $UserCargo = Join-Path $env:USERPROFILE ".cargo\bin\cargo.exe"
@@ -42,24 +50,26 @@ if (!$CargoPath) {
 }
 Write-Log "Using Cargo: $CargoPath"
 
-# 3. Build / Check Agent
 Write-Log "Ensuring clean state..."
 Get-Process -Name "vlog-rs" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
 Write-Log "Initiating build..."
-try {
-    Push-Location $BaseDir
-    & $CargoPath build --release 2>&1 | Out-File -FilePath $BuildLog -Encoding utf8
-    if ($LASTEXITCODE -ne 0) {
-        Write-Log "Build failed. Check $BuildLog for details." "FATAL"
-        exit 1
-    }
-    Write-Log "Build successful."
-} finally {
-    Pop-Location
-}
+Push-Location $BaseDir
+$OldEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+& $CargoPath build --release --target x86_64-pc-windows-msvc 2>&1 | Out-File -FilePath $BuildLog -Encoding utf8
+$BuildExitCode = $LASTEXITCODE
+$ErrorActionPreference = $OldEAP
 
-# 4. Pre-flight Check
+if ($BuildExitCode -ne 0) {
+    Write-Log "Build failed. Check $BuildLog for details." "FATAL"
+    Write-Log "--- Last 10 lines of build log ---" "ERROR"
+    Get-Content $BuildLog -Tail 10 | ForEach-Object { Write-Log $_ "ERROR" }
+    exit 1
+}
+Write-Log "Build successful."
+Pop-Location
+
 Write-Log "Checking target applications..."
 $Discord = Get-Process -Name "Discord" -ErrorAction SilentlyContinue
 $VRChat = Get-Process -Name "VRChat" -ErrorAction SilentlyContinue
@@ -67,7 +77,6 @@ $VRChat = Get-Process -Name "VRChat" -ErrorAction SilentlyContinue
 if ($Discord) { Write-Log "Discord: RUNNING" } else { Write-Log "Discord: NOT DETECTED" }
 if ($VRChat) { Write-Log "VRChat: RUNNING" } else { Write-Log "VRChat: NOT DETECTED" }
 
-# 5. Run Agent Loop
 Write-Log "Launching Master Monitor..."
 if (!(Test-Path $AgentExe)) {
     Write-Log "Binary not found: $AgentExe" "FATAL"
@@ -75,20 +84,22 @@ if (!(Test-Path $AgentExe)) {
 }
 
 $RestartDelay = 5
+$CurrentBackoff = $RestartDelay
 while ($true) {
     Write-Log "Starting Monitor: $AgentExe"
-    try {
-        Push-Location $BaseDir
-        # Run process and capture output to monitor log
-        Start-Process -FilePath $AgentExe -ArgumentList "monitor" -NoNewWindow -Wait -PassThru | Out-Null
-        $ExitCode = $LASTEXITCODE
-        Write-Log "Monitor exited with code: $ExitCode" "WARN"
-    } catch {
-        Write-Log "Failed to launch monitor: $_" "ERROR"
-    } finally {
-        Pop-Location
+    Push-Location $BaseDir
+    $Proc = Start-Process -FilePath $AgentExe -ArgumentList "monitor" -NoNewWindow -Wait -PassThru
+    $ExitCode = $Proc.ExitCode
+    Write-Log "Monitor exited with code: $ExitCode" "WARN"
+    Pop-Location
+
+    if ($ExitCode -eq 0) {
+        $CurrentBackoff = $RestartDelay
+    } else {
+        Write-Log "Process failed. Applying backoff..." "WARN"
+        $CurrentBackoff = [Math]::Min($CurrentBackoff * 2, 300)
     }
 
-    Write-Log "Restarting in $RestartDelay seconds..."
-    Start-Sleep -Seconds $RestartDelay
+    Write-Log "Restarting in $CurrentBackoff seconds..."
+    Start-Sleep -Seconds $CurrentBackoff
 }
