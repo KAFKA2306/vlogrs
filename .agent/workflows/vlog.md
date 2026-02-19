@@ -169,29 +169,24 @@ graph TD
 -   **症状**: `SQLITE_BUSY` エラー。
 -   **対応**: `PRAGMA busy_timeout = 5000;` を適用し、待機時間を延長してください。WAL モードが必須です。
 
-### 5.3 Windows Rust Monitor 起動失敗 (`cargo run --release -- monitor`)
--   **発生日**: 2026-02-19
--   **症状**:
-    -   `windows\run.bat` 実行後に monitor が起動しない
-    -   `logs\windows-rust-monitor.log` に `could not find Cargo.toml` などが出る
-    -   `cargo` 未導入環境で `Monitor crashed` 後に停止したように見える
-    -   UNC パス (`\\wsl.localhost\...`) 起点で CMD が `UNC パスはサポートされません` を表示する
--   **根本原因**:
-    -   実行ディレクトリ不整合、または Rust toolchain / cargo 未導入
-    -   UNC 起点での CMD 実行コンテキスト不整合（`\\wsl.localhost\...`）
--   **恒久対策（実装済み）**:
-    1. エントリポイントを `windows\run.bat` の 1 本に統一
-    2. `run.bat` 内で repo root を自己解決し、`target\release\vlog-rs.exe monitor` を起動
-    3. monitor バイナリ欠如時は `cargo build --release` を自動実行
-    4. `cargo.exe` 未検出時は 10 秒間隔で再探索（待機リトライ）
-    5. monitor 異常終了時は 5 秒間隔で無限再試行（Crash-Only）
-    6. ログを `logs/windows-rust-bootstrap.log` / `logs/windows-rust-monitor.log` に集約
--   **検証結果**:
-    -   `cargo 1.93.1` を Windows 側で確認
-    -   `windows\run.bat` 起動時に `Cargo: C:\Users\<user>\.cargo\bin\cargo.exe` を表示
--   **運用ルール**:
-    -   Windows 音声キャプチャ起動のエントリポイントは `windows\run.bat` の 1 本に統一
-    -   `src/windows/rust/bootstrap.ps1` は使用しない
+### 5.3 Windows Rust Monitor 起動 （Master Protocol v8.0）
+- **発生日**: 2026-02-19
+- **症状**:
+    - `windows\run.bat` 実行後のプロセス不整合、UNC パス起因の CMD 誤動作。
+    - 以前のプロトコルでは CMD 内に複雑なロジックを詰め込みすぎて、エラーの隠蔽が発生していた。
+- **根本原因**:
+    - CMD (`run.bat`) の LF 改行コード混入、および Windows/WSL 間のバイナリ・パーミッション競合。
+- **恒久対策（Protocol v8.0 適用済み）**:
+    1. **役割の完全分離**: `run.bat` は環境整え (UNC 解決) に特化し、実行ロジックを `bootstrap.ps1` へ委譲。
+    2. **Windows ネイティブ制御**: PowerShell 側で Rust toolchain の自動探索、クリーンビルド、無限リカバリーループを実装。
+    3. **バイナリ整合性**: サブエージェントではなく、プロジェクトルートの `vlog-rs.exe monitor` をマスターバイナリとして運用。
+    4. **ログ・透明化**: 起動時にログを切り詰め (Truncate)、ハルシネーション（過去エラーの残像）を排除。
+- **検証結果**:
+    - `windows\run.bat` 経由での `bootstrap.ps1` 正常キックを確認。
+- **運用ルール**:
+    - エントリポイント: `windows/run.bat`
+    - 実装主体: `src/windows/rust/bootstrap.ps1`
+    - 録音主体: `vlog-rs.exe` (monitor mode)
 
 ### 5.4 Windows で Rust 録音デバイス未検出
 -   **症状**: `Failed to start recording` / `No default input device found`

@@ -3,16 +3,15 @@ name: windows-cmd-ps1-ops
 description: Windows で VLog の `run.bat`/`bootstrap.ps1`/Rust monitor を運用・障害対応するための実行手順。`UNC パス起動で落ちる`、`cargo が見つからない`、`権限/ExecutionPolicy`、`パス解決`、`強制終了後の再起動`、`ログに原因を残す` といったケースで使用する。
 ---
 
-# Windows CMD/PS1 Ops
+# Windows CMD/PS1 Ops (Master Protocol v8.0)
 
 ## 目的
 Windows 側で VRChat/Discord 検知から録音開始までを安定稼働させる。
 以下を必ず満たす。
 
-- エントリポイントを 1 つに固定する: `windows/run.bat`
-- 実行ロジックを 1 つに固定する: `src/windows/rust/bootstrap.ps1`
-- ログを分離する: bootstrap と monitor のログを別ファイルにする
-- 停止と再起動を手順化する: Linux 側 `pkill` と Windows 側 `Stop-Process` を使い分ける
+- エントリポイントを 1 つに固定する: `windows/run.bat` (Thin Wrapper)
+- 実行ロジックを 1 つに固定する: `src/windows/rust/bootstrap.ps1` (Core Controller)
+- プロトコル v8.0 以降、`run.bat` にロジックを書き込まない。
 
 ## 入力として先に集める情報
 次の 6 点を最初に取得する。
