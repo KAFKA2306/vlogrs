@@ -3274,6 +3274,23 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "uuid",
+ "windows 0.52.0",
+]
+
+[[package]]
+name = "vlog-windows-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "notify",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "windows 0.52.0",
 ]
 
 [[package]]

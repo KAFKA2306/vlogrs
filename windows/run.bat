@@ -1,123 +1,122 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "SCRIPT_DIR=%~dp0"
-pushd "%SCRIPT_DIR%" >nul 2>&1
+:: ---------------------------------------------------------
+:: VLog Windows Bootstrap Script (Master Protocol v7.2)
+:: ---------------------------------------------------------
+
+:: Handle UNC paths
+pushd "%~dp0" >nul 2>&1
 if errorlevel 1 (
-  echo Failed to access script directory: %SCRIPT_DIR%
+  echo [FATAL] Cannot access script directory from UNC path.
+  pause
   exit /b 1
 )
 
+:: Move to Repo Root
 pushd ".." >nul 2>&1
 set "REPO_ROOT=%CD%"
 popd >nul 2>&1
 
+:: Configuration
 set "LOG_DIR=%REPO_ROOT%\logs"
 set "BOOTSTRAP_LOG=%LOG_DIR%\windows-rust-bootstrap.log"
 set "MONITOR_LOG=%LOG_DIR%\windows-rust-monitor.log"
-set "MONITOR_EXE=%REPO_ROOT%\target\release\vlog-rs.exe"
-set "CARGO_PATH="
-set "FORCE_BUILD=0"
-if /I "%~1"=="rebuild" set "FORCE_BUILD=1"
+:: Use main vlog-rs binary as per Skill Manual
+set "AGENT_EXE=%REPO_ROOT%\target\release\vlog-rs.exe"
 
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
+:: Ensure Log Directory
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
-call :log "VLog Windows Rust Monitor Bootstrapper Starting..."
-call :log "Repo: %REPO_ROOT%"
-call :log "Bootstrap log: %BOOTSTRAP_LOG%"
-call :log "Monitor log: %MONITOR_LOG%"
-call :log "Monitor exe: %MONITOR_EXE%"
+:: Logging wrapper (Truncate log at start of session to avoid hallucination)
+if not exist "%BOOTSTRAP_LOG%" ( echo. > "%BOOTSTRAP_LOG%" ) else ( type nul > "%BOOTSTRAP_LOG%" )
 
-:main_loop
-set "NEED_BUILD=0"
-if "%FORCE_BUILD%"=="1" set "NEED_BUILD=1"
-if "%FORCE_BUILD%"=="1" call :log "Force rebuild requested."
-if not exist "%MONITOR_EXE%" set "NEED_BUILD=1"
+call :log "--- VLog Bootstrap Started ---"
+call :log "Repo Root: %REPO_ROOT%"
 
-if "%NEED_BUILD%"=="1" (
-  call :resolve_cargo
-  if not defined CARGO_PATH (
-    call :log "cargo.exe not found. Retrying in 10 seconds."
-    timeout /t 10 /nobreak >nul
-    goto main_loop
-  )
+:: ---------------------------------------------------------
+:: Build / Check Rust Agent
+:: ---------------------------------------------------------
+:check_build
+call :log "Ensuring clean state..."
+taskkill /F /IM vlog-rs.exe >nul 2>&1
+call :log "Initiating build..."
+call :find_cargo
+if "%CARGO_PATH%"=="" (
+    call :log "[FATAL] Cargo not found. Please install Rust toolchain on Windows."
+    timeout /t 30
+    exit /b 1
+)
+call :log "Using Cargo: %CARGO_PATH%"
 
-  call :log "Monitor binary not found. Building release binary..."
-  pushd "%REPO_ROOT%" >nul 2>&1
-  "%CARGO_PATH%" build --release >> "%MONITOR_LOG%" 2>&1
-  set "BUILD_EXIT=%ERRORLEVEL%"
-  popd >nul 2>&1
-  if not "%BUILD_EXIT%"=="0" (
-    call :log "Release build failed (exit=%BUILD_EXIT%). Retrying in 10 seconds."
-    call :tail_monitor
-    timeout /t 10 /nobreak >nul
-    goto main_loop
-  )
+:: Ensure UTF-8 for Japanese logs
+chcp 65001 >nul
 
-  if not exist "%MONITOR_EXE%" (
-    call :log "Release build finished but monitor binary is missing. Retrying in 10 seconds."
-    timeout /t 10 /nobreak >nul
-    goto main_loop
-  )
-  call :log "Release binary ready: %MONITOR_EXE%"
-  set "FORCE_BUILD=0"
+pushd "%REPO_ROOT%"
+call :log "Building vlog-rs (Master Engine)..."
+:: Build root project - explicitly use the found cargo path
+"%CARGO_PATH%" build --release
+if errorlevel 1 (
+    call :log "[FATAL] Build failed."
+    popd
+    timeout /t 30
+    exit /b 1
+)
+popd
+call :log "Build successful."
+
+:: ---------------------------------------------------------
+:: Pre-flight Check (Target Status)
+:: ---------------------------------------------------------
+call :log "Checking target applications..."
+tasklist /FI "IMAGENAME eq Discord.exe" 2>NUL | find /I /N "Discord.exe">NUL
+if "%ERRORLEVEL%"=="0" ( call :log "[PRE-FLIGHT] Discord: RUNNING" ) else ( call :log "[PRE-FLIGHT] Discord: NOT DETECTED" )
+
+tasklist /FI "IMAGENAME eq VRChat.exe" 2>NUL | find /I /N "VRChat.exe">NUL
+if "%ERRORLEVEL%"=="0" ( call :log "[PRE-FLIGHT] VRChat: RUNNING" ) else ( call :log "[PRE-FLIGHT] VRChat: NOT DETECTED" )
+
+:: ---------------------------------------------------------
+:: Run Agent
+:: ---------------------------------------------------------
+:run_agent
+if not exist "%AGENT_EXE%" (
+    call :log "[FATAL] Binary not found: %AGENT_EXE%"
+    goto :check_build
 )
 
-call :log "Launching: \"%MONITOR_EXE%\" monitor"
-call :log "Launch context: cwd=%REPO_ROOT% cmd=target\release\vlog-rs.exe monitor"
-pushd "%REPO_ROOT%" >nul 2>&1
-"%MONITOR_EXE%" monitor >> "%MONITOR_LOG%" 2>&1
-set "MON_EXIT=%ERRORLEVEL%"
-popd >nul 2>&1
+call :log "Launching Master Monitor: %AGENT_EXE%"
 
-if "%MON_EXIT%"=="0" (
-  call :log "Monitor exited normally."
-  goto finish
-)
-if "%MON_EXIT%"=="130" (
-  call :log "Monitor stopped by user signal (exit code: %MON_EXIT%)."
-  goto finish
-)
-if "%MON_EXIT%"=="3221225786" (
-  call :log "Monitor stopped by user signal (exit code: %MON_EXIT%)."
-  goto finish
+pushd "%REPO_ROOT%"
+:: Start the Rust agent with 'monitor' command
+:: Use direct execution to avoid PowerShell pipeline masking of the main exit code
+"%AGENT_EXE%" monitor
+set "EXIT_CODE=%ERRORLEVEL%"
+popd
+
+if "%EXIT_CODE%"=="0" (
+    call :log "Monitor exited normally."
+    exit /b 0
 )
 
-call :log "Monitor crashed: monitor process exited with code %MON_EXIT%"
-call :tail_monitor
-call :log "Restarting in 5 seconds..."
+call :log "[WARN] Monitor crashed with code %EXIT_CODE%. Restarting in 5 seconds..."
 timeout /t 5 /nobreak >nul
-goto main_loop
+goto :run_agent
 
-:resolve_cargo
-if defined CARGO_PATH goto :eof
-if exist "%USERPROFILE%\.cargo\bin\cargo.exe" (
-  set "CARGO_PATH=%USERPROFILE%\.cargo\bin\cargo.exe"
-  call :log "Resolved cargo path: %CARGO_PATH%"
-  goto :eof
-)
+:: ---------------------------------------------------------
+:: Utilities
+:: ---------------------------------------------------------
+:find_cargo
+set "CARGO_PATH="
+:: Take the first match from 'where'
 for /f "delims=" %%I in ('where cargo 2^>nul') do (
-  set "CARGO_PATH=%%I"
-  call :log "Resolved cargo path: !CARGO_PATH!"
-  goto :eof
+    if "!CARGO_PATH!"=="" set "CARGO_PATH=%%I"
 )
-goto :eof
-
-:tail_monitor
-if not exist "%MONITOR_LOG%" goto :eof
-call :log "Monitor stderr/stdout tail (last 20 lines):"
-powershell -NoLogo -NoProfile -Command ^
-  "Get-Content -Path '%MONITOR_LOG%' -Tail 20 | ForEach-Object { '[monitor-tail] ' + $_ }" >> "%BOOTSTRAP_LOG%" 2>&1
-goto :eof
+if "%CARGO_PATH%"=="" (
+    if exist "%USERPROFILE%\.cargo\bin\cargo.exe" set "CARGO_PATH=%USERPROFILE%\.cargo\bin\cargo.exe"
+)
+exit /b
 
 :log
-set "MSG=%~1"
-for /f "usebackq delims=" %%T in (`powershell -NoLogo -NoProfile -Command "(Get-Date).ToString('yyyy-MM-dd HH:mm:ss')"`) do set "TS=%%T"
-set "LINE=[!TS!] !MSG!"
-echo !LINE!
->> "%BOOTSTRAP_LOG%" echo !LINE!
-goto :eof
-
-:finish
-popd >nul 2>&1
-endlocal
+echo [%DATE% %TIME%] %~1
+echo [%DATE% %TIME%] %~1 >> "%BOOTSTRAP_LOG%"
+exit /b

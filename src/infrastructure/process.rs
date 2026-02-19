@@ -3,6 +3,16 @@ use std::collections::BTreeSet;
 use std::process::Command;
 use sysinfo::System;
 use tracing::{debug, info};
+#[cfg(windows)]
+use windows::core::PWSTR;
+#[cfg(windows)]
+use windows::Win32::System::Threading::{
+    OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+};
+#[cfg(windows)]
+use windows::Win32::UI::WindowsAndMessaging::GetWindowTextW;
+#[cfg(windows)]
+use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
 pub struct ProcessMonitor {
     targets: Vec<String>,
@@ -109,6 +119,45 @@ impl ProcessMonitor {
             }
         }
     }
+
+    #[cfg(windows)]
+    fn check_native_windows_processes(&self) -> Option<String> {
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.0 == 0 {
+                return None;
+            }
+
+            let mut process_id = 0u32;
+            GetWindowThreadProcessId(hwnd, Some(&mut process_id));
+
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id).ok()?;
+            let mut buf = [0u16; 512];
+            let mut len = buf.len() as u32;
+            
+            if QueryFullProcessImageNameW(handle, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &mut len).is_err() {
+                 return None;
+            }
+            
+            let path = String::from_utf16_lossy(&buf[..len as usize]);
+            let path_obj = std::path::Path::new(&path);
+            let exe_name = path_obj
+                .file_name()
+                .and_then(|n| n.to_str())?
+                .to_lowercase();
+
+            if self.targets.iter().any(|target| exe_name.contains(target)) {
+                 info!("Target process detected (Native Windows): {}", exe_name);
+                 return Some(format!("windows-native:{}", exe_name));
+            }
+            None
+        }
+    }
+
+    #[cfg(not(windows))]
+    fn check_native_windows_processes(&self) -> Option<String> {
+        None
+    }
 }
 
 impl ProcessMonitorTrait for ProcessMonitor {
@@ -116,7 +165,8 @@ impl ProcessMonitorTrait for ProcessMonitor {
         self.system.refresh_processes();
         let match_info = self
             .check_processes()
-            .or_else(|| self.check_windows_processes());
+            .or_else(|| self.check_windows_processes())
+            .or_else(|| self.check_native_windows_processes());
         let current_status = match_info.is_some();
 
         if current_status != self.last_status {
