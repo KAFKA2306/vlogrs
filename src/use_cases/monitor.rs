@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use tracing::{info, warn};
-
 pub struct MonitorUseCase {
     audio_recorder: Arc<dyn AudioRecorder>,
     process_monitor: Arc<tokio::sync::Mutex<dyn ProcessMonitor>>,
@@ -26,7 +25,6 @@ pub struct MonitorUseCase {
     stop_grace_secs: u64,
     min_recording_secs: u64,
 }
-
 impl MonitorUseCase {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -66,12 +64,9 @@ impl MonitorUseCase {
             min_recording_secs,
         }
     }
-
     pub async fn execute(&self) {
         self.environment.ensure_directories();
-
         self.watcher.start();
-
         let task_runner = Arc::new(crate::use_cases::task_runner::TaskRunner::new(
             self.gemini_client.clone(),
             self.task_repository.clone(),
@@ -79,23 +74,17 @@ impl MonitorUseCase {
             self.curator.clone(),
             self.activity_sync.clone(),
         ));
-
         tokio::spawn(async move { task_runner.run().await });
-
         tokio::spawn(async move { crate::use_cases::HealthMonitor::run().await });
-
         let mut is_recording = false;
         let mut recording_started_at: Option<Instant> = None;
         let mut running_since: Option<Instant> = None;
         let mut stopped_since: Option<Instant> = None;
-
         loop {
             let now = Instant::now();
             let running = self.process_monitor.lock().await.is_running();
-
             if running {
                 stopped_since = None;
-
                 if !is_recording {
                     if running_since.is_none() {
                         running_since = Some(now);
@@ -104,7 +93,6 @@ impl MonitorUseCase {
                             self.start_debounce_secs
                         );
                     }
-
                     if let Some(since) = running_since {
                         if now.duration_since(since).as_secs() >= self.start_debounce_secs {
                             let timestamp =
@@ -128,7 +116,6 @@ impl MonitorUseCase {
                 }
             } else {
                 running_since = None;
-
                 if is_recording {
                     if stopped_since.is_none() {
                         stopped_since = Some(now);
@@ -137,14 +124,12 @@ impl MonitorUseCase {
                             self.stop_grace_secs, self.min_recording_secs
                         );
                     }
-
                     let grace_elapsed = stopped_since.is_some_and(|since| {
                         now.duration_since(since).as_secs() >= self.stop_grace_secs
                     });
                     let min_elapsed = recording_started_at.is_some_and(|since| {
                         now.duration_since(since).as_secs() >= self.min_recording_secs
                     });
-
                     if grace_elapsed && min_elapsed {
                         match self.audio_recorder.stop() {
                             Some(path) => {
@@ -156,7 +141,6 @@ impl MonitorUseCase {
                             }
                             None => warn!("Recorder stopped, but no output path returned"),
                         }
-
                         is_recording = false;
                         recording_started_at = None;
                         stopped_since = None;

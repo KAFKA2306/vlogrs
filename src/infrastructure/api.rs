@@ -1,12 +1,10 @@
 use reqwest::Client;
 use serde_json::Value;
-
 pub struct SupabaseClient {
     url: String,
     key: String,
     client: Client,
 }
-
 impl SupabaseClient {
     pub fn new(url: String, key: String) -> Self {
         Self {
@@ -15,10 +13,8 @@ impl SupabaseClient {
             client: Client::new(),
         }
     }
-
     pub async fn upsert(&self, table: &str, data: &Value) -> anyhow::Result<()> {
         let url = format!("{}/rest/v1/{}", self.url, table);
-
         let response = self
             .client
             .post(&url)
@@ -30,7 +26,6 @@ impl SupabaseClient {
             .send()
             .await
             .map_err(|e| anyhow::anyhow!("Supabase request failed: {}", e))?;
-
         if !response.status().is_success() {
             let status = response.status();
             let error = response
@@ -39,7 +34,6 @@ impl SupabaseClient {
                 .unwrap_or_else(|_| "Unknown error".to_string());
             anyhow::bail!("Supabase upsert failed with status {}: {}", status, error);
         }
-
         Ok(())
     }
 }

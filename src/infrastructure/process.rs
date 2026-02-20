@@ -13,14 +13,12 @@ use windows::Win32::System::Threading::{
 use windows::Win32::UI::WindowsAndMessaging::GetWindowTextW;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
-
 pub struct ProcessMonitor {
     targets: Vec<String>,
     system: System,
     last_status: bool,
     last_match: Option<String>,
 }
-
 impl ProcessMonitor {
     pub fn new(targets: Vec<String>) -> Self {
         Self {
@@ -30,14 +28,12 @@ impl ProcessMonitor {
             last_match: None,
         }
     }
-
     fn check_processes(&self) -> Option<String> {
         self.system.processes().values().find_map(|process| {
             let name = process.name().to_lowercase();
             if self.targets.iter().any(|target| name.contains(target)) {
                 return Some(format!("linux:{} (pid={})", process.name(), process.pid()));
             }
-
             process.exe().and_then(|exe_path| {
                 let exe = exe_path.to_string_lossy().to_lowercase();
                 if self.targets.iter().any(|target| exe.contains(target)) {
@@ -53,11 +49,9 @@ impl ProcessMonitor {
             })
         })
     }
-
     fn is_wsl() -> bool {
         std::env::var("WSL_DISTRO_NAME").is_ok()
     }
-
     fn normalized_windows_targets(&self) -> Vec<String> {
         let mut names = BTreeSet::new();
         for target in &self.targets {
@@ -74,17 +68,14 @@ impl ProcessMonitor {
         }
         names.into_iter().collect()
     }
-
     fn check_windows_processes(&self) -> Option<String> {
         if !Self::is_wsl() {
             return None;
         }
-
         let names = self.normalized_windows_targets();
         if names.is_empty() {
             return None;
         }
-
         let joined = names.join(",");
         let output = Command::new(crate::domain::constants::POWERSHELL_PATH)
             .args([
@@ -97,7 +88,6 @@ impl ProcessMonitor {
                 ),
             ])
             .output();
-
         let out = output.unwrap();
         let stdout = String::from_utf8_lossy(&out.stdout);
         let first = stdout
@@ -112,7 +102,6 @@ impl ProcessMonitor {
             None
         }
     }
-
     #[cfg(windows)]
     fn check_native_windows_processes(&self) -> Option<String> {
         unsafe {
@@ -120,14 +109,11 @@ impl ProcessMonitor {
             if hwnd.0 == 0 {
                 return None;
             }
-
             let mut process_id = 0u32;
             GetWindowThreadProcessId(hwnd, Some(&mut process_id));
-
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id).ok()?;
             let mut buf = [0u16; 512];
             let mut len = buf.len() as u32;
-
             if QueryFullProcessImageNameW(
                 handle,
                 PROCESS_NAME_WIN32,
@@ -138,14 +124,12 @@ impl ProcessMonitor {
             {
                 return None;
             }
-
             let path = String::from_utf16_lossy(&buf[..len as usize]);
             let path_obj = std::path::Path::new(&path);
             let exe_name = path_obj
                 .file_name()
                 .and_then(|n| n.to_str())?
                 .to_lowercase();
-
             if self.targets.iter().any(|target| exe_name.contains(target)) {
                 info!("Target process detected (Native Windows): {}", exe_name);
                 return Some(format!("windows-native:{}", exe_name));
@@ -153,13 +137,11 @@ impl ProcessMonitor {
             None
         }
     }
-
     #[cfg(not(windows))]
     fn check_native_windows_processes(&self) -> Option<String> {
         None
     }
 }
-
 impl ProcessMonitorTrait for ProcessMonitor {
     fn is_running(&mut self) -> bool {
         self.system.refresh_processes();
@@ -168,7 +150,6 @@ impl ProcessMonitorTrait for ProcessMonitor {
             .or_else(|| self.check_windows_processes())
             .or_else(|| self.check_native_windows_processes());
         let current_status = match_info.is_some();
-
         if current_status != self.last_status {
             self.last_status = current_status;
             if current_status {

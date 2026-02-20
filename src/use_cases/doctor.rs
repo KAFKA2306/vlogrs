@@ -2,23 +2,18 @@ use crate::infrastructure::settings::Settings;
 use std::path::Path;
 use std::process::Command;
 use tracing::{error, info, warn};
-
 pub struct DoctorUseCase;
-
 impl Default for DoctorUseCase {
     fn default() -> Self {
         Self::new()
     }
 }
-
 impl DoctorUseCase {
     pub fn new() -> Self {
         Self
     }
-
     pub fn execute(&self) {
         info!("=== VLog Doctor Checkup ===");
-
         let ffmpeg = Command::new(crate::domain::constants::FFMPEG_CMD)
             .arg("-version")
             .output();
@@ -26,7 +21,6 @@ impl DoctorUseCase {
             Ok(_) => info!("[OK] FFmpeg is installed"),
             Err(_) => error!("[FAIL] FFmpeg not found in PATH"),
         }
-
         let sqlite3 = Command::new(crate::domain::constants::SQLITE_CMD)
             .arg("--version")
             .output();
@@ -34,7 +28,6 @@ impl DoctorUseCase {
             Ok(_) => info!("[OK] sqlite3 is installed"),
             Err(_) => error!("[FAIL] sqlite3 not found in PATH"),
         }
-
         let dirs = [
             crate::domain::constants::RECORDINGS_DIR,
             "data/tasks",
@@ -51,21 +44,13 @@ impl DoctorUseCase {
                 warn!("[WARN] Directory missing: {}", dir);
             }
         }
-
-        match Settings::new() {
-            Ok(_) => info!("[OK] Configuration (Settings) is valid"),
-            Err(e) => error!("[FAIL] Configuration error: {}", e),
-        }
-
-        // Strict Check: Prompts must be valid.
-        // Iron Rules: "Immediate Panic" for unexpected situations.
+        let _: Settings = Settings::new().unwrap();
+        info!("[OK] Configuration (Settings) is valid");
         match crate::infrastructure::prompts::Prompts::load() {
             Ok(_) => info!("[OK] Prompts loaded successfully"),
             Err(e) => panic!("[FATAL] Prompts error: {}", e),
         }
-
-        crate::infrastructure::audio::AudioRecorder::list_devices();
-
+        let _: () = crate::infrastructure::audio::list_devices();
         info!("Checkup complete.");
     }
 }

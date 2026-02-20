@@ -2,18 +2,15 @@ use anyhow::Context;
 use serde::Deserialize;
 use std::fs::File;
 use std::path::Path;
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct CuratorPrompts {
     pub evaluate: String,
     pub session_summary: String,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct NovelizerPrompts {
     pub template: String,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct Prompts {
     pub curator: CuratorPrompts,
@@ -21,7 +18,6 @@ pub struct Prompts {
     pub transcription: String,
     pub summary_verification: String,
 }
-
 impl Prompts {
     pub fn load() -> anyhow::Result<Self> {
         let path = Path::new("data/prompts.yaml");

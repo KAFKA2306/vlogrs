@@ -4,22 +4,18 @@ use chrono::Utc;
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
-
 pub struct TaskRepository {
     path: PathBuf,
 }
-
 impl TaskRepository {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self { path: path.into() }
     }
-
     pub fn ensure_file(&self) {
         if !self.path.exists() {
             fs::write(&self.path, "[]").unwrap();
         }
     }
-
     fn save(&self, tasks: &[Task]) {
         let content = serde_json::to_string_pretty(tasks).unwrap();
         let tmp_path = self.path.with_extension("tmp");
@@ -27,7 +23,6 @@ impl TaskRepository {
         fs::rename(&tmp_path, &self.path).unwrap();
     }
 }
-
 impl TaskRepositoryTrait for TaskRepository {
     fn add(&self, task_type: &str, file_paths: Vec<String>) -> Task {
         let mut tasks = self.load();
@@ -42,13 +37,11 @@ impl TaskRepositoryTrait for TaskRepository {
         self.save(&tasks);
         task
     }
-
     fn load(&self) -> Vec<Task> {
         self.ensure_file();
         let content = fs::read_to_string(&self.path).unwrap();
         serde_json::from_str(&content).unwrap()
     }
-
     fn update_status(&self, id: &str, status: &str) {
         let mut tasks = self.load();
         if let Some(task) = tasks.iter_mut().find(|t| t.id == id) {

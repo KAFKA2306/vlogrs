@@ -9,13 +9,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{info, warn};
-
 pub struct TaskRunner {
     repository: Arc<dyn TaskRepository>,
     process_use_case: ProcessUseCase,
     activity_sync: Arc<ActivitySyncUseCase>,
 }
-
 impl TaskRunner {
     pub fn new(
         gemini: Arc<dyn ContentGenerator>,
@@ -31,17 +29,13 @@ impl TaskRunner {
             activity_sync,
         }
     }
-
     pub async fn run(&self) {
         loop {
             let tasks = self.repository.load();
-
             for task in tasks {
                 if task.status == STATUS_PENDING {
                     self.repository.update_status(&task.id, STATUS_PROCESSING);
-
                     info!("Processing task: {} ({})", task.id, task.task_type);
-
                     match task.task_type.as_str() {
                         TASK_TYPE_PROCESS_SESSION => {
                             self.process_use_case.execute_session(&task).await;

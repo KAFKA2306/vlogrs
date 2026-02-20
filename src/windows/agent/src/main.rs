@@ -17,7 +17,6 @@ use windows::Win32::System::Threading::{
 };
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 struct Activity {
     timestamp: String,
@@ -26,7 +25,6 @@ struct Activity {
     is_discord: bool,
     is_vrchat: bool,
 }
-
 #[allow(dead_code)]
 struct Constants;
 impl Constants {
@@ -38,17 +36,13 @@ impl Constants {
     const RECORDER_SCRIPT: &'static str = "src/windows/audio_recorder.py";
     const PYTHON_CMD: &'static str = "python";
 }
-
 struct Agent {
     last_activity: Option<Activity>,
 }
-
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-
     info!("--- VLog Windows Agent v0.1.0 ---");
-
     #[cfg(not(windows))]
     {
         warn!("Running on non-Windows platform. Process monitoring is DISABLED.");
@@ -58,17 +52,14 @@ async fn main() -> Result<()> {
             info!("[HEARTBEAT] Agent Stalled (STUB MODE)");
         }
     }
-
     #[cfg(windows)]
     {
         info!("[STATUS] Process Monitor: ACTIVE (Targets: Discord, VRChat)");
-
         let mut agent = Agent::new();
         agent.run().await?;
         Ok(())
     }
 }
-
 #[cfg(windows)]
 impl Agent {
     fn new() -> Self {
@@ -76,22 +67,16 @@ impl Agent {
             last_activity: None,
         }
     }
-
     async fn run(&mut self) -> Result<()> {
         let mut audio_process = Some(self.spawn_audio_recorder()?);
-
         let (tx, rx) = channel();
         let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
-
         let audio_dir = Path::new(Constants::AUDIO_DIR);
         if !audio_dir.exists() {
             let _ = std::fs::create_dir_all(audio_dir);
         }
-
         watcher.watch(audio_dir, RecursiveMode::NonRecursive)?;
-
         let mut last_heartbeat = std::time::Instant::now();
-
         loop {
             if let Some(proc) = audio_process.as_mut() {
                 if let Ok(Some(status)) = proc.try_wait() {
@@ -104,7 +89,6 @@ impl Agent {
             } else {
                 audio_process = Some(self.spawn_audio_recorder()?);
             }
-
             if let Ok(Ok(event)) = rx.try_recv() {
                 match event.kind {
                     notify::EventKind::Create(_) => {
@@ -113,7 +97,6 @@ impl Agent {
                     _ => {}
                 }
             }
-
             if let Some(mut activity) = self.get_current_activity() {
                 let app_name_lower = activity.app_name.to_lowercase();
                 if app_name_lower.contains(Constants::DISCORD_PROC) {
@@ -122,7 +105,6 @@ impl Agent {
                 if app_name_lower.contains(Constants::VRCHAT_PROC) {
                     activity.is_vrchat = true;
                 }
-
                 let prev_discord = self
                     .last_activity
                     .as_ref()
@@ -133,21 +115,18 @@ impl Agent {
                     .as_ref()
                     .map(|a| a.is_vrchat)
                     .unwrap_or(false);
-
                 if prev_discord && !activity.is_discord {
                     info!("[STATUS] Target LOST: Discord");
                 }
                 if prev_vrchat && !activity.is_vrchat {
                     info!("[STATUS] Target LOST: VRChat");
                 }
-
                 if !prev_discord && activity.is_discord {
                     info!("[STATUS] Target FOUND: Discord");
                 }
                 if !prev_vrchat && activity.is_vrchat {
                     info!("[STATUS] Target FOUND: VRChat");
                 }
-
                 if Some(&activity) != self.last_activity.as_ref() {
                     let match_tag = if activity.is_discord {
                         "DISCORD"
@@ -156,17 +135,14 @@ impl Agent {
                     } else {
                         "NONE"
                     };
-
                     info!(
                         "[SCAN] Process: '{}' (Title: '{}') -> Match: {}",
                         activity.app_name, activity.window_title, match_tag
                     );
-
                     self.log_activity(&activity);
                     self.last_activity = Some(activity);
                 }
             }
-
             if last_heartbeat.elapsed() >= Duration::from_secs(Constants::HEARTBEAT_INTERVAL_SECS) {
                 let current_target = if let Some(a) = &self.last_activity {
                     if a.is_discord {
@@ -185,11 +161,9 @@ impl Agent {
                 );
                 last_heartbeat = std::time::Instant::now();
             }
-
             sleep(Duration::from_millis(Constants::SCAN_INTERVAL_MS)).await;
         }
     }
-
     fn spawn_audio_recorder(&self) -> Result<tokio::process::Child> {
         let child = Command::new(Constants::PYTHON_CMD)
             .arg(Constants::RECORDER_SCRIPT)
@@ -205,7 +179,6 @@ impl Agent {
         );
         Ok(child)
     }
-
     fn get_current_activity(&self) -> Option<Activity> {
         unsafe {
             let hwnd = GetForegroundWindow();
@@ -218,21 +191,17 @@ impl Agent {
                     is_vrchat: false,
                 });
             }
-
             let mut title_buf = [0u16; 512];
             let len = GetWindowTextW(hwnd, &mut title_buf);
             let window_title = String::from_utf16_lossy(&title_buf[..len as usize]);
-
             let mut process_id = 0u32;
             windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(
                 hwnd,
                 Some(&mut process_id),
             );
-
             let app_name = self
                 .get_app_name(process_id)
                 .unwrap_or_else(|_| "Unknown".to_string());
-
             Some(Activity {
                 timestamp: Utc::now().to_rfc3339(),
                 app_name,
@@ -242,24 +211,19 @@ impl Agent {
             })
         }
     }
-
     fn get_app_name(&self, pid: u32) -> Result<String> {
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
                 .unwrap_or_else(|_| panic!("OpenProcess failed for PID {}", pid));
-
             let mut buf = [0u16; 512];
             let mut len = buf.len() as u32;
-
             QueryFullProcessImageNameW(
                 handle,
                 PROCESS_NAME_WIN32,
                 PWSTR(buf.as_mut_ptr()),
                 &mut len,
             )?;
-
             let path = String::from_utf16_lossy(&buf[..len as usize]);
-
             let file_name = std::path::Path::new(&path)
                 .file_name()
                 .and_then(|n| n.to_str())
@@ -268,14 +232,12 @@ impl Agent {
             Ok(file_name)
         }
     }
-
     fn log_activity(&self, activity: &Activity) {
         if let Ok(json) = serde_json::to_string(activity) {
             info!("{}", json);
         }
     }
 }
-
 #[cfg(not(windows))]
 impl Agent {
     fn new() -> Self {

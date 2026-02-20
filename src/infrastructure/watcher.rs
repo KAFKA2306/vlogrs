@@ -3,22 +3,18 @@ use crate::infrastructure::tasks::TaskRepository;
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use tracing::{error, info};
-
 pub struct FileWatcher {
     path: PathBuf,
 }
-
 impl crate::domain::FileWatcher for FileWatcher {
     fn start(&self) {
         self.start()
     }
 }
-
 impl FileWatcher {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self { path: path.into() }
     }
-
     pub fn start(&self) {
         let path = self.path.clone();
         let (tx, rx) = std::sync::mpsc::channel();
@@ -26,16 +22,11 @@ impl FileWatcher {
         let config = Config::default().with_poll_interval(std::time::Duration::from_secs(
             crate::domain::constants::WATCHER_POLL_INTERVAL_SECS,
         ));
-
         let mut watcher: RecommendedWatcher = Watcher::new(tx, config).unwrap();
-
         watcher.watch(&path, RecursiveMode::Recursive).unwrap();
-
         info!("Started watching directory: {:?}", path);
-
         std::thread::spawn(move || {
             let _watcher = watcher;
-
             for res in rx {
                 let event = match res {
                     Ok(e) => e,
@@ -47,7 +38,6 @@ impl FileWatcher {
                 if !matches!(event.kind, EventKind::Create(_)) {
                     continue;
                 }
-
                 for path in event.paths {
                     if !path.is_file() {
                         continue;
