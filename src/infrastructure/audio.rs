@@ -236,7 +236,7 @@ impl AudioRecorder {
     fn process_audio<I>(
         samples: I,
         writer_cb: &Arc<Mutex<Option<hound::WavWriter<std::io::BufWriter<std::fs::File>>>>>,
-        silence_threshold: f32,
+        _silence_threshold: f32,
         peak_amplitude: &Arc<Mutex<f32>>,
         last_log: &Arc<Mutex<Instant>>,
     ) where
@@ -251,10 +251,8 @@ impl AudioRecorder {
                 local_peak = abs_sample;
             }
 
-            if abs_sample >= silence_threshold {
-                let s = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
-                samples_to_write.push(s);
-            }
+            let s = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+            samples_to_write.push(s);
         }
 
         if !samples_to_write.is_empty() {

@@ -59,6 +59,11 @@ async fn main() {
         .json()
         .init();
 
+    std::panic::set_hook(Box::new(|info| {
+        let backtrace = std::backtrace::Backtrace::capture();
+        tracing::error!("FATAL PANIC: {}\nBacktrace:\n{}", info, backtrace);
+    }));
+
     info!("VLog initialized. System starting...");
 
     let cli: Cli = Cli::parse();
@@ -67,7 +72,13 @@ async fn main() {
 
     match cli.command {
         Some(Commands::Monitor) | None => {
-            let settings = Settings::new().unwrap();
+            let settings = match Settings::new() {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::error!("Initialization failed (Settings): {:?}", e);
+                    std::process::exit(1);
+                }
+            };
             info!("Starting monitor mode...");
 
             let recorder = Arc::new(infrastructure::audio::AudioRecorder::new());
@@ -80,7 +91,10 @@ async fn main() {
             let watcher = Arc::new(infrastructure::watcher::FileWatcher::new(
                 crate::domain::constants::CLOUD_SYNC_DIR,
             ));
-            let prompts = infrastructure::prompts::Prompts::load().unwrap();
+            let prompts = infrastructure::prompts::Prompts::load().unwrap_or_else(|e| {
+                tracing::error!("Failed to load prompts: {:?}", e);
+                std::process::exit(1);
+            });
             let gemini = Arc::new(infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
@@ -118,9 +132,18 @@ async fn main() {
             info!("Starting manual record...");
         }
         Some(Commands::Process { file }) => {
-            let settings = Settings::new().unwrap();
+            let settings = match Settings::new() {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::error!("Initialization failed (Settings): {:?}", e);
+                    std::process::exit(1);
+                }
+            };
             info!("Processing file: {}", file);
-            let prompts = infrastructure::prompts::Prompts::load().unwrap();
+            let prompts = infrastructure::prompts::Prompts::load().unwrap_or_else(|e| {
+                tracing::error!("Failed to load prompts: {:?}", e);
+                std::process::exit(1);
+            });
             let gemini = Arc::new(infrastructure::llm::GeminiClient::new(
                 settings.google_api_key,
                 settings.gemini_model,
@@ -145,9 +168,18 @@ async fn main() {
                 .await;
         }
         Some(Commands::Novel { date }) => {
-            let settings = Settings::new().unwrap();
+            let settings = match Settings::new() {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::error!("Initialization failed (Settings): {:?}", e);
+                    std::process::exit(1);
+                }
+            };
             info!("Building novel for: {}", date);
-            let prompts = infrastructure::prompts::Prompts::load().unwrap();
+            let prompts = infrastructure::prompts::Prompts::load().unwrap_or_else(|e| {
+                tracing::error!("Failed to load prompts: {:?}", e);
+                std::process::exit(1);
+            });
             let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
@@ -163,9 +195,18 @@ async fn main() {
             use_case.execute(&date).await;
         }
         Some(Commands::Evaluate { date }) => {
-            let settings = Settings::new().unwrap();
+            let settings = match Settings::new() {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::error!("Initialization failed (Settings): {:?}", e);
+                    std::process::exit(1);
+                }
+            };
             info!("Evaluating content for: {}", date);
-            let prompts = infrastructure::prompts::Prompts::load().unwrap();
+            let prompts = infrastructure::prompts::Prompts::load().unwrap_or_else(|e| {
+                tracing::error!("Failed to load prompts: {:?}", e);
+                std::process::exit(1);
+            });
             let gemini = infrastructure::llm::GeminiClient::new(
                 settings.google_api_key.clone(),
                 settings.gemini_model.clone(),
@@ -186,7 +227,13 @@ async fn main() {
             use_case.execute(&date).await;
         }
         Some(Commands::Sync) => {
-            let settings = Settings::new().unwrap();
+            let settings = match Settings::new() {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::error!("Initialization failed (Settings): {:?}", e);
+                    std::process::exit(1);
+                }
+            };
             let use_case = use_cases::sync::SyncUseCase::new(settings);
             use_case.execute().await;
         }

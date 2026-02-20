@@ -27,14 +27,14 @@ impl EventRepository {
             Ok(p) => p,
             Err(e) => {
                 error!("CRITICAL: Failed to connect to SQLite at {}: {}", db_url, e);
-                panic!("Database connection failed: {}", e);
+                std::process::exit(1); // Exit with error for the Master Loop backoff
             }
         };
 
         info!("DB Connected. Applying schema...");
         if let Err(e) = sqlx::query(include_str!("schema.sql")).execute(&pool).await {
             error!("CRITICAL: Schema application failed: {}", e);
-            panic!("Database schema failed: {}", e);
+            std::process::exit(1);
         }
 
         Self { pool }

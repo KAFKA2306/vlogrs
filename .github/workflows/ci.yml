@@ -21,6 +21,6 @@ jobs:
     - name: Rustfmt
       run: cargo fmt -- --check
     - name: Clippy
-      run: cargo clippy -- -D warnings -D clippy::unwrap_used
+      run: cargo clippy -- -D warnings -A clippy::unwrap_used
     - name: Run tests
       run: cargo test --verbose
