@@ -16,7 +16,8 @@ description: VLog システム統合管理プロトコル — 診断、整合性
     - **P (Process)**: `powershell.exe Get-Process` 経由で `vlog-rs.exe` の CPU 使用率が 0% 超であることを確認。
 3. **Windows/WSL 同期完遂**: UNC パス・権限問題を自動解決し、ビルド・常駐を達成すること。
 4. **透明なログ運用**: 起動時の Truncate により「過去の幻影」を排除し、現在のみを直視すること。
-5. **不変のデータ完全性**: 168時間連続稼働での欠損・リーク・重複ゼロ。
+5. **音声出力の物理的確認**: `data/recordings` に有効な `.wav` または `.wav.part` ファイル（サイズが 44 バイトを超えているもの）が出力されていることを確認。
+6. **不変のデータ完全性**: 168時間連続稼働での欠損・リーク・重複ゼロ。
 
 - **エージェントの行動指針**: 
     1. **WSL 検証アンカー (WSL Verification Anchor)**: Windows 実機テストの前に、WSL 環境で以下を実行し「ロジックの正当性」を 100% 保証せよ。
@@ -103,6 +104,18 @@ graph LR
 1. `just setup` で初期化。
 2. `just check` / `just test` 必須。
 3. 機能変更時は本ドキュメント（CLI/仕様）も同期。
+
+## 7. Zero-Ops Autopilot プロトコル (Advanced)
+Windows 側を一切操作せず、WSL/AI 側からの「遠隔手術」のみで運用を継続するための高度階層ループ。
+
+### 構成 (Tiered Loop)
+1. **Master Loop (`run.bat`)**: 物理的なエントリポイント。`bootstrap.ps1` を無限に呼び出し続ける。
+2. **Bootstrap Layer (`bootstrap.ps1`)**: ビルド & 起動。Rust コードを再ビルドし、エージェントを起動して終了を待つ。
+3. **Application Layer (`vlog-rs`)**: 実処理。適応的ハードウェア検知によりパニックを回避。
+
+### 特徴
+- **完全自動更新**: WSL 側でコードを保存するだけで、Windows 側が次回のループで勝手にビルド・反映する。
+- **耐障害性**: ビルド失敗やクラッシュ時もバックオフ付きで自動復旧。
 
 ---
 *WindowsでVRC/Discord検知 -> 録音開始 & ログ記録。*
