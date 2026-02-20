@@ -57,49 +57,31 @@ Write-Log "Initiating build..."
 Push-Location $BaseDir
 $OldEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
+
+# Run build
 & $CargoPath build --release --target x86_64-pc-windows-msvc 2>&1 | Out-File -FilePath $BuildLog -Encoding utf8
 $BuildExitCode = $LASTEXITCODE
 $ErrorActionPreference = $OldEAP
 
 if ($BuildExitCode -ne 0) {
-    Write-Log "Build failed. Check $BuildLog for details." "FATAL"
-    Write-Log "--- Last 10 lines of build log ---" "ERROR"
-    Get-Content $BuildLog -Tail 10 | ForEach-Object { Write-Log $_ "ERROR" }
+    Write-Log "Build failed. Check $BuildLog for details." "ERROR"
+    Pop-Location
     exit 1
 }
-Write-Log "Build successful."
-Pop-Location
 
-Write-Log "Checking target applications..."
-$Discord = Get-Process -Name "Discord" -ErrorAction SilentlyContinue
-$VRChat = Get-Process -Name "VRChat" -ErrorAction SilentlyContinue
-
-if ($Discord) { Write-Log "Discord: RUNNING" } else { Write-Log "Discord: NOT DETECTED" }
-if ($VRChat) { Write-Log "VRChat: RUNNING" } else { Write-Log "VRChat: NOT DETECTED" }
-
-Write-Log "Launching Master Monitor..."
+Write-Log "Build successful. Launching Master Monitor..."
 if (!(Test-Path $AgentExe)) {
     Write-Log "Binary not found: $AgentExe" "FATAL"
+    Pop-Location
     exit 1
 }
 
-$RestartDelay = 5
-$CurrentBackoff = $RestartDelay
-while ($true) {
-    Write-Log "Starting Monitor: $AgentExe"
-    Push-Location $BaseDir
-    $Proc = Start-Process -FilePath $AgentExe -ArgumentList "monitor" -NoNewWindow -Wait -PassThru
-    $ExitCode = $Proc.ExitCode
-    Write-Log "Monitor exited with code: $ExitCode" "WARN"
-    Pop-Location
+Write-Log "Starting Monitor: $AgentExe"
+Push-Location $BaseDir
+& $AgentExe "monitor" 2>&1 | Out-File -FilePath $MonitorLog -Encoding utf8
+$ExitCode = $LASTEXITCODE
+Write-Log "Monitor exited with code: $ExitCode" "WARN"
+Pop-Location
 
-    if ($ExitCode -eq 0) {
-        $CurrentBackoff = $RestartDelay
-    } else {
-        Write-Log "Process failed. Applying backoff..." "WARN"
-        $CurrentBackoff = [Math]::Min($CurrentBackoff * 2, 300)
-    }
+exit $ExitCode
 
-    Write-Log "Restarting in $CurrentBackoff seconds..."
-    Start-Sleep -Seconds $CurrentBackoff
-}

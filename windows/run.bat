@@ -27,16 +27,17 @@ if not exist "%BOOTSTRAP_PS1%" (
     exit /b 1
 )
 
+:loop
 :: Invoke PowerShell with the bootstrap logic
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BOOTSTRAP_PS1%"
 
 :: Capture exit code
 set "PS_EXIT_CODE=%ERRORLEVEL%"
 
-popd
-if %PS_EXIT_CODE% NEQ 0 (
-    echo [FATAL] Bootstrap exited with code %PS_EXIT_CODE%
-    pause
-)
+:: Small delay before restart to prevent CPU spikes on rapid failure
+timeout /t 5 /nobreak >nul
 
+goto loop
+
+popd
 exit /b %PS_EXIT_CODE%
