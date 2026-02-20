@@ -63,8 +63,6 @@ impl ActivitySyncUseCase {
 
         info!("Sync completed for {}", file_path);
         // Optional: archive file after processing
-        let archive_path = format!("{}.processed", file_path);
-        // Optional: archive file after processing
         let _archive_path = format!("{}.processed", file_path);
         std::fs::rename(file_path, _archive_path).unwrap();
     }
