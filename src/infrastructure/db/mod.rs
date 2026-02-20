@@ -1,25 +1,41 @@
 use crate::domain::{EventRepository as EventRepositoryTrait, LifeEvent};
 use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use std::str::FromStr;
+use tracing::{error, info};
 
 pub struct EventRepository {
     pool: SqlitePool,
 }
 
 impl EventRepository {
-    pub async fn new(db_url: &str) -> Self {
-        let options = SqliteConnectOptions::from_str(db_url)
+    pub async fn new(db_path: &str) -> Self {
+        let db_url = if db_path.starts_with("sqlite:") {
+            db_path.to_string()
+        } else {
+            "sqlite::memory:".to_string()
+        };
+
+        info!("Connecting to SQLite: {}", db_url);
+
+        let options = SqliteConnectOptions::from_str(&db_url)
             .unwrap()
             .create_if_missing(true)
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Delete)
             .busy_timeout(std::time::Duration::from_secs(10));
 
-        let pool = SqlitePool::connect_with(options).await.unwrap();
+        let pool = match SqlitePool::connect_with(options).await {
+            Ok(p) => p,
+            Err(e) => {
+                error!("CRITICAL: Failed to connect to SQLite at {}: {}", db_url, e);
+                panic!("Database connection failed: {}", e);
+            }
+        };
 
-        sqlx::query(include_str!("schema.sql"))
-            .execute(&pool)
-            .await
-            .unwrap();
+        info!("DB Connected. Applying schema...");
+        if let Err(e) = sqlx::query(include_str!("schema.sql")).execute(&pool).await {
+            error!("CRITICAL: Schema application failed: {}", e);
+            panic!("Database schema failed: {}", e);
+        }
 
         Self { pool }
     }

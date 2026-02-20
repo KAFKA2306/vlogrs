@@ -40,6 +40,7 @@ description: VLog システム統合管理プロトコル — 診断、整合性
 - **優先プロファイル**: 1. 精度 (Whisper large-v3) > 2. 容量最小化 (Opus圧縮) > 3. リアルタイム性。
 
 ## 1. 構成・データフロー (Architecture)
+### システム概要 (System Overview)
 ```mermaid
 graph LR
     subgraph "Windows (Sensor)"
@@ -52,12 +53,51 @@ graph LR
     end
 ```
 
+### Zero-Ops ライフサイクル (Zero-Ops Lifecycle)
+```mermaid
+sequenceDiagram
+    participant W as WSL (Control Plane)
+    participant B as Win Bootstrap (run.bat)
+    participant A as Win Agent (vlog-rs.exe)
+    participant S as WSL Share (Data/Logs)
+
+    Note over W,S: Cycle Start
+    W->>W: Code Change / Update logic
+    Note over B: Infinite Loop
+    B->>B: Build vlog-rs.exe (Rust)
+    B->>A: Launch VLog Agent
+    A->>S: Write Logs & Recordings
+    W->>S: Monitor L-F-P (Best-Effort)
+    Note over W: Verification Success
+```
+
 ## 2. 状態遷移 & 仕様 (Specs & States)
 - **States**: INIT -> MONITORING <-> PROCESSING / ANALYZING -> FINALIZING (ERROR -> INIT after 5s)
 - **Audio**: 48kHz/16bit Stereo WAV (一時) -> 24kbps Opus (最終). Whisper: `large-v3/ja/vad_filter=true`.
 - **DB (vlog.db)**: `events` (timestamp, source, metadata), `recordings` (start_time, duration, processed).
 
-## 3. CLI ワークブック (CLI Operations)
+## 3. 運用・検証フロー (Operational & Verification Flow)
+### 多角的確証 (L-F-P Method)
+```mermaid
+graph TD
+    Start([Start Integration]) --> Doctor[WSL: vlog-rs doctor]
+    Doctor --> Sync[Wait for WSL/Win Sync]
+    Sync --> RunWin[Windows: Master Loop run.bat]
+    RunWin --> LFP{L-F-P Verification}
+    
+    subgraph Verification [Best-Effort Proxy Verification]
+        LFP -->|L: Log| LogCheck[Check windows-rust-monitor.log]
+        LFP -->|F: File| FileCheck[Check data/recordings/*.wav]
+        LFP -->|P: Process| ProcCheck[Check vlog-rs.exe CPU/Process]
+    end
+    
+    LogCheck & FileCheck & ProcCheck --> Success{All Confirmed?}
+    Success -->|Yes| End([Complete & Push /git])
+    Success -->|No| Backoff[Backoff 10s & Retry]
+    Backoff --> RunWin
+```
+
+## 4. CLI ワークブック (CLI Operations)
 ### 3.1 診断・構築
 - `vlog-rs doctor`: 依存ツール (ffmpeg, sqlite3) 整合性チェック。
 - `vlog-rs setup`: `data/recordings`, `logs/`, `journals/` 生成。

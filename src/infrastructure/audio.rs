@@ -299,6 +299,10 @@ impl AudioRecorder {
             .arg(crate::domain::constants::TARGET_SAMPLE_RATE.to_string())
             .arg("-ac")
             .arg(crate::domain::constants::TARGET_CHANNELS.to_string())
+            .arg("-c:a")
+            .arg("libopus")
+            .arg("-b:a")
+            .arg(crate::domain::constants::OPUS_BITRATE.to_string())
             .arg(output)
             .output()?;
 

@@ -60,6 +60,42 @@ description: 複雑性の最小化と品質維持のための統合プロトコ�
 | **Repair** | `task clean` / `just clean` | キャッシュ削除、ゴミ出し、環境リセット。 |
 | **Web** | `task web:dev` / `build` | フロントエンド開発とビルド確認。 |
 
+## 7. 視覚的プロトコル
+
+### 7.1 リファクタリング・ループ (Workflow)
+```mermaid
+graph TD
+    Start([Refactor Start]) --> Audit[2. Environment & Service Audit]
+    Audit --> Check{Pass?}
+    Check -- No --> Repair[5. Repair / Clean]
+    Repair --> Audit
+    Check -- Yes --> Logic[4. Architecture & Logic Refactor]
+    Logic --> Integrity[3. Data Integrity Check]
+    Integrity --> FinalCheck{Met 1. Criteria?}
+    FinalCheck -- No --> Logic
+    FinalCheck -- Yes --> Git[6. Git Push]
+    Git --> End([Refactor Complete])
+```
+
+### 7.2 エージェント実行フロー (Sequence)
+```mermaid
+sequenceDiagram
+    participant A as Antigravity (Agent)
+    participant C as Codebase (Rust/Web)
+    participant S as System (task/just/db)
+    participant G as Git (Repository)
+
+    A->>S: just check / task lint
+    S-->>A: Status/Diagnostic
+    A->>C: Apply Iron Rules (Refactor)
+    A->>S: task clean / sync
+    S-->>A: Consistency Confirmation
+    A->>S: task process:daily (Validation)
+    S-->>A: Performance/Quality Results
+    A->>G: /git (Commit & Push)
+    G-->>A: Remote Updated
+```
+
 ---
 *Created by Antigravity for Project VLOG. Simplicity is the ultimate sophistication.*
 
