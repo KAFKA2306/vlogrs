@@ -32,11 +32,7 @@ impl EvaluateDailyContentUseCase {
         if let Some(parent) = Path::new(&eval_path).parent() {
             fs::create_dir_all(parent).unwrap();
         }
-        fs::write(
-            &eval_path,
-            serde_json::to_string_pretty(&result).unwrap(),
-        )
-        .unwrap();
+        fs::write(&eval_path, serde_json::to_string_pretty(&result).unwrap()).unwrap();
         info!("Evaluation saved to {}", eval_path);
 
         if let Some(ref supabase) = self.supabase {
@@ -49,6 +45,5 @@ impl EvaluateDailyContentUseCase {
             });
             supabase.upsert("evaluations", &data).await.unwrap();
         }
-
-        }
+    }
 }

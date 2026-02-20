@@ -88,8 +88,7 @@ async fn main() {
             ));
 
             let event_repo = Arc::new(
-                infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy())
-                    .await,
+                infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy()).await,
             );
             let activity_sync = Arc::new(use_cases::sync_activity::ActivitySyncUseCase::new(
                 event_repo.clone(),
@@ -131,8 +130,7 @@ async fn main() {
                 Settings::default_tasks_path(),
             ));
             let event_repo = Arc::new(
-                infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy())
-                    .await,
+                infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy()).await,
             );
             let use_case =
                 use_cases::process::ProcessUseCase::new(gemini.clone(), repo, event_repo, gemini);
@@ -201,9 +199,8 @@ async fn main() {
             use_case.execute().await;
         }
         Some(Commands::Setup) => {
-            let use_case = use_cases::SetupUseCase::new(Box::new(
-                infrastructure::fs_utils::LocalEnvironment,
-            ));
+            let use_case =
+                use_cases::SetupUseCase::new(Box::new(infrastructure::fs_utils::LocalEnvironment));
             use_case.execute();
         }
         Some(Commands::Doctor) => {

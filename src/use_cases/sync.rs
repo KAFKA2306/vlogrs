@@ -28,27 +28,28 @@ impl SyncUseCase {
             return;
         }
 
-        let summaries =
-            fs::read_dir(summaries_dir).unwrap();
+        let summaries = fs::read_dir(summaries_dir).unwrap();
 
         for entry in summaries {
             let entry = entry.unwrap();
             let path = entry.path();
 
             if path.extension().and_then(|s| s.to_str()) == Some("txt") {
-                let content =
-                    fs::read_to_string(&path).unwrap();
+                let content = fs::read_to_string(&path).unwrap();
 
                 let file_stem = path
                     .file_stem()
-                    .ok_or_else(|| anyhow::anyhow!("Invalid file stem")).unwrap()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid file stem"))
+                    .unwrap()
                     .to_str()
-                    .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename")).unwrap();
+                    .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename"))
+                    .unwrap();
 
                 let date_str = file_stem
                     .split('_')
                     .next()
-                    .ok_or_else(|| anyhow::anyhow!("Invalid summary filename format")).unwrap();
+                    .ok_or_else(|| anyhow::anyhow!("Invalid summary filename format"))
+                    .unwrap();
 
                 let data = serde_json::json!({
                     "file_path": path.to_string_lossy(),
@@ -61,6 +62,5 @@ impl SyncUseCase {
                 info!("Synced {}", path.display());
             }
         }
-
     }
 }

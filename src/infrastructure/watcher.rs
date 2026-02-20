@@ -27,12 +27,9 @@ impl FileWatcher {
             crate::domain::constants::WATCHER_POLL_INTERVAL_SECS,
         ));
 
-        let mut watcher: RecommendedWatcher =
-            Watcher::new(tx, config).unwrap();
+        let mut watcher: RecommendedWatcher = Watcher::new(tx, config).unwrap();
 
-        watcher
-            .watch(&path, RecursiveMode::Recursive)
-            .unwrap();
+        watcher.watch(&path, RecursiveMode::Recursive).unwrap();
 
         info!("Started watching directory: {:?}", path);
 

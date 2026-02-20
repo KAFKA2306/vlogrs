@@ -28,7 +28,7 @@ pub struct MonitorUseCase {
 }
 
 impl MonitorUseCase {
-
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         audio_recorder: Arc<dyn AudioRecorder>,
         process_monitor: Arc<tokio::sync::Mutex<dyn ProcessMonitor>>,
@@ -72,7 +72,6 @@ impl MonitorUseCase {
 
         self.watcher.start();
 
-
         let task_runner = Arc::new(crate::use_cases::task_runner::TaskRunner::new(
             self.gemini_client.clone(),
             self.task_repository.clone(),
@@ -81,15 +80,9 @@ impl MonitorUseCase {
             self.activity_sync.clone(),
         ));
 
+        tokio::spawn(async move { task_runner.run().await });
 
-        tokio::spawn(async move {
-            task_runner.run().await
-        });
-
-
-        tokio::spawn(async move {
-            crate::use_cases::HealthMonitor::run().await
-        });
+        tokio::spawn(async move { crate::use_cases::HealthMonitor::run().await });
 
         let mut is_recording = false;
         let mut recording_started_at: Option<Instant> = None;
@@ -156,10 +149,10 @@ impl MonitorUseCase {
                         match self.audio_recorder.stop() {
                             Some(path) => {
                                 info!("Session recording saved to: {:?}", path);
-                                    self.task_repository.add(
-                                        "process_session",
-                                        vec![path.to_string_lossy().to_string()],
-                                    );
+                                self.task_repository.add(
+                                    "process_session",
+                                    vec![path.to_string_lossy().to_string()],
+                                );
                             }
                             None => warn!("Recorder stopped, but no output path returned"),
                         }

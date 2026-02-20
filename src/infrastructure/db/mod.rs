@@ -8,7 +8,8 @@ pub struct EventRepository {
 
 impl EventRepository {
     pub async fn new(db_url: &str) -> Self {
-        let options = SqliteConnectOptions::from_str(db_url).unwrap()
+        let options = SqliteConnectOptions::from_str(db_url)
+            .unwrap()
             .create_if_missing(true)
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .busy_timeout(std::time::Duration::from_secs(10));

@@ -45,12 +45,8 @@ impl AudioRecorder {
                 .input_devices()
                 .unwrap()
                 .find(|d| d.name().map(|n| n.contains(&name)).unwrap_or(false))
-                .unwrap_or_else(|| {
-                     host.default_input_device().unwrap()
-                }),
-            None => host
-                .default_input_device()
-                .unwrap(),
+                .unwrap_or_else(|| host.default_input_device().unwrap()),
+            None => host.default_input_device().unwrap(),
         };
 
         info!("Using audio device: {}", device.name().unwrap_or_default());
@@ -61,7 +57,6 @@ impl AudioRecorder {
             buffer_size: cpal::BufferSize::Default,
         };
 
-
         let supported = device.supported_input_configs().unwrap().any(|c| {
             c.channels() == channels
                 && c.min_sample_rate().0 <= sample_rate
@@ -69,10 +64,11 @@ impl AudioRecorder {
                 && c.sample_format() == cpal::SampleFormat::F32
         });
 
-
-
         if !supported {
-            panic!("Hardware incompatibility: {}Hz {}ch unsupported", sample_rate, channels);
+            panic!(
+                "Hardware incompatibility: {}Hz {}ch unsupported",
+                sample_rate, channels
+            );
         }
 
         info!("Selected audio config: {:?}", config);
@@ -113,13 +109,11 @@ impl AudioRecorder {
                         }
                     }
 
-
                     if let Ok(mut p) = peak_amplitude.lock() {
                         if local_peak > *p {
                             *p = local_peak;
                         }
                     }
-
 
                     if let Ok(mut last) = last_log.lock() {
                         if last.elapsed()
@@ -184,9 +178,7 @@ impl AudioRecorder {
 
     pub fn list_devices() {
         let host = cpal::default_host();
-        let devices = host
-            .input_devices()
-            .expect("Failed to list input devices");
+        let devices = host.input_devices().expect("Failed to list input devices");
 
         info!("=== Available Audio Input Devices ===");
         for (i, device) in devices.enumerate() {
@@ -245,10 +237,7 @@ impl AudioRecorderTrait for AudioRecorder {
                 error!("Audio recording loop failed: {}", e);
             }
         });
-        let mut recording_thread = self
-            .recording_thread
-            .lock()
-            .unwrap();
+        let mut recording_thread = self.recording_thread.lock().unwrap();
         *recording_thread = Some(handle);
 
         info!("Started recording...");
@@ -257,10 +246,7 @@ impl AudioRecorderTrait for AudioRecorder {
     fn stop(&self) -> Option<PathBuf> {
         self.is_recording.store(false, Ordering::SeqCst);
         let join_handle = {
-            let mut recording_thread = self
-                .recording_thread
-                .lock()
-                .unwrap();
+            let mut recording_thread = self.recording_thread.lock().unwrap();
             recording_thread.take()
         };
 

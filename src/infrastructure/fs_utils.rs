@@ -21,12 +21,18 @@ impl Environment for LocalEnvironment {
             return;
         }
 
-        let process_names = self.prompt_with_default(
-            "Process names (comma separated)",
-            "VRChat.exe,vrchat,VRChatClient.exe,Discord.exe,discord",
-        ).unwrap();
-        let check_interval = self.prompt_with_default("Check interval seconds", "5").unwrap();
-        let device_name = self.prompt_with_default("Audio device name (blank = default)", "").unwrap();
+        let process_names = self
+            .prompt_with_default(
+                "Process names (comma separated)",
+                "VRChat.exe,vrchat,VRChatClient.exe,Discord.exe,discord",
+            )
+            .unwrap();
+        let check_interval = self
+            .prompt_with_default("Check interval seconds", "5")
+            .unwrap();
+        let device_name = self
+            .prompt_with_default("Audio device name (blank = default)", "")
+            .unwrap();
 
         let config = format!(
             "process:\n  names: \"{}\"\n  check_interval: {}\npaths:\n  recording_dir: \"data/recordings\"\naudio:\n  device_name: {}\n  silence_threshold: 0.02\ntrigger:\n  start_debounce_secs: 2\n  stop_grace_secs: 10\n  min_recording_secs: 60\n",
@@ -69,7 +75,8 @@ pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) {
 
     let mut temp_file = tempfile::Builder::new()
         .prefix("vlog_tmp_")
-        .tempfile_in(dir).unwrap();
+        .tempfile_in(dir)
+        .unwrap();
 
     temp_file.write_all(content.as_ref()).unwrap();
     temp_file.as_file().sync_all().unwrap();

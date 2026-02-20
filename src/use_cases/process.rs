@@ -37,19 +37,10 @@ impl ProcessUseCase {
             let preprocessor = crate::infrastructure::preprocessor::TranscriptPreprocessor::new();
             let cleaned = preprocessor.process(&transcript);
 
-
             let path = Path::new(&file_path);
-            let stem = path
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap();
+            let stem = path.file_stem().unwrap().to_str().unwrap();
 
-            let date_str = stem
-                .split('_')
-                .next()
-                .unwrap();
-
+            let date_str = stem.split('_').next().unwrap();
 
             let start_time = chrono::NaiveDateTime::parse_from_str(
                 &stem.split('_').take(2).collect::<Vec<_>>().join("_"),
@@ -106,7 +97,10 @@ impl ProcessUseCase {
             if is_lossless_or_raw {
                 match transcoder.execute(file_path).await {
                     Ok(opus_path) => info!("Archived recording as {}", opus_path),
-                    Err(e) => panic!("Transcoding failed for {} (keeping original file): {}", file_path, e),
+                    Err(e) => panic!(
+                        "Transcoding failed for {} (keeping original file): {}",
+                        file_path, e
+                    ),
                 }
             }
         }

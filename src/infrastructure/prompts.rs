@@ -32,5 +32,3 @@ impl Prompts {
         serde_yaml::from_reader(file).context("Failed to parse data/prompts.yaml")
     }
 }
-
-

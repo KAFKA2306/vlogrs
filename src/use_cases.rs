@@ -49,17 +49,23 @@ impl HealthMonitor {
                 0.0
             };
 
-            if cpu >= crate::domain::constants::HEALTH_THRESHOLD_PERCENT as f32 || mem_pct >= crate::domain::constants::HEALTH_THRESHOLD_PERCENT as f64 {
+            if cpu >= crate::domain::constants::HEALTH_THRESHOLD_PERCENT as f32
+                || mem_pct >= crate::domain::constants::HEALTH_THRESHOLD_PERCENT
+            {
                 tracing::warn!(
                     "health-check high usage cpu={:.1}% memory={:.1}% - Triggering self-restart",
-                    cpu, mem_pct
+                    cpu,
+                    mem_pct
                 );
                 std::process::exit(1);
             } else {
                 tracing::info!("health-check cpu={:.1}% memory={:.1}%", cpu, mem_pct);
             }
 
-            tokio::time::sleep(std::time::Duration::from_secs(crate::domain::constants::HEALTH_CHECK_INTERVAL_SECS)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(
+                crate::domain::constants::HEALTH_CHECK_INTERVAL_SECS,
+            ))
+            .await;
         }
     }
 }

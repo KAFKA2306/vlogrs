@@ -86,8 +86,7 @@ impl Novelizer for GeminiClient {
         let prompt = template
             .replace("{novel_so_far}", context)
             .replace("{today_summary}", summary);
-        self.generate_content(&prompt)
-            .await
+        self.generate_content(&prompt).await
     }
 }
 
@@ -121,9 +120,7 @@ impl Curator for GeminiClient {
             .replace("{summary}", summary)
             .replace("{novel}", novel);
 
-        let content = self
-            .generate_content(&prompt)
-            .await;
+        let content = self.generate_content(&prompt).await;
 
         let cleaned = content
             .trim_start_matches("```json")
@@ -164,11 +161,7 @@ impl Curator for GeminiClient {
         })
     }
 
-    async fn summarize_session(
-        &self,
-        transcript: &str,
-        activities: &str,
-    ) -> String {
+    async fn summarize_session(&self, transcript: &str, activities: &str) -> String {
         let prompt = self
             .prompts
             .curator

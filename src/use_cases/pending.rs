@@ -30,20 +30,22 @@ impl PendingUseCase {
 
             let file_stem = path
                 .file_stem()
-                .ok_or_else(|| anyhow::anyhow!("Invalid file stem")).unwrap()
+                .ok_or_else(|| anyhow::anyhow!("Invalid file stem"))
+                .unwrap()
                 .to_str()
-                .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename")).unwrap();
+                .ok_or_else(|| anyhow::anyhow!("Invalid unicode in filename"))
+                .unwrap();
 
             let date = file_stem
                 .split('_')
                 .next()
-                .ok_or_else(|| anyhow::anyhow!("Invalid filename format")).unwrap();
+                .ok_or_else(|| anyhow::anyhow!("Invalid filename format"))
+                .unwrap();
 
             let novel_path = format!("data/novels/{}.md", date);
             if !Path::new(&novel_path).exists() {
                 info!("Found pending novel for date: {}", date);
             }
         }
-
     }
 }

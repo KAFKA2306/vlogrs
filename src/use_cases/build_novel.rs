@@ -90,7 +90,5 @@ impl BuildNovelUseCase {
 
         let photo_path = crate::domain::constants::PHOTO_FILE_TEMPLATE.replace("{}", date);
         self.image_generator.generate(&chapter, &photo_path).await;
-
-
     }
 }

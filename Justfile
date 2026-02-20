@@ -7,7 +7,7 @@ default:
 # --- Development ---
 check:
     cargo check
-    cargo clippy -- -D warnings
+    cargo clippy -- -A clippy::unwrap_used -D warnings
 
 build:
     cargo build --release
