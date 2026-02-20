@@ -1,312 +1,108 @@
 ---
-description: VLog システム統合管理プロトコル — 診断、整合性確認、ビルド、および運用手順
+description: VLog システム統合管理プロトコル — 診断、整合性、ビルド、運用手順
 ---
 
-# /vlog — VLog システム統合管理手順 v7.2 (Master Manual)
+# /vlog — VLog 統合管理手順 v8.0
 
-このドキュメントは、VLog システム（Ubuntu/Cortex および Windows/Senses）の全ライフサイクルを管理するための最上位標準運用手順書（SOP）です。抽象的な表現や比喩を完全に排除し、エンジニアリング仕様に基づいた具体的なコマンド、データ構造、および検証手順を網羅します。
+## 0. プロトコル要諦 (Core Protocol)
+- **目的**: 実環境データ（音声・操作・メディア）の正確かつ永続的な記録と解析。
+- **目標**: Zero-Ops（自律稼働）、Hybrid Consistency（OS間同期）、High-Fidelity（48kHz/16bit）。
 
-## この文書の守備範囲 (Coverage)
+### 最重要完了基準 (Critical Success Criteria)
+1. **完全自律復旧**: 障害発生から10秒以内に自動復旧し、ユーザーの手動介入を排すること。
+2. **多角的・側面的な動作確証 (Best-Effort Verification)**: 直接実行不能な制約下で、以下の三点観測により動作を「確信」に至らせること。
+    - **L (Log)**: `windows-rust-monitor.log` の最新行に `Recording started` を検知。
+    - **F (File)**: `data/recordings` に数秒おきにサイズ増加する `.wav` を検知。
+    - **P (Process)**: `powershell.exe Get-Process` 経由で `vlog-rs.exe` の CPU 使用率が 0% 超であることを確認。
+3. **Windows/WSL 同期完遂**: UNC パス・権限問題を自動解決し、ビルド・常駐を達成すること。
+4. **透明なログ運用**: 起動時の Truncate により「過去の幻影」を排除し、現在のみを直視すること。
+5. **不変のデータ完全性**: 168時間連続稼働での欠損・リーク・重複ゼロ。
 
-本手順書 `vlog.md` は、以下を守備範囲として扱う。
+- **エージェントの行動指針**: 
+    1. **WSL 検証アンカー (WSL Verification Anchor)**: Windows 実機テストの前に、WSL 環境で以下を実行し「ロジックの正当性」を 100% 保証せよ。
+        - `vlog-rs doctor`: 共通バイナリの依存関係と整合性を確認。
+        - `vlog-rs setup`: ディレクトリ構造と初期設定の生成ロジックを確認。
+        - `vlog-rs status`: 内部状態管理モジュールの健全性を確認。
+        - *WSL での成功は、共通コードベースである Windows 側の「論理的動作」の保証となる。*
+    2. **直接実行の優先**: Windows 側でコマンド実行が可能ならば、迷わず直接テスト（`run.bat` のキックと終了コード確認）を実施せよ。
+    3. **多角的・側面的な動作確証 (Best-Effort Verification)**: 直接実行不能な環境では、以下の三点観測（L-F-P法）により「確信」に至らせること。
+        - **L (Log)**: `windows-rust-monitor.log` の最新行に `Recording started` を検知。
+        - **F (File)**: `data/recordings` に数秒おきにサイズ増加する `.wav` を検知。
+        - **P (Process)**: `powershell.exe Get-Process` 経由で `vlog-rs.exe` の存在とリソース消費を確認。
+    4. **ログ設計の継続的改善 (Continuous Logging Evolution)**: 
+        - 「デバッグの着実性」を最優先し、情報不足を感じた際は即座にログ設計（構造・レベル・詳細度）を見直し、改善案を実装せよ。
+        - 常に「未来の自分がこのログだけで原因を特定できるか」を自問し、改善をルーチン化すること。
+    5. **不透明の排除**: 「直接実行できない」を停滞の理由とせず、WSL 側を「検証可能な相似点」として活用し、確証が得られない場合は最短の検証コマンドを提示して並走せよ。
+    6. **完遂後のリポジトリ整理**: タスクが完全に完了した後は、必ず [/git](file:///home/kafka/vlog/.agent/workflows/git.md) ワークフローを呼び出し、コミット・プッシュを確実に実施せよ。
 
-- 実装・構成: Windows/WSL の実行構成、依存、起動手順
-- 運用: 監視、自動復旧、定期点検、容量・性能管理
-- データ統治: 品質指標、保持/削除、監査SQL、整合性確認
+- **DoD**: Rust unwrap禁止、systemd/monitoringによる10秒以内復旧、同期遅延30s以内。
+- **優先プロファイル**: 1. 精度 (Whisper large-v3) > 2. 容量最小化 (Opus圧縮) > 3. リアルタイム性。
 
----
-
-## 0. プロトコルの定義と達成目標 (Objectives & KPIs)
-
-### 0.1 目的 (Purpose)
-**「実環境データの正確かつ永続的な記録」**
-物理空間およびデジタル空間で発生するイベント（音声、ウィンドウ操作、メディア再生）を、改ざん不能な形式でキャプチャし、後続の物語的解析に使用できるデータベースに保存・維持すること。
-
-### 0.2 目標 (Goal)
-1.  **高度な自律稼働 (Zero-Ops)**: 手動介入を最小限に抑え、システムが自動的にプロセスの監視、異常検知、および再起動を行うことで 24時間 365日の連続稼働を維持する。
-2.  **プラットフォーム間の完全同期 (Hybrid Consistency)**: ネットワーク切断や OS の再起動が発生しても、Ubuntu と Windows 間でデータの重複や欠落なく同期を完遂する。
-3.  **データ品質の担保 (High-Fidelity Data)**: 48kHz/16bit/Stereo をキャプチャ基準とし、Gemini 3 Flash による高品質な解析を可能にする。
-
-### 0.3 達成基準 (Success Criteria / DoD)
--   [ ] **開発品質の遵守**: Rust 実装における `unwrap()` の完全な排除と `anyhow` 等によるエラー伝播の徹底。`cargo clippy` 警告ゼロ。
--   [ ] **復旧性能の証明**: プロセス異常終了から 10秒以内に `systemd` または監視スクリプトが自動復旧させること。
--   [ ] **同期性能の指標**: Windows 側でファイルが生成されてから、Ubuntu 側の DB に反映されるまでの遅延が通常 30秒以内であること。
--   [ ] **リソースの最適化**: 168時間（7日間）の連続稼働においてメモリリークが 0B であることを実証。
-
-### 0.4 運用優先度プロファイル (Priority Profile)
-本番既定は以下とする（変更時は 12.1 に従い更新）。
-
-- **最優先**: 文字起こし精度（Whisper `large-v3` / `language=ja` / `vad_filter=true`）
-- **次点**: 保存容量最小（文字起こし完了後の音声を Opus に圧縮、WAV を削除）
-- **非優先**: リアルタイム性の極小遅延（精度低下を招く設定は採用しない）
-
----
-
-## 1. 詳細システム構成とデータフロー (Architecture)
-
-### 1.1 アーキテクチャ図
+## 1. 構成・データフロー (Architecture)
 ```mermaid
-graph TD
-    subgraph "Windows World (Sensor Layer)"
-        WA[音声レコーダー] -->|WAV| SMB[WSL2 共有フォルダ]
-        AL[活動ロガー] -->|JSONL| SMB
-        SMTC[メディア情報監視] --> AL
+graph LR
+    subgraph "Windows (Sensor)"
+        WA[Recorder] -->|WAV| SMB[WSL2 Share]
+        AL[Logger/SMTC] -->|JSONL| SMB
     end
-    
-    subgraph "Ubuntu World (Processing Layer)"
-        SMB -->|Inotify| WM[監視モジュール]
-        WM -->|Queue| TR[FFmpeg 変換]
-        TR -->|Opus Blob| DB[(SQLite 3)]
-        DB -->|Context Retrieval| GE[Gemini 3 Flash API]
-        GE -->|Markdown Export| JN[ジャーナリング]
+    subgraph "Ubuntu (Process)"
+        SMB -->|Inotify| WM[Monitor] -->|FFmpeg| DB[(SQLite)]
+        DB -->|Retrieve| GE[Gemini 3 Flash] --> JN[Journal]
     end
 ```
 
----
+## 2. 状態遷移 & 仕様 (Specs & States)
+- **States**: INIT -> MONITORING <-> PROCESSING / ANALYZING -> FINALIZING (ERROR -> INIT after 5s)
+- **Audio**: 48kHz/16bit Stereo WAV (一時) -> 24kbps Opus (最終). Whisper: `large-v3/ja/vad_filter=true`.
+- **DB (vlog.db)**: `events` (timestamp, source, metadata), `recordings` (start_time, duration, processed).
 
-## 2. システム状態遷移とライフサイクル (Lifecycle & States)
+## 3. CLI ワークブック (CLI Operations)
+### 3.1 診断・構築
+- `vlog-rs doctor`: 依存ツール (ffmpeg, sqlite3) 整合性チェック。
+- `vlog-rs setup`: `data/recordings`, `logs/`, `journals/` 生成。
 
-システムが稼働中に取る各状態と、遷移の条件を以下に定義します。
+### 3.2 実行・監視
+- `task dev`: 監視起動（フォアグラウンド）。
+- `setsid -f bash -lc 'cd /home/kafka/vlog && task dev >> logs/dev.out 2>&1'`: バックグラウンド起動。
+- `vlog-rs status`: メモリ/CPU/キュー/統計表示。
+- `vlog-rs novel --date YYYY-MM-DD`: 指定日のジャーナル生成。
 
-| 状態名 | 説明 | 遷移条件（次へ） |
-| :--- | :--- | :--- |
-| **INITIALIZING** | 設定読み込み、DB接続、ツール確認 | 正常完了 -> MONITORING |
-| **MONITORING** | ファイルシステムおよびプロセスの監視中 | 新規ファイル/イベント検知 -> PROCESSING |
-| **PROCESSING** | 音声変換、タスクキューへの投入 | 処理完了 -> MONITORING |
-| **ANALYZING** | Gemini API によるコンテキスト解析 | 解析終了 -> FINALIZING |
-| **FINALIZING** | DB 書き込み、一時ファイル削除 | 完了 -> MONITORING |
-| **ERROR** | 回復不能なエラーが発生 | 5秒経過後 -> INITIALIZING |
+### 3.3 運用点検コマンド
+- **生存確認**: `ps -eo pid,lstart,cmd | rg "vlog-rs monitor"`
+- **パス確認**: `rg "recording_dir" data/config.yaml`
+- **疎通確認**: `watch -n 2 'ls -lt data/recordings | head'`
+- **DB確認**: `sqlite3 data/vlog.db "SELECT * FROM recordings ORDER BY id DESC LIMIT 5;"`
 
----
+## 4. Windows 連携プロトコル (Windows/WSL Sync)
+- **検知対象**: `VRChat.exe`, `Discord.exe` 等（OR条件）。
+- **Win確認**: `powershell.exe -Command "Get-Process Discord,VRChat | Select Id,Path"`
+- **エントリ**: `windows/run.bat` (UNC解決) -> `bootstrap.ps1` (環境構築・ビルド) -> `vlog-rs.exe monitor`。
+- **注意**: WSLの `ps` のみで判定不可。必ず Windows 側の `Get-Process` と突き合わせる。
 
-## 3. 通信・データ仕様詳細 (Technical Specifications)
+## 5. トラブルシューティング (Troubleshooting)
+| 事象 | 原因・対応 |
+| :--- | :--- |
+| WSL共有死滅 | `wsl --shutdown` 実行後の再起動。`fuser` でゾンビプロセス排除。 |
+| SQLITE_BUSY | WALモード確認。`PRAGMA busy_timeout = 5000;` 適用。 |
+| 録音されない | `vlog-rs monitor` 生存、Winプロセス検知（logs/dev.out）、共有パス疎通を確認。 |
+| Win監視失敗 | WSLから `powershell.exe` 叩けるか確認。Monitor再起動 10s 以内のログ確認。 |
+| デバイス未検出 | Windows側でデバイス有効化。`data/config.yaml` の `device_name` 修正。 |
 
-### 3.1 音声データ仕様
-| 項目 | 値 | 備考 |
-| :--- | :--- | :--- |
-| 録音サンプリングレート | 48,000 Hz | 物理実体（Layer 3）の既定。認識前に 16kHz へ正規化 |
-| 録音ビット深度 | 16-bit PCM | 符号付き 16ビット符号化 |
-| 録音チャンネル数 | 2 (Stereo) | 収録時に情報損失を避ける。認識前に mono 化可 |
-| 保存形式 (一時) | WAV | パディングなしの生データ |
-| 保存形式 (最終) | Opus | ビットレート: 24kbps (VBR), 文字起こし完了後に生成 |
-| 文字起こし入力 | Whisper 前処理音声 | `large-v3`, `language=ja`, `vad_filter=true` |
+## 6. 実運用チェックリスト & 規約 (Runbook & Rules)
+### 6.1 運用ルール
+- **週次診断**: 録音失敗率、復旧時間、反映遅延、欠損録音数を記録。
+- **データ管理**: `*.wav` は即削除、`*.opus` 変換遵守。
+- **変更規約**: 仕様・手順・検証・監視全項目の同時更新。
 
-### 3.2 データベーススキーマ詳細
-`sqlite3 data/vlog.db` 経由でのテーブル定義：
--   **events**: `timestamp (INT)`, `source (TEXT)`, `app_name (TEXT)`, `title (TEXT)`, `metadata (JSON)`
--   **recordings**: `id (INT)`, `start_time (INT)`, `duration (REAL)`, `file_path (TEXT)`, `processed (BOOL)`
+### 6.2 問い合わせ対応
+- Q: 「can you hear me?」 -> A: `data/recordings` の新規WAV生成有無で回答。
+- Q: 「when started?」 -> A: `ps` の `lstart` を回答。
+- Q: 「find files」 -> A: `find data -maxdepth 3` 結果を回答。
 
----
-
-## 4. CLI コマンド・ワークブック (CLI Execution Workbook)
-
-### 4.1 構築と診断
--   ** doctor**: `vlog-rs doctor`
-    -   動作: `ffmpeg`, `ffprobe`, `sqlite3` のパスとバージョンの整合性をチェック。
--   ** setup**: `vlog-rs setup`
-    -   動作: `data/recordings`, `logs/`, `journals/` のディレクトリ構造を自動生成。
-
-### 4.2 運用と解析
--   ** monitor**: `vlog-rs monitor`
-    -   動作: 常駐監視ループを開始。`inotify` とプロセスリストの差分を監視。
--   ** novel**: `vlog-rs novel --date 2026-02-19`
-    -   動作: 指定日の全イベントを統合し、Gemini API 経由でジャーナルファイルを作成。
--   ** status**: `vlog-rs status`
-    -   動作: 現在のメモリ、CPU、蓄積イベント数、処理待ちタスク数等の統計情報を表示。
-
-### 4.3 実運用スタート手順（必須順序）
-1. 監視起動（Ubuntu）
-   - フォアグラウンド: `task dev`
-   - バックグラウンド: `setsid -f bash -lc 'cd /home/kafka/vlog && task dev >> logs/dev.out 2>&1'`
-2. 起動時刻の確認
-   - `ps -eo pid,lstart,cmd | rg "target/debug/vlog-rs monitor|vlog-rs monitor"`
-3. 保存先の確認（録音受け口）
-   - Linux 側: `ls -la data/recordings`
-   - 設定値: `rg -n "recording_dir|transcript_dir|summary_dir" data/config.yaml`
-4. 新規ファイル到達の監視
-   - `watch -n 2 'ls -lt data/recordings | head'`
-   - `tail -f logs/dev.out`
-5. 文字起こし成果物の確認
-   - `ls -la data/transcripts`
-   - `sqlite3 data/vlog.db "SELECT id,start_time,duration,file_path,processed FROM recordings ORDER BY id DESC LIMIT 10;"`
-
-### 4.5 Windows 側プロセス検知（必須）
-`process.names` は OR 条件で評価する。以下のいずれかが起動中なら録音継続。
-
-- `VRChat.exe`
-- `VRChat`
-- `VRChatClient.exe`
-- `Discord.exe`
-- `discord`
-
-確認コマンド（Windows 実機判定）:
-- `/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -Command "Get-Process -Name Discord,VRChat,VRChatClient -ErrorAction SilentlyContinue | Select-Object ProcessName,Id,Path | Format-Table -AutoSize"`
-
-期待結果:
-- Discord 起動時に `ProcessName = Discord` が 1 件以上表示される。
-
-### 4.4 すぐ使う問い合わせ対応テンプレート（運用者向け）
-- 「can you hear me?」
-  - 回答規約: チャット自身は音声入力を直接受信しない。`data/recordings` に新規音声が作成されているかで判定する。
-- 「when started?」
-  - 回答規約: `ps -eo pid,lstart,cmd ...` の `lstart` を返す。
-- 「where recorded?」
-  - 回答規約: `data/config.yaml` の `paths.recording_dir` と実ディレクトリ `data/recordings` を返す。
-- 「see data / find files」
-  - 回答規約: `find data -maxdepth 3 -type f | sort` を返す。
+### 6.3 開発規定
+1. `just setup` で初期化。
+2. `just check` / `just test` 必須。
+3. 機能変更時は本ドキュメント（CLI/仕様）も同期。
 
 ---
-
-## 5. 高度なトラブルシューティング (Advanced Troubleshooting)
-
-### 5.1 WSL2 ブリッジの死滅
--   **症状**: `ls /mnt/wsl...` は見えるがファイルの読み書きがタイムアウトする。
--   **対応**: 
-    1. Windows 側で `wsl --shutdown` を実行し、Hyper-V ブリッジのリセットを待機。
-    2. Ubuntu 側で `fuser -m /mnt/wsl/...` を実行し、ゾンビプロセスを特定・終了。
-
-### 5.2 データベース書き込み遅延 (Lock Contention)
--   **症状**: `SQLITE_BUSY` エラー。
--   **対応**: `PRAGMA busy_timeout = 5000;` を適用し、待機時間を延長してください。WAL モードが必須です。
-
-### 5.3 Windows Rust Monitor 起動 （Master Protocol v8.0）
-- **発生日**: 2026-02-19
-- **症状**:
-    - `windows\run.bat` 実行後のプロセス不整合、UNC パス起因の CMD 誤動作。
-    - 以前のプロトコルでは CMD 内に複雑なロジックを詰め込みすぎて、エラーの隠蔽が発生していた。
-- **根本原因**:
-    - CMD (`run.bat`) の LF 改行コード混入、および Windows/WSL 間のバイナリ・パーミッション競合。
-- **恒久対策（Protocol v8.0 適用済み）**:
-    1. **役割の完全分離**: `run.bat` は環境整え (UNC 解決) に特化し、実行ロジックを `bootstrap.ps1` へ委譲。
-    2. **Windows ネイティブ制御**: PowerShell 側で Rust toolchain の自動探索、クリーンビルド、無限リカバリーループを実装。
-    3. **バイナリ整合性**: サブエージェントではなく、プロジェクトルートの `vlog-rs.exe monitor` をマスターバイナリとして運用。
-    4. **ログ・透明化**: 起動時にログを切り詰め (Truncate)、ハルシネーション（過去エラーの残像）を排除。
-- **検証結果**:
-    - `windows\run.bat` 経由での `bootstrap.ps1` 正常キックを確認。
-- **運用ルール**:
-    - エントリポイント: `windows/run.bat`
-    - 実装主体: `src/windows/rust/bootstrap.ps1`
-    - 録音主体: `vlog-rs.exe` (monitor mode)
-
-### 5.4 Windows で Rust 録音デバイス未検出
--   **症状**: `Failed to start recording` / `No default input device found`
--   **対応**:
-    1. Windows の入力デバイスを OS 設定で有効化
-    2. `data/config.yaml` の `audio.device_name` を実デバイス名に設定
-    3. `windows\\run.bat` を再起動して再確認
-
-### 5.5 「録音されない」一次切り分け（実運用）
-- **症状**: `data/recordings` が空、`logs/dev.out` に新規処理ログなし
-- **確認順序**:
-  1. `vlog-rs monitor` プロセス生存確認
-  2. VRChat プロセス検出（`VRChat.exe` / `vrchat`）有無
-  3. `logs/windows-rust-monitor.log` に `Target process detected.` と `Recording started.` が出るか
-  4. WSL 共有パスの到達性（`ls`, `touch`, `rm` で疎通）
-- **判定**:
-  - monitor 稼働中かつ VRChat 未起動: 異常ではない（仕様通り未録音）
-  - monitor 稼働中かつ VRChat 起動済みで未録音: 設定または共有経路の障害
-
-### 5.6 Windows プロセス検知が失敗する場合
-- **症状**:
-  - Discord が Windows で起動済みでも `Target process detected.` が出ない
-  - `data/recordings` に新規 WAV が生成されない
-- **原因**:
-  - WSL 側監視プロセスが Windows `powershell.exe` を実行できない実行コンテキストで動作している
-- **確認**:
-  1. `/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe ... Get-Process ...` が実行可能か
-  2. `logs/vlog.log.YYYY-MM-DD` に `Target process detected.` が出るか
-  3. `logs/vlog.log.YYYY-MM-DD` に `Recording started.` が出るか
-- **対応**:
-  1. monitor を再起動
-  2. 再起動後 10 秒以内にログで検知イベントを確認
-  3. 未検知なら OS 境界（WSL/Windows）権限・実行可否を優先切り分け
-
-
----
-
-
-## 9. 開発・コントリビューター規定 (Developer Contribution)
-
-1.  **環境設定**: `just setup` で開発環境を初期化。
-2.  **品質管理**: コミット前に `just check` と `just test` を通過させる。
-3.  **文書化**: 機能変更時は、本手順書の「CLIリファレンス」および「データ仕様」も更新すること。
-
----
-
-
-## 11. 高度なステータス検証 SQL (Audit SQL Library)
-
-### 11.1 システム整合性診断
-```sql
--- 最新のソース別イベント登録件数
-SELECT source, COUNT(*) FROM events 
-WHERE timestamp > (strftime('%s', 'now') - 86400) GROUP BY source;
-
--- 録音時間 0秒の異常データを抽出
-SELECT id, start_time, file_path FROM recordings WHERE duration = 0;
-```
-
----
-
-## 12. 戦略視点の拡張 (Scope Expansion Baseline)
-
-本手順書は「個別障害の対処」だけでなく、以下の4層を常に同時に扱う。
-
-1. **Runtime Layer（今動くか）**  
-   プロセス起動、録音、同期、再起動の成否。
-2. **Reliability Layer（継続稼働できるか）**  
-   MTTR、自動復旧率、再発防止、監視カバレッジ。
-3. **Data Governance Layer（記録品質を保証できるか）**  
-   欠損率、重複率、時系列整合性、保存・削除ポリシー。
-4. **Evolution Layer（将来変更に耐えるか）**  
-   OS差分、依存更新、モデル変更、スキーマ拡張への追従性。
-
-### 12.1 変更時の必須更新点（Definition of Update）
-機能・運用変更時は、コード変更に加えて最低限次を更新すること。
-- `仕様`: サンプルレート、モデル、保存形式、実行条件
-- `運用`: 起動手順、復旧手順、定期点検項目
-- `検証`: 再現手順、期待結果、失敗時ログ例
-- `監視`: アラート条件、閾値、確認コマンド
-
-### 12.2 クロスOS運用ポリシー（Windows/WSL）
-- Windows は **実デバイスI/Oの基準環境**、WSL は **処理・検証環境** として明確に役割分離する。
-- WSL で成功した結果を本番成功とみなさない（録音デバイス、実行ポリシー、パス解決が異なるため）。
-- Windows 実行手順は毎回「絶対/自己基準パス」「実行ポリシー」「共有フォルダ到達性」を確認する。
-- Windows プロセス検知（Discord/VRChat）は必ず Windows 側 `Get-Process` 結果と突き合わせる。
-- Linux `ps` のみで判定しない（Windows GUI プロセスを拾えない場合がある）。
-
-### 12.3 週次ヘルスチェック（必須）
-毎週、以下を記録してトレンド監視する。
-1. 録音開始失敗率（%）
-2. 平均復旧時間（秒）
-3. 未処理キュー件数
-4. 24時間内のゼロ秒/欠損録音件数
-5. Windows->Ubuntu 反映遅延（P50/P95）
-
----
-
-## 13. 実運用チェックリスト（Runbook）
-
-### 13.1 起動直後チェック（5分以内）
-1. `task dev` またはバックグラウンド起動を実施
-2. `ps -eo pid,lstart,cmd | rg "vlog-rs monitor"` で起動時刻を記録
-3. `ls -la data/recordings data/transcripts data/summaries` で書き込み先を確認
-4. `tail -n 100 logs/dev.out` に致命エラーがないことを確認
-5. `tail -n 200 logs/vlog.log.$(date +%F) | rg "Starting monitor mode|Target process detected|Recording started"` を確認
-
-### 13.2 最初の録音が来ないとき（10分以内）
-1. VRChat または Discord プロセスが実際に起動しているか確認
-2. Windows 側で `windows\\run.bat` を起動し `logs\\windows-rust-monitor.log` を確認
-3. `find data -maxdepth 3 -type f | sort` で新規ファイル有無を確認
-4. 新規ゼロなら WSL/Windows 共有経路を復旧（5.1 を適用）
-5. `vlog-rs status` 失敗時は `data/tasks.json` 破損を疑い、`jq . data/tasks.json` で JSON 整合性を確認
-
-### 13.3 容量最小化の遵守確認（日次）
-1. `find data/recordings -type f -name "*.wav"` が 0 件であること
-2. `find data/recordings -type f -name "*.opus" | wc -l` を記録
-3. `sqlite3 data/vlog.db "SELECT COUNT(*) FROM recordings WHERE processed=1;"` を記録
-
-
-
-
-windowsでvrchat or discordを検知したら、windowsの音声の録音を開始する。これらlogにも残す。
+*WindowsでVRC/Discord検知 -> 録音開始 & ログ記録。*
