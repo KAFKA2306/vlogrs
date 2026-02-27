@@ -39,7 +39,7 @@ impl ProcessUseCase {
                 "%Y%m%d_%H%M%S",
             )
             .map(|dt| chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(dt, chrono::Utc))
-            .unwrap_or(chrono::Utc::now() - chrono::Duration::minutes(30));
+            .unwrap();
             let end_time = start_time + chrono::Duration::minutes(30);
             let activities = self
                 .event_repository
@@ -75,9 +75,10 @@ impl ProcessUseCase {
             info!("Summary saved to {}", summary_out_path);
             let is_lossless_or_raw = Path::new(&file_path)
                 .extension()
-                .and_then(|s| s.to_str())
+                .unwrap()
+                .to_str()
                 .map(|ext| matches!(ext.to_ascii_lowercase().as_str(), "wav" | "flac"))
-                .unwrap_or(false);
+                .unwrap();
             if is_lossless_or_raw {
                 match transcoder.execute(file_path).await {
                     Ok(opus_path) => info!("Archived recording as {}", opus_path),

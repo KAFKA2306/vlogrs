@@ -3,6 +3,8 @@ pub mod evaluate;
 pub mod monitor;
 pub mod novel;
 pub mod process;
+pub mod record;
 pub mod setup;
 pub mod status;
 pub mod sync;
+pub mod worker;

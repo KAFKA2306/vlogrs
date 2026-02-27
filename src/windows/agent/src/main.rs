@@ -105,16 +105,8 @@ impl Agent {
                 if app_name_lower.contains(Constants::VRCHAT_PROC) {
                     activity.is_vrchat = true;
                 }
-                let prev_discord = self
-                    .last_activity
-                    .as_ref()
-                    .map(|a| a.is_discord)
-                    .unwrap_or(false);
-                let prev_vrchat = self
-                    .last_activity
-                    .as_ref()
-                    .map(|a| a.is_vrchat)
-                    .unwrap_or(false);
+                let prev_discord = self.last_activity.as_ref().map(|a| a.is_discord).unwrap();
+                let prev_vrchat = self.last_activity.as_ref().map(|a| a.is_vrchat).unwrap();
                 if prev_discord && !activity.is_discord {
                     info!("[STATUS] Target LOST: Discord");
                 }
@@ -199,9 +191,7 @@ impl Agent {
                 hwnd,
                 Some(&mut process_id),
             );
-            let app_name = self
-                .get_app_name(process_id)
-                .unwrap_or_else(|_| "Unknown".to_string());
+            let app_name = self.get_app_name(process_id).unwrap();
             Some(Activity {
                 timestamp: Utc::now().to_rfc3339(),
                 app_name,
@@ -213,8 +203,7 @@ impl Agent {
     }
     fn get_app_name(&self, pid: u32) -> Result<String> {
         unsafe {
-            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
-                .unwrap_or_else(|_| panic!("OpenProcess failed for PID {}", pid));
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).unwrap();
             let mut buf = [0u16; 512];
             let mut len = buf.len() as u32;
             QueryFullProcessImageNameW(
@@ -226,8 +215,9 @@ impl Agent {
             let path = String::from_utf16_lossy(&buf[..len as usize]);
             let file_name = std::path::Path::new(&path)
                 .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("Unknown")
+                .unwrap()
+                .to_str()
+                .unwrap()
                 .to_string();
             Ok(file_name)
         }

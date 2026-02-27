@@ -96,6 +96,9 @@ vlog/
 | `task sync` | Sync to Supabase |
 | `task web:dev` | Start frontend dev server |
 | `task web:deploy` | Deploy to Vercel |
+| `cargo run -- monitor --no-worker` | Audio auto-record + process detection only (no Gemini) |
+| `cargo run -- worker` | Gemini task worker (transcribe/summarize pending sessions) |
+| `cargo run -- record` | Manual recording (Windows host only; no-op elsewhere) |
 
 ---
 

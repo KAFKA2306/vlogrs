@@ -21,6 +21,9 @@ pub const FFMPEG_CMD: &str = "ffmpeg";
 pub const PYTHON_CMD: &str = "python";
 pub const UV_CMD: &str = "uv";
 pub const SQLITE_CMD: &str = "sqlite3";
+#[cfg(windows)]
+pub const POWERSHELL_PATH: &str = "powershell.exe";
+#[cfg(not(windows))]
 pub const POWERSHELL_PATH: &str = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe";
 pub const IMAGE_GEN_SCRIPT: &str = "src/scripts/image_gen.py";
 pub const STATUS_PENDING: &str = "pending";

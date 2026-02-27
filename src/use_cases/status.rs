@@ -46,24 +46,20 @@ impl StatusUseCase {
             return 0;
         }
         fs::read_dir(path)
-            .map(|entries| {
-                entries
-                    .filter_map(Result::ok)
-                    .filter(|entry| {
-                        entry
-                            .metadata()
-                            .and_then(|m| m.modified())
-                            .map(|t| {
-                                t.duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_secs() as i64
-                                    >= since_ts
-                            })
-                            .unwrap_or(false)
-                    })
-                    .count()
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .metadata()
+                    .unwrap()
+                    .modified()
+                    .unwrap()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64
+                    >= since_ts
             })
-            .unwrap_or(0)
+            .count()
     }
     fn estimate_runtime_hours_from_recordings(&self, since_ts: i64) -> f64 {
         let path = Path::new(crate::domain::constants::RECORDINGS_DIR);
@@ -75,14 +71,14 @@ impl StatusUseCase {
                 entries
                     .filter_map(Result::ok)
                     .filter_map(|entry| {
-                        let meta = entry.metadata().ok()?;
+                        let meta = entry.metadata().unwrap();
                         if !meta.is_file() {
                             return None;
                         }
-                        let modified = meta.modified().ok()?;
+                        let modified = meta.modified().unwrap();
                         let ts = modified
                             .duration_since(std::time::UNIX_EPOCH)
-                            .ok()?
+                            .unwrap()
                             .as_secs() as i64;
                         if ts < since_ts {
                             return None;

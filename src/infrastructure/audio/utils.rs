@@ -5,7 +5,7 @@ pub fn list_devices() {
     let devices = host.input_devices().expect("Failed to list input devices");
     info!("=== Available Audio Input Devices ===");
     for (i, device) in devices.enumerate() {
-        let name: String = device.name().unwrap_or_else(|_| "Unknown".to_string());
+        let name: String = device.name().unwrap();
         info!("Device {}: {}", i, name);
         if let Ok(mut configs) = device.supported_input_configs() {
             for config in configs.by_ref() {

@@ -1,42 +1,37 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-:: ---------------------------------------------------------
-:: VLog Windows Bootstrap Wrapper (Master Protocol v8.0)
-:: ---------------------------------------------------------
-
-:: Handle UNC paths - pushd will assign a temporary drive letter if needed
 pushd "%~dp0" >nul 2>&1
+cls
 if errorlevel 1 (
-  echo [FATAL] Cannot access script directory from UNC path.
+  echo [FATAL] UNC path access failed.
   pause
   exit /b 1
 )
 
-:: Move to Repo Root
 pushd ".." >nul 2>&1
 set "REPO_ROOT=%CD%"
 popd >nul 2>&1
 
-:: Resolve bootstrap script path
 set "BOOTSTRAP_PS1=%REPO_ROOT%\src\windows\rust\bootstrap.ps1"
 
 if not exist "%BOOTSTRAP_PS1%" (
-    echo [FATAL] Bootstrap script not found: %BOOTSTRAP_PS1%
+    echo [FATAL] Bootstrap missing: %BOOTSTRAP_PS1%
     pause
     exit /b 1
 )
 
-:loop
-:: Invoke PowerShell with the bootstrap logic
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BOOTSTRAP_PS1%"
+echo [INFO] VLog Master Protocol v8.0 Starting...
 
-:: Capture exit code
+:loop
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BOOTSTRAP_PS1%"
 set "PS_EXIT_CODE=%ERRORLEVEL%"
 
-:: Small delay before restart to prevent CPU spikes on rapid failure
-timeout /t 5 /nobreak >nul
+if %PS_EXIT_CODE% neq 0 (
+    echo [WARN] Monitor exited (%PS_EXIT_CODE%). Restarting in 5s...
+)
 
+timeout /t 5 /nobreak >nul
 goto loop
 
 popd

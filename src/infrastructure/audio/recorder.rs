@@ -40,8 +40,8 @@ impl AudioRecorder {
             Some(name) => host
                 .input_devices()
                 .unwrap()
-                .find(|d| d.name().map(|n| n.contains(&name)).unwrap_or(false))
-                .unwrap_or_else(|| host.default_input_device().unwrap()),
+                .find(|d| d.name().map(|n| n.contains(&name)).unwrap())
+                .unwrap(),
             None => host.default_input_device().unwrap(),
         };
         let supported_configs = device.supported_input_configs().unwrap();
@@ -56,7 +56,7 @@ impl AudioRecorder {
                     && c.max_sample_rate().0 >= sample_rate
             })
             .map(|c| c.with_sample_rate(cpal::SampleRate(sample_rate)).config())
-            .unwrap_or_else(|| device.default_input_config().unwrap().config());
+            .unwrap();
         let sample_format: cpal::SampleFormat = device
             .supported_input_configs()
             .unwrap()
@@ -66,7 +66,12 @@ impl AudioRecorder {
                     && c.max_sample_rate().0 >= config.sample_rate.0
             })
             .map(|c| c.sample_format())
-            .unwrap_or(cpal::SampleFormat::F32);
+            .unwrap();
+        if let Some(parent) = part_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                anyhow::anyhow!("Failed to create recording directory {:?}: {}", parent, e)
+            })?;
+        }
         let spec: hound::WavSpec = hound::WavSpec {
             channels: config.channels,
             sample_rate: config.sample_rate.0,
@@ -75,7 +80,8 @@ impl AudioRecorder {
         };
         let writer: Arc<Mutex<Option<hound::WavWriter<std::io::BufWriter<std::fs::File>>>>> =
             Arc::new(Mutex::new(Some(
-                hound::WavWriter::create(&part_path, spec).unwrap(),
+                hound::WavWriter::create(&part_path, spec)
+                    .map_err(|e| anyhow::anyhow!("Failed to open {:?}: {}", part_path, e))?,
             )));
         let writer_cb = writer.clone();
         let last_log: Arc<Mutex<Instant>> = Arc::new(Mutex::new(Instant::now()));
@@ -114,7 +120,30 @@ impl AudioRecorder {
                     None,
                 )
                 .unwrap(),
-            _ => panic!("Unsupported sample format: {:?}", sample_format),
+            cpal::SampleFormat::U8 => device
+                .build_input_stream(
+                    &config,
+                    move |data: &[u8], _: &cpal::InputCallbackInfo| {
+                        let iter = data.iter().map(|&s| (s as f32 - 128.0) / 128.0);
+                        Self::process_audio(
+                            iter,
+                            &writer_cb,
+                            silence_threshold,
+                            &peak_amplitude,
+                            &last_log,
+                        );
+                    },
+                    |err| error!("Audio stream error: {}", err),
+                    None,
+                )
+                .unwrap(),
+            _ => {
+                error!("Unsupported sample format: {:?}", sample_format);
+                return Err(anyhow::anyhow!(
+                    "Unsupported sample format: {:?}",
+                    sample_format
+                ));
+            }
         };
         stream.play().unwrap();
         while is_recording.load(Ordering::SeqCst) {
@@ -189,17 +218,17 @@ impl AudioRecorderTrait for AudioRecorder {
         *current_file = Some(output_path.clone());
         let is_recording: Arc<AtomicBool> = self.is_recording.clone();
         let handle: JoinHandle<()> = thread::spawn(move || {
-            let part_path: PathBuf =
-                output_path.with_extension(crate::domain::constants::WAV_PART_EXTENSION);
-            Self::record_loop(
+            let part_path: PathBuf = output_path.clone();
+            if let Err(e) = Self::record_loop(
                 part_path,
                 sample_rate,
                 channels,
                 is_recording,
                 device_name,
                 silence_threshold,
-            )
-            .unwrap();
+            ) {
+                error!("Recording failed: {}", e);
+            }
         });
         let mut recording_thread = self.recording_thread.lock().unwrap();
         *recording_thread = Some(handle);

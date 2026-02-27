@@ -12,7 +12,11 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Commands {
-    Monitor,
+    Monitor {
+        #[arg(long, default_value_t = false)]
+        no_worker: bool,
+    },
+    Worker,
     Record,
     Process {
         #[arg(short, long)]
@@ -56,11 +60,17 @@ async fn main() {
     }));
     let cli: Cli = Cli::parse();
     match cli.command {
-        Some(Commands::Monitor) | None => {
-            cli::monitor::run().await;
+        Some(Commands::Monitor { no_worker }) => {
+            cli::monitor::run(no_worker).await;
+        }
+        Some(Commands::Worker) => {
+            cli::worker::run().await;
+        }
+        None => {
+            cli::monitor::run(false).await;
         }
         Some(Commands::Record) => {
-            tracing::info!("Starting manual record...");
+            cli::record::run().await.unwrap();
         }
         Some(Commands::Process { file }) => {
             cli::process::run(file).await;

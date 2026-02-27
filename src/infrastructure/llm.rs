@@ -4,6 +4,53 @@ use base64::{engine::general_purpose, Engine as _};
 use reqwest::Client;
 use serde_json::{json, Value};
 #[derive(Clone)]
+pub struct NoopGemini;
+impl Default for NoopGemini {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NoopGemini {
+    pub fn new() -> Self {
+        Self
+    }
+}
+#[async_trait::async_trait]
+impl crate::domain::ContentGenerator for NoopGemini {
+    async fn generate_content(&self, _prompt: &str) -> String {
+        "".to_string()
+    }
+    async fn transcribe(&self, _file_path: &str) -> String {
+        "".to_string()
+    }
+}
+#[async_trait::async_trait]
+impl Curator for NoopGemini {
+    async fn evaluate(&self, _summary: &str, _novel: &str) -> Evaluation {
+        Evaluation {
+            faithfulness_score: 0,
+            quality_score: 0,
+            reasoning: "Gemini disabled".to_string(),
+        }
+    }
+    async fn verify_summary(
+        &self,
+        _summary: &str,
+        _transcript: &str,
+        _activities: &str,
+    ) -> Evaluation {
+        Evaluation {
+            faithfulness_score: 0,
+            quality_score: 0,
+            reasoning: "Gemini disabled".to_string(),
+        }
+    }
+    async fn summarize_session(&self, _transcript: &str, _activities: &str) -> String {
+        "".to_string()
+    }
+}
+#[derive(Clone)]
 pub struct GeminiClient {
     api_key: String,
     model: String,
@@ -85,8 +132,9 @@ impl crate::domain::ContentGenerator for GeminiClient {
         let audio_data: Vec<u8> = std::fs::read(file_path).unwrap();
         let ext: &str = std::path::Path::new(file_path)
             .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("wav");
+            .unwrap()
+            .to_str()
+            .unwrap();
         let mime_type: &str = match ext {
             "wav" => "audio/wav",
             "flac" => "audio/flac",
@@ -108,11 +156,7 @@ impl Curator for GeminiClient {
             .trim_start_matches("```json")
             .trim_end_matches("```")
             .trim();
-        serde_json::from_str(cleaned).unwrap_or_else(|_| Evaluation {
-            faithfulness_score: 0,
-            quality_score: 0,
-            reasoning: "Evaluation failed".to_string(),
-        })
+        serde_json::from_str(cleaned).unwrap()
     }
     async fn verify_summary(
         &self,
@@ -131,11 +175,7 @@ impl Curator for GeminiClient {
             .trim_start_matches("```json")
             .trim_end_matches("```")
             .trim();
-        serde_json::from_str(cleaned).unwrap_or(Evaluation {
-            faithfulness_score: 1,
-            quality_score: 1,
-            reasoning: format!("Failed to parse: {}", content),
-        })
+        serde_json::from_str(cleaned).unwrap()
     }
     async fn summarize_session(&self, transcript: &str, activities: &str) -> String {
         let prompt: String = self

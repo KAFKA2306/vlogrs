@@ -58,7 +58,7 @@ impl ProcessMonitor {
             let base = target
                 .rsplit(['\\', '/'])
                 .next()
-                .unwrap_or(target)
+                .unwrap()
                 .trim()
                 .trim_end_matches(".exe")
                 .to_string();
@@ -153,18 +153,32 @@ impl ProcessMonitorTrait for ProcessMonitor {
         if current_status != self.last_status {
             self.last_status = current_status;
             if current_status {
-                let matched = match_info
-                    .clone()
-                    .unwrap_or_else(|| "unknown-target".to_string());
+                let matched = match_info.clone().unwrap();
                 self.last_match = Some(matched.clone());
-                info!("Target process detected: {}", matched);
+                if matched.to_lowercase().contains("vrchat") {
+                    info!("VRChat detected.");
+                } else {
+                    info!("Target process detected: {}", matched);
+                }
             } else {
-                info!("Target process no longer detected.");
+                let was_vrchat = self
+                    .last_match
+                    .as_ref()
+                    .is_some_and(|s| s.to_lowercase().contains("vrchat"));
+                if was_vrchat {
+                    info!("VRChat not detected.");
+                } else {
+                    info!("Target process no longer detected.");
+                }
                 self.last_match = None;
             }
         } else if current_status && self.last_match != match_info {
             if let Some(matched) = match_info.clone() {
-                info!("Target process updated: {}", matched);
+                if matched.to_lowercase().contains("vrchat") {
+                    info!("VRChat updated: {}", matched);
+                } else {
+                    info!("Target process updated: {}", matched);
+                }
                 self.last_match = Some(matched);
             }
         }

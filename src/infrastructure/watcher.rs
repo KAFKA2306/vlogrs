@@ -42,7 +42,7 @@ impl FileWatcher {
                     if !path.is_file() {
                         continue;
                     }
-                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    let ext = path.extension().unwrap().to_str().unwrap();
                     match ext.to_lowercase().as_str() {
                         "wav" | "flac" => {
                             info!("New audio file: {:?}", path);

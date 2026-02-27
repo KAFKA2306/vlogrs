@@ -96,8 +96,10 @@ tasks:
   # ────────────────────────────────────────
   process:
     desc: 録音→要約（Rust）
-    deps: [require_file]
     cmds: ["cargo run -- process --file {{.FILE}}"]
+    preconditions:
+      - sh: test -n "{{.FILE}}"
+        msg: FILE=...を指定してください
 
   process:all:
     desc: 録音→要約（全ファイル一括）

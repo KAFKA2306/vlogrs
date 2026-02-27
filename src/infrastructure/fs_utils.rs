@@ -61,7 +61,7 @@ impl LocalEnvironment {
 }
 pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) {
     let path = path.as_ref();
-    let dir = path.parent().unwrap_or(Path::new("."));
+    let dir = path.parent().unwrap();
     let mut temp_file = tempfile::Builder::new()
         .prefix("vlog_tmp_")
         .tempfile_in(dir)

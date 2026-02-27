@@ -28,10 +28,7 @@ impl SupabaseClient {
             .map_err(|e| anyhow::anyhow!("Supabase request failed: {}", e))?;
         if !response.status().is_success() {
             let status = response.status();
-            let error = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
+            let error = response.text().await.unwrap();
             anyhow::bail!("Supabase upsert failed with status {}: {}", status, error);
         }
         Ok(())
