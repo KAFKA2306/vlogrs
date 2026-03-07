@@ -2,6 +2,14 @@
 
 See [Global Configuration](file:///home/kafka/projects/.agent/AGENTS.md)
 
+## Execution Policy
+- Make minimal changes only. Do not add unrelated edits.
+- Use fail-fast behavior. Do not hide failures with fallback logic.
+- Run first, read crash logs precisely, and fix one root cause at a time.
+- Define executable operations in `Taskfile.yaml` and run via `task ...`.
+- For this Rust repository, use `cargo check`, `cargo fmt`, `cargo clippy`, and `cargo test` for quality gates.
+- Do not add code comments unless explicitly requested.
+
 ## Domain Overrides
 
 ### VRChat Process Monitoring
@@ -49,7 +57,6 @@ Agents should perform a weekly health check and audit processed recordings.
 
 - `supabase-mcp-server` - Database operations
 - `netlify` - Frontend deployment
-
 
 
 

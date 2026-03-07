@@ -7,5 +7,14 @@
     "file_paths": [
       "data/recordings\\20260219_125828.wav"
     ]
+  },
+  {
+    "id": "019caf66-fc77-7881-975c-948f55b2bd8a",
+    "created_at": "2026-03-02T16:34:48.055694362Z",
+    "status": "pending",
+    "task_type": "process_session",
+    "file_paths": [
+      "data/recordings/test.wav"
+    ]
   }
 ]

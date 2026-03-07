@@ -68,9 +68,9 @@ tasks:
   up:
     desc: systemd起動
     cmds:
-      - systemctl --user enable --now "$(pwd)/vlog.service"
-      - systemctl --user link "$(pwd)/vlog-daily.service" || true
-      - systemctl --user enable --now "$(pwd)/vlog-daily.timer"
+      - systemctl --user enable --now "$(pwd)/systemd/vlog.service"
+      - systemctl --user link "$(pwd)/systemd/vlog-daily.service" || true
+      - systemctl --user enable --now "$(pwd)/systemd/vlog-daily.timer"
 
   down:
     desc: systemd停止
@@ -100,6 +100,8 @@ tasks:
     preconditions:
       - sh: test -n "{{.FILE}}"
         msg: FILE=...を指定してください
+      - sh: test -f "{{.FILE}}"
+        msg: "FILEが存在しません: {{.FILE}}"
 
   process:all:
     desc: 録音→要約（全ファイル一括）
@@ -111,7 +113,6 @@ tasks:
     cmds:
       - |
         TODAY=$(date +%Y%m%d)
-        rm -f data/summaries/${TODAY}_summary.txt
         for f in data/recordings/${TODAY}*.wav data/recordings/${TODAY}*.flac; do
           [ -f "$f" ] && task process FILE="$f"
         done || true
@@ -121,7 +122,6 @@ tasks:
     cmds:
       - |
         YESTERDAY=$(date -d "yesterday" +%Y%m%d)
-        rm -f data/summaries/${YESTERDAY}_summary.txt
         for f in data/recordings/${YESTERDAY}*.wav data/recordings/${YESTERDAY}*.flac; do
           [ -f "$f" ] && task process FILE="$f"
         done || true
@@ -194,6 +194,12 @@ tasks:
     cmds:
       - cargo clippy --fix --allow-dirty --allow-staged
       - cargo fmt
+
+  clean:corrupted:
+    desc: 0バイトの破損した録音ファイルを削除
+    cmds:
+      - find data/recordings -name "*.wav" -size 0 -delete
+      - find data/recordings -name "*.flac" -size 0 -delete
 
   clean:
     desc: キャッシュ削除
