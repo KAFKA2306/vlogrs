@@ -9,8 +9,10 @@ impl EventRepository {
     pub async fn new(db_path: &str) -> Self {
         let db_url = if db_path.starts_with("sqlite:") {
             db_path.to_string()
-        } else {
+        } else if db_path == ":memory:" {
             "sqlite::memory:".to_string()
+        } else {
+            format!("sqlite:{}", db_path)
         };
         info!("Connecting to SQLite: {}", db_url);
         let options = SqliteConnectOptions::from_str(&db_url)

@@ -52,21 +52,21 @@ impl TranscriptPreprocessor {
         }
         result
     }
-    fn remove_fillers(&self, txt: &str) -> String {
-        let mut sorted_fillers = crate::domain::constants::TRANSCRIPT_FILLERS.to_vec();
-        sorted_fillers.sort_by_key(|a| std::cmp::Reverse(a.len()));
-        let pattern_str = sorted_fillers.join("|");
-        let pattern = format!(r"(^|[\s、。?!])({})(?=[\s、。?!]||$)", pattern_str);
-        let re = Regex::new(&pattern).expect("Invalid regex in remove_fillers");
-        let mut current_txt = txt.to_string();
-        for _ in 0..20 {
+    pub fn remove_fillers(&self, text: &str) -> String {
+        let sorted_fillers = crate::domain::constants::TRANSCRIPT_FILLERS.to_vec();
+        let mut current_txt = text.to_string();
+        loop {
             let prev_txt = current_txt.clone();
-            current_txt = re
-                .replace_all(&current_txt, |caps: &regex::Captures| {
-                    let leading = caps.get(1).map_or("", |m| m.as_str());
-                    format!("{} ", leading)
-                })
-                .to_string();
+            for filler in &sorted_fillers {
+                let re = Regex::new(&format!(r"(^|\s){}(\s|$)", regex::escape(filler)))
+                    .expect("Invalid regex in remove_fillers");
+                current_txt = re
+                    .replace_all(&current_txt, |caps: &regex::Captures| {
+                        let leading = caps.get(1).map_or("", |m| m.as_str());
+                        format!("{} ", leading)
+                    })
+                    .to_string();
+            }
             if current_txt == prev_txt {
                 break;
             }

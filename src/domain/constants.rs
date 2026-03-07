@@ -42,7 +42,7 @@ pub const EVALUATION_FILE_TEMPLATE: &str = "data/evaluations/{}.json";
 pub const CONFIG_DEFAULT_JSON: &str = "[]";
 pub const TASKS_FILE_NAME: &str = "tasks.json";
 pub const DEFAULT_PROCESS_NAMES: &str = "VRChat,Discord";
-pub const DEFAULT_DB_PATH: &str = "/home/kafka/vlog/data/vlog.db";
+pub const DEFAULT_DB_PATH: &str = "data/vlog.db";
 pub const DEFAULT_SILENCE_THRESHOLD: f64 = 0.02;
 pub const BYTES_PER_SECOND_16K_MONO: f64 = 16000.0 * 2.0;
 pub const DEFAULT_SAMPLE_RATE: u32 = 48000;
@@ -102,3 +102,4 @@ pub const TRANSCRIPT_FILLERS: &[&str] = &[
     "えっと",
 ];
 pub const PROHIBITED_WORDS: &[&str] = &["hmd", "controller", "virtual", "vr"];
+pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3-flash-preview";

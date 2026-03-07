@@ -13,14 +13,10 @@ pub async fn run(file: String) {
         settings.gemini_model,
         prompts,
     ));
-    let repo = Arc::new(infrastructure::tasks::TaskRepository::new(
-        Settings::default_tasks_path(),
-    ));
     let event_repo = Arc::new(
         infrastructure::db::EventRepository::new(&settings.db_path.to_string_lossy()).await,
     );
-    let use_case =
-        use_cases::process::ProcessUseCase::new(gemini.clone(), repo, event_repo, gemini);
+    let use_case = use_cases::process::ProcessUseCase::new(gemini.clone(), event_repo, gemini);
     use_case
         .execute_session(&domain::Task {
             id: "manual".to_string(),

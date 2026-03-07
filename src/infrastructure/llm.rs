@@ -3,6 +3,7 @@ use crate::infrastructure::prompts::Prompts;
 use base64::{engine::general_purpose, Engine as _};
 use reqwest::Client;
 use serde_json::{json, Value};
+use std::process::Command;
 #[derive(Clone)]
 pub struct NoopGemini;
 impl Default for NoopGemini {
@@ -67,6 +68,27 @@ impl GeminiClient {
         }
     }
     pub async fn generate_content(&self, prompt: &str) -> String {
+        if let Some(model) = self.model.strip_prefix("ollama:") {
+            let body: Value = json!({
+                "model": model,
+                "prompt": prompt,
+                "stream": false
+            });
+            let resp = self
+                .client
+                .post("http://127.0.0.1:11434/api/generate")
+                .json(&body)
+                .send()
+                .await
+                .unwrap();
+            let status = resp.status();
+            let text: String = resp.text().await.unwrap();
+            if !status.is_success() {
+                panic!("Ollama API Error (Status {}): {}", status, text);
+            }
+            let parsed: Value = serde_json::from_str(&text).unwrap();
+            return parsed["response"].as_str().unwrap().to_string();
+        }
         let url: String = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             self.model, self.api_key
@@ -105,12 +127,30 @@ impl GeminiClient {
     }
     async fn post_and_parse(&self, url: &str, body: Value) -> String {
         let resp = self.client.post(url).json(&body).send().await.unwrap();
+        let status = resp.status();
         let text: String = resp.text().await.unwrap();
+
+        if !status.is_success() {
+            panic!("LLM API Error (Status {}): {}", status, text);
+        }
+
         let parsed: Value = serde_json::from_str(&text).unwrap();
         if let Some(content) = parsed["candidates"][0]["content"]["parts"][0]["text"].as_str() {
             return content.to_string();
         }
         panic!("LLM response bad format: {:?}", parsed)
+    }
+    fn parse_evaluation(content: &str) -> Evaluation {
+        let cleaned = content
+            .trim_start_matches("```json")
+            .trim_end_matches("```")
+            .trim();
+        if cleaned.starts_with('{') {
+            return serde_json::from_str(cleaned).unwrap();
+        }
+        let start = cleaned.find('{').unwrap();
+        let end = cleaned.rfind('}').unwrap();
+        serde_json::from_str(&cleaned[start..=end]).unwrap()
     }
 }
 #[async_trait::async_trait]
@@ -129,6 +169,30 @@ impl crate::domain::ContentGenerator for GeminiClient {
         self.generate_content(prompt).await
     }
     async fn transcribe(&self, file_path: &str) -> String {
+        if self.model.starts_with("ollama:") {
+            let output_dir = "data/transcripts";
+            std::fs::create_dir_all(output_dir).unwrap();
+            let status = Command::new("whisper")
+                .arg(file_path)
+                .arg("--output_dir")
+                .arg(output_dir)
+                .arg("--output_format")
+                .arg("txt")
+                .arg("--task")
+                .arg("transcribe")
+                .status()
+                .unwrap();
+            if !status.success() {
+                panic!("whisper transcription failed with status {}", status);
+            }
+            let stem = std::path::Path::new(file_path)
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            let transcript_path = format!("{}/{}.txt", output_dir, stem);
+            return std::fs::read_to_string(transcript_path).unwrap();
+        }
         let audio_data: Vec<u8> = std::fs::read(file_path).unwrap();
         let ext: &str = std::path::Path::new(file_path)
             .extension()
@@ -151,12 +215,16 @@ impl Curator for GeminiClient {
         let prompt: String = template
             .replace("{summary}", summary)
             .replace("{novel}", novel);
-        let content: String = self.generate_content(&prompt).await;
-        let cleaned: &str = content
-            .trim_start_matches("```json")
-            .trim_end_matches("```")
-            .trim();
-        serde_json::from_str(cleaned).unwrap()
+        let content: String = if self.model.starts_with("ollama:") {
+            self.generate_content(&format!(
+                "Return only valid JSON with keys faithfulness_score, quality_score, reasoning.\n{}",
+                prompt
+            ))
+            .await
+        } else {
+            self.generate_content(&prompt).await
+        };
+        Self::parse_evaluation(&content)
     }
     async fn verify_summary(
         &self,
@@ -170,12 +238,16 @@ impl Curator for GeminiClient {
             .replace("{summary}", summary)
             .replace("{transcript}", transcript)
             .replace("{activities}", activities);
-        let content: String = self.generate_content(&prompt).await;
-        let cleaned: &str = content
-            .trim_start_matches("```json")
-            .trim_end_matches("```")
-            .trim();
-        serde_json::from_str(cleaned).unwrap()
+        let content: String = if self.model.starts_with("ollama:") {
+            self.generate_content(&format!(
+                "Return only valid JSON with keys faithfulness_score, quality_score, reasoning.\n{}",
+                prompt
+            ))
+            .await
+        } else {
+            self.generate_content(&prompt).await
+        };
+        Self::parse_evaluation(&content)
     }
     async fn summarize_session(&self, transcript: &str, activities: &str) -> String {
         let prompt: String = self
