@@ -4,7 +4,6 @@ description: Manage and maintain systemd units for the VLog project, including `
 allowed-tools:
   - "Bash(task *)"
   - Read
-disable-model-invocation: true
 ---
 
 # Systemd Maintenance Skill
@@ -41,7 +40,7 @@ The systemd units are located in:
 - **Silent Troubleshooting**: Analyze logs before asking the user for input on crashes.
 
 ## Examples
-- "バックグラウンドで起動して" -> `task up`
-- "サービスが動いているか確認して" -> `task service:status`
-- "エラーが出たからログを見せて" -> `task logs`
-- "毎日実行されるタスクを停止して" -> `task down` (or individual systemctl commands)
+- "Start it in the background" -> `task up`
+- "Check whether the service is running" -> `task service:status`
+- "Show logs after an error" -> `task logs`
+- "Stop daily scheduled execution" -> `task down` (or individual systemctl commands)

@@ -24,7 +24,7 @@ Monitor and clean up the ingestion pipeline.
 ### 2. Archival Process
 Move processed content from active areas to long-term storage.
 - Prefer a dedicated `task` command for archival.
-- Ensure that for every file in `data/archives/`, a corresponding transcript or summary exists to verify completion.
+- Ensure that for every file in `data/archives/`, a corresponding summary exists to verify completion.
 
 ### 3. Integrity Verification
 Ensure that the filesystem structure matches the `constants.rs` definitions.
@@ -42,7 +42,7 @@ Identify large files or unneeded build artifacts.
 - **Zero-Fat**: Keep IO operations minimal and fast.
 
 ## Examples
-- "ストレージを節約したい" -> アーカイブへの移動や不要な一時ファイルの削除を提案。
-- "録音データがちゃんと保存されているか確認して" -> `data/recordings` と `data/archives` の整合性チェックを実行。
-- "一ヶ月以上前のデータを整理して" -> 日付ベースの移動コマンドを生成。
-- "途中で止まった録音ファイルを消していい？" -> `.wav.part` ファイルの状態（最終更新日時）を確認して提案。
+- "I need to save disk space" -> Propose archival moves and temporary file cleanup.
+- "Can you verify recordings are safely stored?" -> Check consistency between `data/recordings` and `data/archives`.
+- "Organize data older than one month" -> Generate date-based move workflow.
+- "Can I delete interrupted recording files?" -> Check `.wav.part` last-modified state and propose action.

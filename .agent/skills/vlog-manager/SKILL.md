@@ -4,7 +4,6 @@ description: Manage VLog operations including audio recording processing, Supaba
 allowed-tools:
   - "Bash(task *)"
   - Read
-disable-model-invocation: true
 argument-hint: "[filename]"
 ---
 
@@ -39,11 +38,11 @@ Use this to push local summaries and transcripts to the Supabase backend.
 - ALWAYS prefer `task` commands over raw `cargo` or `npm` commands.
 - If invoked with `$ARGUMENTS`, treat it as a filename and run `task process FILE=data/recordings/$ARGUMENTS` after existence check.
 - Before processing, check if the file exists in `data/recordings/`.
-- If a process fails, check the logs using `task logs` to identify the issue.
+- If `task process` fails, inspect the command output first; `task logs` is mainly for systemd-managed monitor issues.
 - Maintain the "Success Path Only" principle by ensuring preconditions (like `FILE` argument) are met.
 
 ## Examples
-- "昨日の録音を全部処理して" -> `task process:yesterday`
-- "サーバーの状態はどう？" -> `task status`
-- "データをSupabaseに同期して" -> `task sync`
-- "新しく録音した `audio123.wav` をプロセシングして" -> `task process FILE=data/recordings/audio123.wav`
+- "Process all recordings from yesterday" -> `task process:yesterday`
+- "What is the server status?" -> `task status`
+- "Sync data to Supabase" -> `task sync`
+- "Process newly recorded `audio123.wav`" -> `task process FILE=data/recordings/audio123.wav`

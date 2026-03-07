@@ -5,6 +5,7 @@ allowed-tools:
   - "Bash(task *)"
   - Read
   - Edit
+disable-model-invocation: true
 argument-hint: "[date YYYYMMDD]"
 ---
 
@@ -31,10 +32,10 @@ Suggest or apply edits to `data/novels/*.md` or `data/summaries/*.txt` when the 
 ## Guidelines
 - Follow the "Silent Operator" principle: keep edits concise and focused on narrative quality.
 - Use the `media-expert` skill (if available) as reference for tone and image generation prompts.
-- When regenerating content, ensure `task sync` is run afterwards to update the backend.
+- If backend synchronization is needed after regeneration, ask for explicit user confirmation before running `task sync`.
 
 ## Examples
-- "昨日の小説の整合性をチェックして" -> `task curator:eval date=$(date -d "yesterday" +%Y%m%d)`
-- "要約が短すぎるので、もう少し詳しく書き直して" -> [Edit summary file] -> `task novel:build`
-- "日記のトーンをもう少し優しくして" -> [Modify system prompt or edit existing files]
-- "生成された画像が小説の内容と合っているか確認して" -> `task photos:fill` で不足画像を補完して確認。
+- "Check consistency for yesterday's novel" -> `task curator:eval date=$(date -d "yesterday" +%Y%m%d)`
+- "The summary is too short; make it more detailed" -> [Edit summary file] -> `task novel:build`
+- "Make the diary tone gentler" -> [Modify system prompt or edit existing files]
+- "Verify generated images match novel content" -> Use `task photos:fill` to backfill missing images and review alignment.

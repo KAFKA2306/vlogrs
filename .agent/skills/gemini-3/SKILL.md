@@ -1,6 +1,7 @@
 ---
 name: gemini-3
 description: Manage and optimize Gemini usage for VLog summaries and narratives. ACTIVATE this skill whenever the user asks about Gemini config, model switching, prompt quality, summary quality regression, or cross-day long-context analysis. Always resolve model names from project configuration before recommending a switch.
+user-invocable: false
 allowed-tools:
   - Read
 ---
@@ -45,7 +46,7 @@ Use project configuration as source of truth. Do not hardcode model IDs in this 
 - **Runtime Override**: `GEMINI_MODEL` in `.env` (resolved in `src/infrastructure/settings.rs`).
 
 ## Examples
-- "もっと精度の高いモデルを使って要約して" -> 現在値を確認し、設定経由でモデル切替を提案。
-- "Gemini 3の設定はどこにある？" -> `src/domain/constants.rs` と `src/infrastructure/settings.rs` を提示。
-- "数日分のログを横断して分析したい" -> Gemini 3の大規模コンテキストを活用した指示を生成。
-- "難しいデバッグをしたい" -> デフォルト品質不足時のみ高推論モデルを設定経由で有効化。
+- "Use a more accurate model for summaries" -> Check current model and propose a config-based switch.
+- "Where is Gemini configuration?" -> Point to `src/domain/constants.rs` and `src/infrastructure/settings.rs`.
+- "I want cross-day log analysis" -> Generate instructions for long-context analysis.
+- "I need deep debugging support" -> Recommend a higher-reasoning model only when default quality is insufficient.

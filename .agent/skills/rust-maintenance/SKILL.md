@@ -33,7 +33,7 @@ Remove build artifacts and temporary caches.
 - **Documentation**: Document architecture in `docs/` or `AGENTS.md` in Japanese; keep code itself silent.
 
 ## Examples
-- "コードをきれいに整えて" -> `task lint`
-- "テストを実行して、壊れていないか確認して" -> `task test`
-- "ビルドキャッシュをクリアして" -> `task clean`
-- "新しいモジュールを追加したので品質チェックをお願い" -> `task lint` -> [Manual fix for new warnings]
+- "Clean up the code quality" -> `task lint`
+- "Run tests to verify nothing is broken" -> `task test`
+- "Clear build cache" -> `task clean`
+- "I added a new module; run quality checks" -> `task lint` -> [Manual fix for new warnings]
