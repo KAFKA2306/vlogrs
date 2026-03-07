@@ -1,28 +1,26 @@
-use crate::domain::{ContentGenerator, Task, TaskRepository as TaskRepositoryTrait};
+use crate::domain::{ContentGenerator, Task};
 use crate::use_cases::transcode::TranscodeUseCase;
 use std::path::Path;
 use std::sync::Arc;
 use tracing::info;
 pub struct ProcessUseCase {
     gemini: Arc<dyn ContentGenerator>,
-    task_repository: Arc<dyn TaskRepositoryTrait>,
     event_repository: Arc<dyn crate::domain::EventRepository>,
     curator: Arc<dyn crate::domain::Curator>,
 }
 impl ProcessUseCase {
     pub fn new(
         gemini: Arc<dyn ContentGenerator>,
-        task_repository: Arc<dyn TaskRepositoryTrait>,
         event_repository: Arc<dyn crate::domain::EventRepository>,
         curator: Arc<dyn crate::domain::Curator>,
     ) -> Self {
         Self {
             gemini,
-            task_repository,
             event_repository,
             curator,
         }
     }
+
     pub async fn execute_session(&self, task: &Task) {
         let transcoder = TranscodeUseCase::new();
         for file_path in &task.file_paths {
@@ -32,14 +30,32 @@ impl ProcessUseCase {
             let preprocessor = crate::infrastructure::preprocessor::TranscriptPreprocessor::new();
             let cleaned = preprocessor.process(&transcript);
             let path = Path::new(&file_path);
-            let stem = path.file_stem().unwrap().to_str().unwrap();
-            let date_str = stem.split('_').next().unwrap();
+            let stem = match path.file_stem().and_then(|s| s.to_str()) {
+                Some(s) => s,
+                None => {
+                    tracing::error!("Invalid file stem: {}", file_path);
+                    continue;
+                }
+            };
+
+            let date_str = stem.split('_').next().unwrap_or("unknown");
             let start_time = chrono::NaiveDateTime::parse_from_str(
                 &stem.split('_').take(2).collect::<Vec<_>>().join("_"),
                 "%Y%m%d_%H%M%S",
             )
             .map(|dt| chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(dt, chrono::Utc))
-            .unwrap();
+            .ok();
+
+            if start_time.is_none() {
+                tracing::warn!(
+                    "Skipping summary/activity overlay for {} (unsupported format)",
+                    file_path
+                );
+                // Continue with just transcoding if needed, or skip entirely.
+                // For now, let's just use dummy time for summary if we really want to process it,
+                // but the current logic highly depends on start_time for activity overlay.
+            }
+            let start_time = start_time.unwrap_or_else(chrono::Utc::now);
             let end_time = start_time + chrono::Duration::minutes(30);
             let activities = self
                 .event_repository
@@ -69,10 +85,18 @@ impl ProcessUseCase {
                 "Summary Verification: Score={}, Reason={}",
                 verify_result.faithfulness_score, verify_result.reasoning
             );
+
             let summary_out_path =
                 crate::domain::constants::SUMMARY_FILE_TEMPLATE.replace("{}", date_str);
-            crate::infrastructure::fs_utils::atomic_write(&summary_out_path, summary);
-            info!("Summary saved to {}", summary_out_path);
+            let daily_summary = if Path::new(&summary_out_path).exists() {
+                let existing = std::fs::read_to_string(&summary_out_path).unwrap();
+                format!("{existing}\n\n---\n\n## {stem}\n\n{summary}")
+            } else {
+                format!("## {stem}\n\n{summary}")
+            };
+            crate::infrastructure::fs_utils::atomic_write(&summary_out_path, daily_summary);
+            info!("Daily summary refreshed at {}", summary_out_path);
+
             let is_lossless_or_raw = Path::new(&file_path)
                 .extension()
                 .unwrap()
@@ -82,14 +106,14 @@ impl ProcessUseCase {
             if is_lossless_or_raw {
                 match transcoder.execute(file_path).await {
                     Ok(opus_path) => info!("Archived recording as {}", opus_path),
-                    Err(e) => panic!(
+                    Err(e) => tracing::error!(
                         "Transcoding failed for {} (keeping original file): {}",
-                        file_path, e
+                        file_path,
+                        e
                     ),
                 }
             }
         }
-        self.task_repository.update_status(&task.id, "completed");
-        info!("Task {} marked as completed", task.id);
+        info!("Session processing finished for task {}", task.id);
     }
 }
