@@ -1,10 +1,11 @@
 import argparse
 import os
+from typing import Any, cast
+
 import torch
 from diffusers import DiffusionPipeline, FlowMatchEulerDiscreteScheduler
 from PIL import Image
 
-from typing import Any, cast
 
 def main() -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser()

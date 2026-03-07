@@ -22,7 +22,7 @@ impl TaskRunner {
         curator: Arc<dyn Curator>,
         activity_sync: Arc<ActivitySyncUseCase>,
     ) -> Self {
-        let process_use_case = ProcessUseCase::new(gemini, repository.clone(), event_repo, curator);
+        let process_use_case = ProcessUseCase::new(gemini, event_repo, curator);
         Self {
             repository,
             process_use_case,

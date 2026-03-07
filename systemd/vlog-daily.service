@@ -4,8 +4,8 @@ Description=VLog Daily Processing Service
 [Service]
 Type=oneshot
 User=kafka
-WorkingDirectory=/home/kafka/vlog
-ExecStart=/home/kafka/vlog/target/release/vlog-rs evaluate --date yesterday
+WorkingDirectory=/home/kafka/projects/vlogrs
+ExecStart=/home/kafka/.cargo/bin/cargo run --release -- evaluate --date yesterday
 StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=vlog-daily

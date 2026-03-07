@@ -1,7 +1,12 @@
 use config::{Config, Environment, File};
 use serde::Deserialize;
 use std::env;
+pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3-flash-preview";
 use std::path::PathBuf;
+#[derive(Debug, Deserialize, Clone)]
+pub struct GeminiSettings {
+    pub model: String,
+}
 #[derive(Debug, Deserialize, Clone)]
 pub struct ProcessSettings {
     pub names: String,
@@ -29,6 +34,7 @@ pub struct RawSettings {
     pub paths: PathSettings,
     pub audio: AudioSettings,
     pub trigger: TriggerSettings,
+    pub gemini: Option<GeminiSettings>,
 }
 #[derive(Clone, Debug)]
 pub struct AudioRecordingSettings {
@@ -89,12 +95,20 @@ impl Settings {
         Ok(s.try_deserialize()?)
     }
     pub fn new() -> Result<Self, anyhow::Error> {
+        let _ = dotenvy::dotenv(); // Ignore error if .env is missing
         let raw: RawSettings = Self::load_raw()?;
         let google_api_key = env::var("GOOGLE_API_KEY")
-            .map_err(|_| anyhow::anyhow!("GOOGLE_API_KEY must be set"))?;
-        let gemini_model = env::var("GEMINI_MODEL").unwrap();
-        let supabase_url = env::var("SUPABASE_URL").unwrap();
-        let supabase_service_role_key = env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap();
+            .map_err(|_| anyhow::anyhow!("GOOGLE_API_KEY must be set in environment or .env"))?;
+        let gemini_model = env::var("GEMINI_MODEL").unwrap_or_else(|_| {
+            raw.gemini
+                .as_ref()
+                .map(|g| g.model.clone())
+                .unwrap_or_else(|| crate::domain::constants::DEFAULT_GEMINI_MODEL.to_string())
+        });
+        let supabase_url =
+            env::var("SUPABASE_URL").map_err(|_| anyhow::anyhow!("SUPABASE_URL must be set"))?;
+        let supabase_service_role_key = env::var("SUPABASE_SERVICE_ROLE_KEY")
+            .map_err(|_| anyhow::anyhow!("SUPABASE_SERVICE_ROLE_KEY must be set"))?;
         Ok(Self {
             google_api_key,
             gemini_model,
@@ -118,10 +132,10 @@ impl Settings {
     }
     pub fn new_allow_missing_gemini() -> Result<Self, anyhow::Error> {
         let raw: RawSettings = Self::load_raw()?;
-        let google_api_key = env::var("GOOGLE_API_KEY").unwrap();
-        let gemini_model = env::var("GEMINI_MODEL").unwrap();
-        let supabase_url = env::var("SUPABASE_URL").unwrap();
-        let supabase_service_role_key = env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap();
+        let google_api_key = env::var("GOOGLE_API_KEY").unwrap_or_default();
+        let gemini_model = env::var("GEMINI_MODEL").unwrap_or_default();
+        let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
+        let supabase_service_role_key = env::var("SUPABASE_SERVICE_ROLE_KEY").unwrap_or_default();
         Ok(Self {
             google_api_key,
             gemini_model,

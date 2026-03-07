@@ -55,8 +55,7 @@ async fn main() {
         .json()
         .init();
     std::panic::set_hook(Box::new(|info| {
-        let backtrace: std::backtrace::Backtrace = std::backtrace::Backtrace::capture();
-        tracing::error!("FATAL PANIC: {}\nBacktrace:\n{}", info, backtrace);
+        tracing::error!("FATAL PANIC: {}", info);
     }));
     let cli: Cli = Cli::parse();
     match cli.command {
