@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Iterable
 
 DATE_HEADING_RE = re.compile(
-    r"(?:20\d{2})(?:[/-]?(?:0?[1-9]|1[0-2]))(?:[/-]?(?:0?[1-9]|[12]\d|3[01]))"
+    r"(?:20\d{6})|(?:20\d{2}[/-](?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01]))"
 )
 QUOTE_RE = re.compile(r"「([^」\n]{1,160})」")
 SOCIAL_SIGNAL_RE = re.compile(
