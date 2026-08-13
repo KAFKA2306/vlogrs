@@ -15,7 +15,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
-DATE_HEADING_RE = re.compile(r"(?:20\d{2})[/-]?(?:0[1-9]|1[0-2])[/-]?(?:0[1-9]|[12]\d|3[01])")
+DATE_HEADING_RE = re.compile(
+    r"(?:20\d{2})(?:[/-]?(?:0?[1-9]|1[0-2]))(?:[/-]?(?:0?[1-9]|[12]\d|3[01]))"
+)
 QUOTE_RE = re.compile(r"「([^」\n]{1,160})」")
 SOCIAL_SIGNAL_RE = re.compile(
     r"(言われ|呼ばれ|言って|言った|教えられ|指摘され|評され|評価され|"
@@ -41,10 +43,14 @@ class Candidate:
 
 
 def normalize_date(token: str) -> str | None:
-    digits = re.sub(r"\D", "", token)
-    if len(digits) != 8:
-        return None
-    return f"{digits[:4]}-{digits[4:6]}-{digits[6:8]}"
+    parts = re.findall(r"\d+", token)
+    if len(parts) == 1 and len(parts[0]) == 8:
+        compact = parts[0]
+        return f"{compact[:4]}-{compact[4:6]}-{compact[6:8]}"
+    if len(parts) == 3 and len(parts[0]) == 4:
+        year, month, day = (int(part) for part in parts)
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    return None
 
 
 def iter_candidates(text: str, source_kind: str) -> Iterable[Candidate]:
