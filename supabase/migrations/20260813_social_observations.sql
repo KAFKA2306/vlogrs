@@ -54,6 +54,7 @@ begin
   ) then
     create policy "Public social observations are viewable by everyone"
       on social_observations for select
+      to anon, authenticated
       using (is_public = true);
   end if;
 
@@ -64,6 +65,7 @@ begin
   ) then
     create policy "Service role can do everything on social observations"
       on social_observations for all
+      to service_role
       using (true)
       with check (true);
   end if;
