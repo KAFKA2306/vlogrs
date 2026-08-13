@@ -43,6 +43,16 @@ class SocialBackfillTest(unittest.TestCase):
         items = list(MODULE.iter_candidates(text, "raw_transcript"))
         self.assertEqual(items[0].occurred_at, "2026-12-31")
 
+    def test_generic_label_is_not_about_the_user(self):
+        text = "2026-08-07\n「ノーパス」と呼ばれるパーツが値上がりした。"
+        self.assertEqual(list(MODULE.iter_candidates(text, "summary_derived")), [])
+
+    def test_duplicate_summary_rows_are_deduplicated(self):
+        sentence = "複数人から突然「魔王が来た」と言われ、驚いた。"
+        text = f"2026/5/8 DIARY\n{sentence}\n{sentence}"
+        items = list(MODULE.iter_candidates(text, "summary_derived"))
+        self.assertEqual(len(items), 1)
+
     def test_plain_conversation_is_not_a_social_observation(self):
         text = "2026-05-08\n「今日は暑いね」と話して旅行の相談をした。"
         self.assertEqual(list(MODULE.iter_candidates(text, "raw_transcript")), [])
