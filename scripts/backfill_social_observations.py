@@ -24,6 +24,7 @@ SOCIAL_SIGNAL_AFTER_RE = re.compile(
     r"思われ|見られ|扱われ)"
 )
 SENTENCE_RE = re.compile(r"[^。！？\n]+[。！？]?", re.MULTILINE)
+SIGNAL_WINDOW = 48
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ def iter_candidates(text: str, source_kind: str) -> Iterable[Candidate]:
                     if index + 1 < len(quote_matches)
                     else len(sentence)
                 )
-                after_quote = sentence[quote_match.end():next_quote_start]
+                after_quote = sentence[quote_match.end():next_quote_start][:SIGNAL_WINDOW]
                 if not SOCIAL_SIGNAL_AFTER_RE.search(after_quote):
                     continue
 
