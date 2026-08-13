@@ -20,8 +20,7 @@ DATE_HEADING_RE = re.compile(
 )
 QUOTE_RE = re.compile(r"「([^」\n]{1,160})」")
 SOCIAL_SIGNAL_AFTER_RE = re.compile(
-    r"(?:と)?(?:言われ|教えられ|指摘され|評され|評価され|褒められ|"
-    r"思われ|見られ|扱われ)"
+    r"(?:と)?(?:言われ|教えられ|指摘され|褒められ)"
 )
 SENTENCE_RE = re.compile(r"[^。！？\n]+[。！？]?", re.MULTILINE)
 SIGNAL_WINDOW = 48
