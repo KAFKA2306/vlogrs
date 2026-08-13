@@ -19,9 +19,9 @@ DATE_HEADING_RE = re.compile(
     r"(?:20\d{6})|(?:20\d{2}[/-](?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01]))"
 )
 QUOTE_RE = re.compile(r"「([^」\n]{1,160})」")
-SOCIAL_SIGNAL_RE = re.compile(
-    r"(言われ|呼ばれ|言って|言った|教えられ|指摘され|評され|評価され|"
-    r"褒められ|思われて|見られて|扱われ)"
+SOCIAL_SIGNAL_AFTER_RE = re.compile(
+    r"(?:と)?(?:言われ|教えられ|指摘され|評され|評価され|褒められ|"
+    r"思われ|見られ|扱われ)"
 )
 SENTENCE_RE = re.compile(r"[^。！？\n]+[。！？]?", re.MULTILINE)
 
@@ -55,6 +55,7 @@ def normalize_date(token: str) -> str | None:
 
 def iter_candidates(text: str, source_kind: str) -> Iterable[Candidate]:
     current_date: str | None = None
+    seen: set[tuple[str | None, str, str]] = set()
 
     for block in text.splitlines():
         date_match = DATE_HEADING_RE.search(block)
@@ -63,14 +64,26 @@ def iter_candidates(text: str, source_kind: str) -> Iterable[Candidate]:
 
         for match in SENTENCE_RE.finditer(block):
             sentence = match.group(0).strip()
-            if not sentence or not SOCIAL_SIGNAL_RE.search(sentence):
+            if not sentence:
                 continue
 
-            quotes = QUOTE_RE.findall(sentence)
-            if not quotes:
-                continue
+            quote_matches = list(QUOTE_RE.finditer(sentence))
+            for index, quote_match in enumerate(quote_matches):
+                quote = quote_match.group(1)
+                next_quote_start = (
+                    quote_matches[index + 1].start()
+                    if index + 1 < len(quote_matches)
+                    else len(sentence)
+                )
+                after_quote = sentence[quote_match.end():next_quote_start]
+                if not SOCIAL_SIGNAL_AFTER_RE.search(after_quote):
+                    continue
 
-            for quote in quotes:
+                dedupe_key = (current_date, quote, sentence)
+                if dedupe_key in seen:
+                    continue
+                seen.add(dedupe_key)
+
                 if source_kind == "raw_transcript":
                     yield Candidate(
                         occurred_at=current_date,
