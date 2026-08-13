@@ -38,6 +38,11 @@ class SocialBackfillTest(unittest.TestCase):
         self.assertFalse(item.needs_raw_verification)
         self.assertEqual(item.speaker_label, "unknown")
 
+    def test_compact_date_is_preserved(self):
+        text = "### 20261231_summary\n友人から「研究しすぎ」と言われた。"
+        items = list(MODULE.iter_candidates(text, "raw_transcript"))
+        self.assertEqual(items[0].occurred_at, "2026-12-31")
+
     def test_plain_conversation_is_not_a_social_observation(self):
         text = "2026-05-08\n「今日は暑いね」と話して旅行の相談をした。"
         self.assertEqual(list(MODULE.iter_candidates(text, "raw_transcript")), [])
