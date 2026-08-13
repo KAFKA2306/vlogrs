@@ -19,6 +19,15 @@ jobs:
         python -m unittest discover -s tests -p 'test_*.py'
         grep -q "is_public boolean not null default false" supabase/migrations/20260813_social_observations.sql
         grep -q "summary_derived" supabase/migrations/20260813_social_observations.sql
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Build KafLog Reader
+      working-directory: frontend/reader
+      run: |
+        npm install --no-audit --no-fund
+        npm run build
     - name: Install dependencies
       run: |
         sudo apt-get update
