@@ -2,6 +2,8 @@
 
 # 🎮 VLog - Autonomous Life Logger
 
+[![Rust CI](https://github.com/KAFKA2306/vlogrs/actions/workflows/ci.yml/badge.svg)](https://github.com/KAFKA2306/vlogrs/actions/workflows/ci.yml)
+
 **Transform your digital experiences into beautifully crafted diaries, novels, and artwork — all automatically.**
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-000000?style=flat-square&logo=rust&logoColor=white)](https://rust-lang.org)
