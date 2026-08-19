@@ -43,8 +43,8 @@
 
 ```bash
 # Clone and setup
-git clone https://github.com/yourusername/vlog.git
-cd vlog
+git clone https://github.com/KAFKA2306/vlogrs.git
+cd vlogrs
 cargo build
 
 # Configure environment
